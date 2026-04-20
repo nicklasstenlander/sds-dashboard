@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Users, BookOpen, TrendingUp, Banknote, Search, RefreshCw } from 'lucide-react'
+import { Users, BookOpen, TrendingUp, Banknote, Search } from 'lucide-react'
 import { KPICard } from '../components/KPICard'
 import { PeriodFilter } from '../components/PeriodFilter'
 import { BookingsChart } from '../components/BookingsChart'
@@ -122,22 +122,13 @@ export function Dashboard() {
         <CategoryChart events={events} loading={eventsQuery.isLoading} />
       </div>
 
-      {/* Refresh + table */}
-      <div className="flex justify-end">
-        <button
-          onClick={() => queryClient.invalidateQueries()}
-          disabled={isRefreshing}
-          className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-brand-dark px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
-          Uppdatera
-        </button>
-      </div>
       <EventsTable
         events={events}
         loading={eventsQuery.isLoading}
         search={search}
         onSelect={setSelectedEvent}
+        onRefresh={() => queryClient.invalidateQueries()}
+        isRefreshing={isRefreshing}
       />
 
       {/* Course detail slide-in */}

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowUpDown, ChevronRight } from 'lucide-react'
+import { ArrowUpDown, ChevronRight, RefreshCw } from 'lucide-react'
 import type { Event } from '../types/cogwork'
 
 interface EventsTableProps {
@@ -7,6 +7,8 @@ interface EventsTableProps {
   loading?: boolean
   search: string
   onSelect?: (event: Event) => void
+  onRefresh?: () => void
+  isRefreshing?: boolean
 }
 
 type SortKey = 'name' | 'accepted' | 'fill' | 'price' | 'revenue'
@@ -25,7 +27,7 @@ function fillColor(pct: number) {
   return 'bg-brand-mint text-brand-forest'
 }
 
-export function EventsTable({ events, loading, search, onSelect }: EventsTableProps) {
+export function EventsTable({ events, loading, search, onSelect, onRefresh, isRefreshing }: EventsTableProps) {
   const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: 'accepted', dir: 'desc' })
 
   const filtered = events
@@ -83,6 +85,16 @@ export function EventsTable({ events, loading, search, onSelect }: EventsTablePr
           Kursöversikt{' '}
           <span className="text-slate-400 font-light">({filtered.length} kurser)</span>
         </h2>
+        {onRefresh && (
+          <button
+            onClick={onRefresh}
+            disabled={isRefreshing}
+            className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-brand-dark px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <span className="hidden sm:inline">Uppdatera</span>
+          </button>
+        )}
       </div>
       <div className="overflow-x-auto mt-3">
         <table className="w-full">
