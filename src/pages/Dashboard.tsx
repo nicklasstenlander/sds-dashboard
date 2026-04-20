@@ -9,7 +9,7 @@ import { CourseDetailPanel } from '../components/CourseDetailPanel'
 import { useEvents } from '../hooks/useEvents'
 import { useBookings } from '../hooks/useBookings'
 import { useShop } from '../hooks/useShop'
-import { categoryFromEventName, categoriesFromEvents } from '../utils/categoryFromName'
+import { categoriesFromEvents } from '../utils/categoryFromName'
 import type { Event } from '../types/cogwork'
 
 export function Dashboard() {
@@ -18,24 +18,30 @@ export function Dashboard() {
   const [search, setSearch] = useState('')
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
 
-  // Load ALL events for the selected period (no category server-filter)
   const eventsQuery   = useEvents({ eventBlockId })
   const bookingsQuery = useBookings({ eventBlockId })
   const shopQuery     = useShop()
 
   const allEvents = eventsQuery.data ?? []
+  const shopData  = shopQuery.data
 
-  // Categories from shop eventGroups (authoritative dance-style list), fallback to name parsing
+  // Map from verbose event code → dance-style name (from shop)
+  const codeToStyle = useMemo(() => shopData?.codeToStyle ?? new Map<string, string>(), [shopData])
+
+  // Category dropdown: shop eventGroups if available, else name-parsing fallback
   const categories = useMemo(() => {
-    if (shopQuery.data?.length) return shopQuery.data
+    if (shopData?.groups.length) return shopData.groups
     return categoriesFromEvents(allEvents)
-  }, [shopQuery.data, allEvents])
+  }, [shopData, allEvents])
 
-  // Client-side category filter — dance style extracted from event name prefix
+  // Client-side filter: look up dance style via code map, fall back to name parsing
   const events = useMemo(() => {
     if (!categoryFilter) return allEvents
-    return allEvents.filter(e => categoryFromEventName(e.name) === categoryFilter)
-  }, [allEvents, categoryFilter])
+    return allEvents.filter((e) => {
+      const style = codeToStyle.get(e.code) ?? e.name.split(' - ')[0].trim()
+      return style === categoryFilter
+    })
+  }, [allEvents, categoryFilter, codeToStyle])
 
   const bookings = bookingsQuery.data ?? []
   const kpi      = computeKPIs(events)
@@ -54,7 +60,7 @@ export function Dashboard() {
           >
             <option value="">Alla kategorier</option>
             {categories.map((c) => (
-              <option key={c.id} value={c.name}>
+              <option key={c.id ?? c.name} value={c.name}>
                 {c.name}
               </option>
             ))}
@@ -115,12 +121,13 @@ export function Dashboard() {
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <BookingsChart bookings={bookings} loading={bookingsQuery.isLoading} />
-        <CategoryChart events={events} loading={eventsQuery.isLoading} />
+        <CategoryChart events={events} codeToStyle={codeToStyle} loading={eventsQuery.isLoading} />
       </div>
 
       {/* Events table */}
       <EventsTable
         events={events}
+        codeToStyle={codeToStyle}
         loading={eventsQuery.isLoading}
         search={search}
         onSelect={setSelectedEvent}
