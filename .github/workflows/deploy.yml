@@ -27,6 +27,8 @@ jobs:
 
       - id: pages
         uses: actions/configure-pages@v5
+        with:
+          enablement: true
 
       - run: npm ci
 
