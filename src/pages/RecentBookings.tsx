@@ -170,21 +170,12 @@ export function RecentBookings() {
       </div>
 
       {/* Table */}
-      <div className="flex justify-end">
-        <button
-          onClick={() => queryClient.invalidateQueries()}
-          disabled={isFetching}
-          className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-brand-dark px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin' : ''}`} />
-          <span className="hidden sm:inline">Uppdatera</span>
-        </button>
-      </div>
       <div className="card overflow-hidden">
-        <div className="px-5 py-4 border-b border-slate-50 flex items-center gap-6">
-          <h2 className="text-sm font-bold text-brand-dark">
-            {isLoading ? 'Hämtar…' : `${filtered.length.toLocaleString('sv-SE')}${bookings.length >= 1000 && filtered.length === bookings.length ? '+' : ''} anmälningar`}
-          </h2>
+        <div className="px-5 py-4 border-b border-slate-50 flex items-center justify-between gap-6">
+          <div className="flex items-center gap-6">
+            <h2 className="text-sm font-bold text-brand-dark">
+              {isLoading ? 'Hämtar…' : `${filtered.length.toLocaleString('sv-SE')}${bookings.length >= 1000 && filtered.length === bookings.length ? '+' : ''} anmälningar`}
+            </h2>
           {!isLoading && bookings.length > 0 && (
             <div className="flex gap-4 text-xs text-slate-500">
               <span>
@@ -200,6 +191,15 @@ export function RecentBookings() {
               )}
             </div>
           )}
+          </div>
+          <button
+            onClick={() => queryClient.invalidateQueries()}
+            disabled={isFetching}
+            className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-brand-dark px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin' : ''}`} />
+            <span className="hidden sm:inline">Uppdatera</span>
+          </button>
         </div>
 
         {isLoading ? (
