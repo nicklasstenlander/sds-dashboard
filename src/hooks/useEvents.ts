@@ -6,7 +6,7 @@ import type { Event } from '../types/cogwork'
 
 export interface EventFilters {
   eventBlockId?: string
-  catId?: string
+  eventGroupId?: string
   minDate?: string
   maxDate?: string
 }
@@ -18,7 +18,7 @@ export function useEvents(filters: EventFilters = {}) {
     queryFn: () =>
       fetchEvents(config, {
         ...(filters.eventBlockId ? { eventBlockId: filters.eventBlockId } : {}),
-        ...(filters.catId ? { catId: filters.catId } : {}),
+        ...(filters.eventGroupId ? { eventGroup1Id: filters.eventGroupId } : {}),
         ...(filters.minDate ? { minDate: filters.minDate } : {}),
         ...(filters.maxDate ? { maxDate: filters.maxDate } : {}),
       }),
@@ -65,14 +65,13 @@ export function useEventBlocks() {
 export function useCategories() {
   const { config } = useApiConfig()
   return useQuery({
-    queryKey: ['events', config.org, config.pw, {}],
-    queryFn: () => fetchEvents(config),
+    queryKey: ['categories', config.org, config.pw],
+    queryFn: () => fetchEvents(config, { maxRows: '500' }),
     select: (data): { id: number; name: string }[] => {
       const seen = new Map<number, string>()
       data.events.forEach((e: Event) => {
-        if (e.category?.id && !seen.has(e.category.id)) {
-          seen.set(e.category.id, e.category.name || `Kategori ${e.category.id}`)
-        }
+        const g = e.primaryEventGroup
+        if (g?.id && !seen.has(g.id)) seen.set(g.id, g.name)
       })
       return Array.from(seen.entries())
         .map(([id, name]) => ({ id, name }))

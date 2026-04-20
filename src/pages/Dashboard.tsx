@@ -5,22 +5,24 @@ import { PeriodFilter } from '../components/PeriodFilter'
 import { BookingsChart } from '../components/BookingsChart'
 import { CategoryChart } from '../components/CategoryChart'
 import { EventsTable } from '../components/EventsTable'
+import { CourseDetailPanel } from '../components/CourseDetailPanel'
 import { useEvents, useCategories } from '../hooks/useEvents'
 import { useBookings } from '../hooks/useBookings'
 import type { Event } from '../types/cogwork'
 
 export function Dashboard() {
   const [eventBlockId, setEventBlockId] = useState('')
-  const [catId, setCatId] = useState('')
+  const [eventGroupId, setEventGroupId] = useState('')
   const [search, setSearch] = useState('')
+  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
 
   const { data: categories = [] } = useCategories()
-  const eventsQuery = useEvents({ eventBlockId, catId })
-  const bookingsQuery = useBookings({ eventBlockId, catId })
+  const eventsQuery  = useEvents({ eventBlockId, eventGroupId })
+  const bookingsQuery = useBookings({ eventBlockId })
 
-  const events = eventsQuery.data ?? []
+  const events   = eventsQuery.data  ?? []
   const bookings = bookingsQuery.data ?? []
-  const kpi = computeKPIs(events)
+  const kpi      = computeKPIs(events)
 
   return (
     <div className="space-y-6">
@@ -30,9 +32,9 @@ export function Dashboard() {
 
         <div className="flex flex-wrap gap-3">
           <select
-            value={catId}
-            onChange={(e) => setCatId(e.target.value)}
-            className="text-sm border border-slate-200 rounded-full px-4 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-brand-mint min-w-[160px]"
+            value={eventGroupId}
+            onChange={(e) => setEventGroupId(e.target.value)}
+            className="text-sm border border-slate-200 rounded-full px-4 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-brand-mint min-w-[180px]"
           >
             <option value="">Alla kategorier</option>
             {categories.map((c) => (
@@ -87,16 +89,8 @@ export function Dashboard() {
         />
         <KPICard
           title="Beräknad intäkt"
-          value={
-            kpi.estimatedRevenue > 0
-              ? `${(kpi.estimatedRevenue / 1000).toFixed(0)} tkr`
-              : '—'
-          }
-          subtitle={
-            kpi.estimatedRevenue > 0
-              ? `${kpi.estimatedRevenue.toLocaleString('sv-SE')} kr`
-              : 'Behöver API-nyckel'
-          }
+          value={kpi.estimatedRevenue > 0 ? `${(kpi.estimatedRevenue / 1000).toFixed(0)} tkr` : '—'}
+          subtitle={kpi.estimatedRevenue > 0 ? `${kpi.estimatedRevenue.toLocaleString('sv-SE')} kr` : 'Behöver API-nyckel'}
           icon={<Banknote className="w-6 h-6" />}
           color="amber"
         />
@@ -109,7 +103,15 @@ export function Dashboard() {
       </div>
 
       {/* Events table */}
-      <EventsTable events={events} loading={eventsQuery.isLoading} search={search} />
+      <EventsTable
+        events={events}
+        loading={eventsQuery.isLoading}
+        search={search}
+        onSelect={setSelectedEvent}
+      />
+
+      {/* Course detail slide-in */}
+      <CourseDetailPanel event={selectedEvent} onClose={() => setSelectedEvent(null)} />
     </div>
   )
 }
@@ -119,17 +121,15 @@ function computeKPIs(events: Event[]) {
   let totalMax = 0
   let estimatedRevenue = 0
   let openCourses = 0
-
   for (const e of events) {
     const accepted = e.statistics?.accepted ?? 0
-    const max = e.requirements?.maxParticipants ?? 0
-    const price = e.pricing?.basePriceInclVat ?? 0
-    totalAccepted += accepted
+    const max      = e.requirements?.maxParticipants ?? 0
+    const price    = e.pricing?.basePriceInclVat ?? 0
+    totalAccepted   += accepted
     if (max > 0) totalMax += max
     estimatedRevenue += accepted * price
     if (e.registration?.open) openCourses++
   }
-
   const avgFill = totalMax > 0 ? Math.round((totalAccepted / totalMax) * 100) : 0
   return { totalAccepted, avgFill, estimatedRevenue, openCourses }
 }

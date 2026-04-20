@@ -22,6 +22,12 @@ export interface EventCategory {
   name: string
 }
 
+export interface EventGroup {
+  key: string
+  id: number
+  name: string
+}
+
 export interface EventBlock {
   key: string
   id: number
@@ -36,6 +42,7 @@ export interface Event {
   code: string
   category: EventCategory
   place: string
+  primaryEventGroup?: EventGroup
   pricing: {
     currency: string
     basePriceInclVat: number

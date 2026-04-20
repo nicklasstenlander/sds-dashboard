@@ -68,7 +68,7 @@ function buildCategoryData(events: Event[]) {
   const counts: Record<string, number> = {}
 
   for (const e of events) {
-    const name = e.category?.name || 'Övrigt'
+    const name = e.primaryEventGroup?.name ?? e.category?.name ?? 'Övrigt'
     const accepted = e.statistics?.accepted ?? 0
     counts[name] = (counts[name] ?? 0) + accepted
   }
