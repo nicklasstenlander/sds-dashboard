@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { ArrowUpDown, ChevronRight } from 'lucide-react'
 import type { Event } from '../types/cogwork'
+import { categoryFromEventName } from '../utils/categoryFromName'
 
 interface EventsTableProps {
   events: Event[]
@@ -118,7 +119,7 @@ export function EventsTable({ events, loading, search, onSelect }: EventsTablePr
                   <span className="line-clamp-2">{e.name}</span>
                 </td>
                 <td className="py-3 px-4 text-sm text-slate-500 whitespace-nowrap">
-                  {e.primaryEventGroup?.name ?? e.category?.name ?? '—'}
+                  {categoryFromEventName(e.name) || e.primaryEventGroup?.name || '—'}
                 </td>
                 <td className="py-3 px-4 text-sm text-slate-500 whitespace-nowrap">
                   {e.schedule?.dayAndTimeInfo || '—'}

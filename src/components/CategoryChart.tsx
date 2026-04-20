@@ -1,5 +1,6 @@
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import type { Event } from '../types/cogwork'
+import { categoryFromEventName } from '../utils/categoryFromName'
 
 const COLORS = ['#7c3aed', '#a78bfa', '#c4b5fd', '#06b6d4', '#0891b2', '#0e7490', '#10b981', '#059669']
 
@@ -68,7 +69,7 @@ function buildCategoryData(events: Event[]) {
   const counts: Record<string, number> = {}
 
   for (const e of events) {
-    const name = e.primaryEventGroup?.name ?? e.category?.name ?? 'Övrigt'
+    const name = categoryFromEventName(e.name) || e.primaryEventGroup?.name || 'Övrigt'
     const accepted = e.statistics?.accepted ?? 0
     counts[name] = (counts[name] ?? 0) + accepted
   }

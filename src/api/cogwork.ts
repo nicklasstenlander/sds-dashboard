@@ -1,4 +1,4 @@
-import type { ApiConfig, EventsResponse, BookingsResponse } from '../types/cogwork'
+import type { ApiConfig, EventsResponse, BookingsResponse, ShopResponse } from '../types/cogwork'
 
 // In dev, Vite proxies /api/public → https://dans.se to avoid CORS.
 // In production (GitHub Pages) we call the API directly.
@@ -20,6 +20,15 @@ export async function fetchEvents(
   const data = await res.json()
   if (data.errors?.length) throw new Error(data.errors[0]?.msg ?? 'API-fel')
   return data as EventsResponse
+}
+
+export async function fetchShop(config: ApiConfig): Promise<ShopResponse> {
+  const params = new URLSearchParams({ org: config.org })
+  const res = await fetch(`${BASE}/shop/?${params}`)
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  const data = await res.json()
+  if (data.errors?.length) throw new Error(data.errors[0]?.msg ?? 'API-fel')
+  return data as ShopResponse
 }
 
 export async function fetchBookings(

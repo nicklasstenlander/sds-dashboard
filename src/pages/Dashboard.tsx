@@ -8,7 +8,8 @@ import { EventsTable } from '../components/EventsTable'
 import { CourseDetailPanel } from '../components/CourseDetailPanel'
 import { useEvents } from '../hooks/useEvents'
 import { useBookings } from '../hooks/useBookings'
-import { categoriesFromEvents } from '../utils/categoryFromName'
+import { useShop } from '../hooks/useShop'
+import { categoryFromEventName, categoriesFromEvents } from '../utils/categoryFromName'
 import type { Event } from '../types/cogwork'
 
 export function Dashboard() {
@@ -20,21 +21,20 @@ export function Dashboard() {
   // Load ALL events for the selected period (no category server-filter)
   const eventsQuery   = useEvents({ eventBlockId })
   const bookingsQuery = useBookings({ eventBlockId })
+  const shopQuery     = useShop()
 
   const allEvents = eventsQuery.data ?? []
 
-  // Derive categories from the loaded events — always in sync, no extra fetch
-  const categories = useMemo(() => categoriesFromEvents(allEvents), [allEvents])
+  // Categories from shop eventGroups (authoritative dance-style list), fallback to name parsing
+  const categories = useMemo(() => {
+    if (shopQuery.data?.length) return shopQuery.data
+    return categoriesFromEvents(allEvents)
+  }, [shopQuery.data, allEvents])
 
-  // Client-side category filter
+  // Client-side category filter — dance style extracted from event name prefix
   const events = useMemo(() => {
     if (!categoryFilter) return allEvents
-    return allEvents.filter((e) => {
-      if (e.primaryEventGroup?.name === categoryFilter) return true
-      if (e.primaryEventGroup) return false
-      // fallback: match by name prefix
-      return e.name.startsWith(categoryFilter)
-    })
+    return allEvents.filter(e => categoryFromEventName(e.name) === categoryFilter)
   }, [allEvents, categoryFilter])
 
   const bookings = bookingsQuery.data ?? []
