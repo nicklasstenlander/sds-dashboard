@@ -1,6 +1,8 @@
 import type { ApiConfig, EventsResponse, BookingsResponse } from '../types/cogwork'
 
-const BASE = '/api/public'
+// In dev, Vite proxies /api/public → https://dans.se to avoid CORS.
+// In production (GitHub Pages) we call the API directly.
+const BASE = import.meta.env.DEV ? '/api/public' : 'https://dans.se/api/public'
 
 function buildParams(config: ApiConfig, extra: Record<string, string> = {}): string {
   const params = new URLSearchParams({ org: config.org, verbose: '1', maxRows: '1000' })
