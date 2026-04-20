@@ -34,7 +34,7 @@ export function CourseDetailPanel({ event, onClose }: CourseDetailPanelProps) {
         <div className="flex items-start justify-between gap-4 p-5 border-b border-slate-100">
           <div className="min-w-0">
             <p className="text-xs font-medium text-brand-forest uppercase tracking-wide mb-1">
-              {event?.primaryEventGroup?.name ?? event?.category?.name ?? 'Kurs'}
+              {event?.grouping?.primaryEventGroup?.name ?? event?.category?.name ?? 'Kurs'}
             </p>
             <h2 className="text-base font-bold text-brand-dark leading-snug">
               {event?.name ?? ''}

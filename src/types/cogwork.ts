@@ -42,7 +42,6 @@ export interface Event {
   code: string
   category: EventCategory
   place: string
-  primaryEventGroup?: EventGroup
   pricing: {
     currency: string
     basePriceInclVat: number
@@ -61,13 +60,15 @@ export interface Event {
     numberOfPlannedOccasions: number
     numberOfScheduledOccasions: number
   }
-  statistics: {
-    instructors: number
-    staff: number
-    accepted: number
+  statistics?: {
+    instructors?: number
+    staff?: number
+    accepted?: number
   }
   grouping: {
     eventBlock: EventBlock
+    primaryEventGroup?: EventGroup
+    additionalEventGroups?: { key: string; id: string | number; name: string }[]
   }
   requirements: {
     minAge: number

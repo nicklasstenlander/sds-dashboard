@@ -25,7 +25,7 @@ export function Dashboard() {
   const categories = useMemo(() => {
     const seen = new Map<number, string>()
     allEvents.forEach((e) => {
-      const g = e.primaryEventGroup
+      const g = e.grouping?.primaryEventGroup
       if (g?.id && g.name && !seen.has(g.id)) seen.set(g.id, g.name)
     })
     return Array.from(seen.entries())
@@ -35,7 +35,7 @@ export function Dashboard() {
 
   const events = useMemo(() => {
     if (!categoryFilter) return allEvents
-    return allEvents.filter((e) => e.primaryEventGroup?.name === categoryFilter)
+    return allEvents.filter((e) => e.grouping?.primaryEventGroup?.name === categoryFilter)
   }, [allEvents, categoryFilter])
 
   const bookings = bookingsQuery.data ?? []

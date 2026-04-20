@@ -118,7 +118,7 @@ export function EventsTable({ events, loading, search, onSelect }: EventsTablePr
                   <span className="line-clamp-2">{e.name}</span>
                 </td>
                 <td className="py-3 px-4 text-sm text-slate-500 whitespace-nowrap">
-                  {e.primaryEventGroup?.name ?? '—'}
+                  {e.grouping?.primaryEventGroup?.name ?? '—'}
                 </td>
                 <td className="py-3 px-4 text-sm text-slate-500 whitespace-nowrap">
                   {e.schedule?.dayAndTimeInfo || '—'}

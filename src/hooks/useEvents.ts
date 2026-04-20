@@ -70,7 +70,7 @@ export function useCategories() {
     select: (data): { id: number; name: string }[] => {
       const seen = new Map<number, string>()
       data.events.forEach((e: Event) => {
-        const g = e.primaryEventGroup
+        const g = e.grouping?.primaryEventGroup
         if (g?.id && !seen.has(g.id)) seen.set(g.id, g.name)
       })
       return Array.from(seen.entries())
