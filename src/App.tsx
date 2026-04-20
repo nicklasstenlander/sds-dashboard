@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Settings, Music } from 'lucide-react'
+import { Settings } from 'lucide-react'
 import { ApiProvider, useApiConfig } from './context/ApiContext'
 import { Dashboard } from './pages/Dashboard'
 import { RecentBookings } from './pages/RecentBookings'
@@ -18,9 +18,7 @@ function AppShell() {
       <header className="bg-white border-b border-slate-100 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 shrink-0">
-            <div className="w-9 h-9 rounded-xl bg-brand-dark flex items-center justify-center">
-              <Music className="w-4 h-4 text-brand-mint" />
-            </div>
+            <img src="logo.png" alt="SDS logotyp" className="w-9 h-9 object-contain" />
             <div>
               <h1 className="text-base font-bold text-brand-dark leading-tight">SDS Dashboard</h1>
               <p className="text-xs text-slate-400 font-light">Sollentuna Dans och Scenskola</p>
