@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useLayoutEffect } from 'react'
 import { LayoutDashboard, ClipboardList, Settings } from 'lucide-react'
 import { ApiProvider, useApiConfig } from './context/ApiContext'
 import { Dashboard } from './pages/Dashboard'
@@ -18,6 +18,14 @@ function AppShell() {
   const { config } = useApiConfig()
   const hasPw = Boolean(config.pw)
 
+  const navRef = useRef<HTMLElement>(null)
+  const [pill, setPill] = useState({ top: 0, height: 0 })
+
+  useLayoutEffect(() => {
+    const btn = navRef.current?.querySelector<HTMLButtonElement>('[data-active="true"]')
+    if (btn) setPill({ top: btn.offsetTop, height: btn.offsetHeight })
+  }, [tab])
+
   return (
     <div className="flex h-screen bg-white overflow-hidden">
       {/* ── Sidebar (desktop) ── */}
@@ -32,15 +40,21 @@ function AppShell() {
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 p-3 space-y-0.5">
+        <nav ref={navRef} className="flex-1 p-3 space-y-0.5 relative">
+          {/* Sliding pill */}
+          {pill.height > 0 && (
+            <div
+              className="absolute left-3 right-3 bg-brand-mint rounded-xl transition-all duration-200 ease-out pointer-events-none"
+              style={{ top: pill.top, height: pill.height }}
+            />
+          )}
           {NAV.map(({ id, label, Icon }) => (
             <button
               key={id}
+              data-active={String(tab === id)}
               onClick={() => setTab(id)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                tab === id
-                  ? 'bg-brand-mint text-brand-dark'
-                  : 'text-slate-500 hover:bg-slate-50 hover:text-brand-dark'
+              className={`relative z-10 w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                tab === id ? 'text-brand-dark' : 'text-slate-500 hover:text-brand-dark'
               }`}
             >
               <Icon className="w-4 h-4 shrink-0" />
