@@ -1,0 +1,61 @@
+@font-face {
+  font-family: 'Agrandir';
+  src: url('https://static1.squarespace.com/static/68093bdd8e42fd6c032c5835/t/680d0c3898f175135e941828/1745685560778/Agrandir-TextBold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Agrandir';
+  src: url('https://static1.squarespace.com/static/68093bdd8e42fd6c032c5835/t/680d0c38f474794b748500db/1745685560738/Agrandir-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Agrandir';
+  src: url('https://static1.squarespace.com/static/68093bdd8e42fd6c032c5835/t/680d0c381a4da06e7eee7440/1745685560732/Agrandir-GrandLight.woff2') format('woff2');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    background-color: #ffffff;
+    color: #001617;
+    font-family: 'Agrandir', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-white rounded-2xl shadow-sm border border-slate-100;
+  }
+
+  .tab-btn {
+    @apply px-5 py-2.5 text-sm font-medium rounded-full transition-colors whitespace-nowrap;
+  }
+
+  .tab-btn-active {
+    background-color: #CDDCD1;
+    color: #001617;
+  }
+
+  .tab-btn-inactive {
+    @apply text-slate-500;
+  }
+
+  .tab-btn-inactive:hover {
+    background-color: #e6f0ec;
+    color: #001617;
+  }
+}
