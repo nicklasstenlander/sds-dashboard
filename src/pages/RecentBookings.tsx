@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { format, parseISO } from 'date-fns'
 import { sv } from 'date-fns/locale'
-import { Search } from 'lucide-react'
+import { Search, RefreshCw } from 'lucide-react'
 import { useBookings } from '../hooks/useBookings'
 import { useApiConfig } from '../context/ApiContext'
 import { PeriodFilter } from '../components/PeriodFilter'
@@ -78,12 +79,13 @@ function Pill({
 // ---------------------------------------------------------------------------
 export function RecentBookings() {
   const { config } = useApiConfig()
+  const queryClient = useQueryClient()
   const [eventBlockId, setEventBlockId] = useState('')
   const [payFilter, setPayFilter] = useState<'' | 'paid' | 'unpaid' | 'partial'>('')
   const [search, setSearch] = useState('')
 
   // Server-side period filter; client-side for payment + search
-  const { data: bookings = [], isLoading, isError, error } = useBookings({ eventBlockId })
+  const { data: bookings = [], isLoading, isError, error, isFetching } = useBookings({ eventBlockId })
 
   const filtered = useMemo(
     () =>
@@ -123,7 +125,17 @@ export function RecentBookings() {
 
   return (
     <div className="space-y-5">
-      <h1 className="text-2xl font-bold text-brand-dark">Anmälningar</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-brand-dark">Anmälningar</h1>
+        <button
+          onClick={() => queryClient.invalidateQueries()}
+          disabled={isFetching}
+          className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-brand-dark px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin' : ''}`} />
+          <span className="hidden sm:inline">Uppdatera</span>
+        </button>
+      </div>
 
       {isError && (
         <div className="bg-red-50 border border-red-100 rounded-2xl p-4 text-sm text-red-700">
