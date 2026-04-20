@@ -4,7 +4,6 @@ import type { Event } from '../types/cogwork'
 
 interface EventsTableProps {
   events: Event[]
-  codeToStyle?: Map<string, string>
   loading?: boolean
   search: string
   onSelect?: (event: Event) => void
@@ -26,7 +25,7 @@ function fillColor(pct: number) {
   return 'bg-brand-mint text-brand-forest'
 }
 
-export function EventsTable({ events, codeToStyle, loading, search, onSelect }: EventsTableProps) {
+export function EventsTable({ events, loading, search, onSelect }: EventsTableProps) {
   const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: 'accepted', dir: 'desc' })
 
   const filtered = events
@@ -119,7 +118,7 @@ export function EventsTable({ events, codeToStyle, loading, search, onSelect }: 
                   <span className="line-clamp-2">{e.name}</span>
                 </td>
                 <td className="py-3 px-4 text-sm text-slate-500 whitespace-nowrap">
-                  {codeToStyle?.get(e.code) ?? e.primaryEventGroup?.name ?? '—'}
+                  {e.primaryEventGroup?.name ?? '—'}
                 </td>
                 <td className="py-3 px-4 text-sm text-slate-500 whitespace-nowrap">
                   {e.schedule?.dayAndTimeInfo || '—'}

@@ -128,15 +128,3 @@ export interface BookingsResponse {
   bookings: Booking[]
 }
 
-export interface ShopEventGroup {
-  id?: number
-  name: string
-  code: string
-  htmlDescription?: string | null
-  profileImageId?: number | null
-}
-
-export interface ShopResponse {
-  events: { code: string; eventGroup1Id?: number; eventGroupIds?: number[] }[]
-  eventGroups: ShopEventGroup[]
-}

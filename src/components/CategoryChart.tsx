@@ -5,12 +5,11 @@ const COLORS = ['#7c3aed', '#a78bfa', '#c4b5fd', '#06b6d4', '#0891b2', '#0e7490'
 
 interface CategoryChartProps {
   events: Event[]
-  codeToStyle?: Map<string, string>
   loading?: boolean
 }
 
-export function CategoryChart({ events, codeToStyle, loading }: CategoryChartProps) {
-  const data = buildCategoryData(events, codeToStyle)
+export function CategoryChart({ events, loading }: CategoryChartProps) {
+  const data = buildCategoryData(events)
 
   if (loading) {
     return (
@@ -65,11 +64,11 @@ export function CategoryChart({ events, codeToStyle, loading }: CategoryChartPro
   )
 }
 
-function buildCategoryData(events: Event[], codeToStyle?: Map<string, string>) {
+function buildCategoryData(events: Event[]) {
   const counts: Record<string, number> = {}
 
   for (const e of events) {
-    const name = codeToStyle?.get(e.code) ?? e.primaryEventGroup?.name ?? 'Övrigt'
+    const name = e.primaryEventGroup?.name ?? 'Övrigt'
     const accepted = e.statistics?.accepted ?? 0
     counts[name] = (counts[name] ?? 0) + accepted
   }

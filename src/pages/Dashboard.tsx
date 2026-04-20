@@ -8,8 +8,6 @@ import { EventsTable } from '../components/EventsTable'
 import { CourseDetailPanel } from '../components/CourseDetailPanel'
 import { useEvents } from '../hooks/useEvents'
 import { useBookings } from '../hooks/useBookings'
-import { useShop } from '../hooks/useShop'
-import { categoriesFromEvents } from '../utils/categoryFromName'
 import type { Event } from '../types/cogwork'
 
 export function Dashboard() {
@@ -20,28 +18,25 @@ export function Dashboard() {
 
   const eventsQuery   = useEvents({ eventBlockId })
   const bookingsQuery = useBookings({ eventBlockId })
-  const shopQuery     = useShop()
 
   const allEvents = eventsQuery.data ?? []
-  const shopData  = shopQuery.data
 
-  // Map from verbose event code → dance-style name (from shop)
-  const codeToStyle = useMemo(() => shopData?.codeToStyle ?? new Map<string, string>(), [shopData])
-
-  // Category dropdown: shop eventGroups if available, else name-parsing fallback
+  // Unique sorted categories from the already-loaded events
   const categories = useMemo(() => {
-    if (shopData?.groups.length) return shopData.groups
-    return categoriesFromEvents(allEvents)
-  }, [shopData, allEvents])
+    const seen = new Map<number, string>()
+    allEvents.forEach((e) => {
+      const g = e.primaryEventGroup
+      if (g?.id && g.name && !seen.has(g.id)) seen.set(g.id, g.name)
+    })
+    return Array.from(seen.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'sv'))
+  }, [allEvents])
 
-  // Client-side filter: look up dance style via code map, fall back to name parsing
   const events = useMemo(() => {
     if (!categoryFilter) return allEvents
-    return allEvents.filter((e) => {
-      const style = codeToStyle.get(e.code) ?? e.name.split(' - ')[0].trim()
-      return style === categoryFilter
-    })
-  }, [allEvents, categoryFilter, codeToStyle])
+    return allEvents.filter((e) => e.primaryEventGroup?.name === categoryFilter)
+  }, [allEvents, categoryFilter])
 
   const bookings = bookingsQuery.data ?? []
   const kpi      = computeKPIs(events)
@@ -60,7 +55,7 @@ export function Dashboard() {
           >
             <option value="">Alla kategorier</option>
             {categories.map((c) => (
-              <option key={c.id ?? c.name} value={c.name}>
+              <option key={c.id} value={c.name}>
                 {c.name}
               </option>
             ))}
@@ -121,13 +116,12 @@ export function Dashboard() {
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <BookingsChart bookings={bookings} loading={bookingsQuery.isLoading} />
-        <CategoryChart events={events} codeToStyle={codeToStyle} loading={eventsQuery.isLoading} />
+        <CategoryChart events={events} loading={eventsQuery.isLoading} />
       </div>
 
       {/* Events table */}
       <EventsTable
         events={events}
-        codeToStyle={codeToStyle}
         loading={eventsQuery.isLoading}
         search={search}
         onSelect={setSelectedEvent}
