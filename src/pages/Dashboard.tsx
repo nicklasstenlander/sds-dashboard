@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Users, BookOpen, TrendingUp, Banknote, Search } from 'lucide-react'
 import { KPICard } from '../components/KPICard'
 import { PeriodFilter } from '../components/PeriodFilter'
@@ -6,21 +6,37 @@ import { BookingsChart } from '../components/BookingsChart'
 import { CategoryChart } from '../components/CategoryChart'
 import { EventsTable } from '../components/EventsTable'
 import { CourseDetailPanel } from '../components/CourseDetailPanel'
-import { useEvents, useCategories } from '../hooks/useEvents'
+import { useEvents } from '../hooks/useEvents'
 import { useBookings } from '../hooks/useBookings'
+import { categoriesFromEvents } from '../utils/categoryFromName'
 import type { Event } from '../types/cogwork'
 
 export function Dashboard() {
   const [eventBlockId, setEventBlockId] = useState('')
-  const [eventGroupId, setEventGroupId] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState('')
   const [search, setSearch] = useState('')
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
 
-  const { data: categories = [] } = useCategories()
-  const eventsQuery  = useEvents({ eventBlockId, eventGroupId })
+  // Load ALL events for the selected period (no category server-filter)
+  const eventsQuery   = useEvents({ eventBlockId })
   const bookingsQuery = useBookings({ eventBlockId })
 
-  const events   = eventsQuery.data  ?? []
+  const allEvents = eventsQuery.data ?? []
+
+  // Derive categories from the loaded events — always in sync, no extra fetch
+  const categories = useMemo(() => categoriesFromEvents(allEvents), [allEvents])
+
+  // Client-side category filter
+  const events = useMemo(() => {
+    if (!categoryFilter) return allEvents
+    return allEvents.filter((e) => {
+      if (e.primaryEventGroup?.name === categoryFilter) return true
+      if (e.primaryEventGroup) return false
+      // fallback: match by name prefix
+      return e.name.startsWith(categoryFilter)
+    })
+  }, [allEvents, categoryFilter])
+
   const bookings = bookingsQuery.data ?? []
   const kpi      = computeKPIs(events)
 
@@ -32,13 +48,13 @@ export function Dashboard() {
 
         <div className="flex flex-wrap gap-3">
           <select
-            value={eventGroupId}
-            onChange={(e) => setEventGroupId(e.target.value)}
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
             className="text-sm border border-slate-200 rounded-full px-4 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-brand-mint min-w-[180px]"
           >
             <option value="">Alla kategorier</option>
             {categories.map((c) => (
-              <option key={c.id} value={String(c.id)}>
+              <option key={c.id} value={c.name}>
                 {c.name}
               </option>
             ))}
