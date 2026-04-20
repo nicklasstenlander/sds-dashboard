@@ -8,8 +8,8 @@ import { SettingsModal } from './components/SettingsModal'
 type Tab = 'dashboard' | 'bookings'
 
 const NAV = [
-  { id: 'dashboard' as Tab, label: 'Översikt',      Icon: LayoutDashboard },
-  { id: 'bookings'  as Tab, label: 'Anmälningar',   Icon: ClipboardList   },
+  { id: 'dashboard' as Tab, label: 'Översikt',    Icon: LayoutDashboard },
+  { id: 'bookings'  as Tab, label: 'Anmälningar', Icon: ClipboardList   },
 ]
 
 function AppShell() {
@@ -20,8 +20,8 @@ function AppShell() {
 
   return (
     <div className="flex h-screen bg-white overflow-hidden">
-      {/* ── Sidebar ── */}
-      <aside className="w-56 shrink-0 flex flex-col border-r border-slate-100">
+      {/* ── Sidebar (desktop) ── */}
+      <aside className="hidden md:flex w-56 shrink-0 flex-col border-r border-slate-100">
         {/* Logo */}
         <div className="p-5 flex items-center gap-3 border-b border-slate-100">
           <img src="logo.png" alt="SDS" className="w-9 h-9 object-contain" />
@@ -66,18 +66,44 @@ function AppShell() {
       </aside>
 
       {/* ── Main ── */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         {!hasPw && (
-          <div className="bg-amber-50 border-b border-amber-100 px-6 py-2.5 text-sm text-amber-700 flex items-center gap-2">
+          <div className="bg-amber-50 border-b border-amber-100 px-4 md:px-6 py-2.5 text-sm text-amber-700 flex items-center gap-2">
             <span className="font-semibold">API-nyckel saknas</span>
-            <span className="font-light">— klicka på "Ange API-nyckel" i menyn för att se data.</span>
+            <span className="font-light hidden sm:inline">— klicka på "Inställningar" för att se data.</span>
           </div>
         )}
-        <main className="flex-1 overflow-y-auto px-6 py-6">
+        {/* extra bottom padding on mobile so content isn't hidden behind bottom nav */}
+        <main className="flex-1 overflow-y-auto px-4 py-4 md:px-6 md:py-6 pb-24 md:pb-6">
           {tab === 'dashboard' && <Dashboard />}
           {tab === 'bookings'  && <RecentBookings />}
         </main>
       </div>
+
+      {/* ── Bottom nav (mobile) ── */}
+      <nav className="md:hidden fixed bottom-0 inset-x-0 bg-white border-t border-slate-100 flex safe-area-inset-bottom z-30">
+        {NAV.map(({ id, label, Icon }) => (
+          <button
+            key={id}
+            onClick={() => setTab(id)}
+            className={`flex-1 flex flex-col items-center gap-1 py-3 text-xs font-medium transition-colors ${
+              tab === id ? 'text-brand-dark' : 'text-slate-400'
+            }`}
+          >
+            <Icon className={`w-5 h-5 ${tab === id ? 'stroke-[2.5]' : ''}`} />
+            {label}
+          </button>
+        ))}
+        <button
+          onClick={() => setSettingsOpen(true)}
+          className={`flex-1 flex flex-col items-center gap-1 py-3 text-xs font-medium transition-colors ${
+            hasPw ? 'text-slate-400' : 'text-amber-500'
+          }`}
+        >
+          <Settings className="w-5 h-5" />
+          Inställningar
+        </button>
+      </nav>
 
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>

@@ -51,9 +51,9 @@ export function EventsTable({ events, loading, search, onSelect }: EventsTablePr
     setSort((s) => s.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'desc' })
   }
 
-  const Th = ({ label, sortKey }: { label: string; sortKey?: SortKey }) => (
+  const Th = ({ label, sortKey, hide }: { label: string; sortKey?: SortKey; hide?: string }) => (
     <th
-      className={`text-left text-xs font-semibold text-slate-400 py-3 px-4 whitespace-nowrap ${sortKey ? 'cursor-pointer select-none hover:text-slate-600' : ''}`}
+      className={`text-left text-xs font-semibold text-slate-400 py-3 px-4 whitespace-nowrap ${sortKey ? 'cursor-pointer select-none hover:text-slate-600' : ''} ${hide ?? ''}`}
       onClick={() => sortKey && toggleSort(sortKey)}
     >
       <span className="flex items-center gap-1">
@@ -89,14 +89,14 @@ export function EventsTable({ events, loading, search, onSelect }: EventsTablePr
           <thead className="border-y border-slate-100 bg-slate-50/60">
             <tr>
               <Th label="Kurs"        sortKey="name"     />
-              <Th label="Kategori"                       />
-              <Th label="Dag / tid"                      />
-              <Th label="Period"                         />
+              <Th label="Kategori"    hide="hidden sm:table-cell" />
+              <Th label="Dag / tid"   hide="hidden md:table-cell" />
+              <Th label="Period"      hide="hidden md:table-cell" />
               <Th label="Anmälda"     sortKey="accepted" />
-              <Th label="Max"                            />
+              <Th label="Max"         hide="hidden sm:table-cell" />
               <Th label="Beläggning"  sortKey="fill"     />
-              <Th label="Pris (kr)"   sortKey="price"    />
-              <Th label="Intäkt (kr)" sortKey="revenue"  />
+              <Th label="Pris (kr)"   sortKey="price"    hide="hidden lg:table-cell" />
+              <Th label="Intäkt (kr)" sortKey="revenue"  hide="hidden lg:table-cell" />
               <th className="w-8" />
             </tr>
           </thead>
@@ -114,22 +114,22 @@ export function EventsTable({ events, loading, search, onSelect }: EventsTablePr
                 onClick={() => onSelect?.(e)}
                 className={`hover:bg-brand-mintLight transition-colors ${onSelect ? 'cursor-pointer' : ''}`}
               >
-                <td className="py-3 px-4 text-sm font-medium text-brand-dark max-w-[220px]">
+                <td className="py-3 px-4 text-sm font-medium text-brand-dark max-w-[160px] sm:max-w-[220px]">
                   <span className="line-clamp-2">{e.name}</span>
                 </td>
-                <td className="py-3 px-4 text-sm text-slate-500 whitespace-nowrap">
+                <td className="hidden sm:table-cell py-3 px-4 text-sm text-slate-500 whitespace-nowrap">
                   {e.grouping?.primaryEventGroup?.name ?? '—'}
                 </td>
-                <td className="py-3 px-4 text-sm text-slate-500 whitespace-nowrap">
+                <td className="hidden md:table-cell py-3 px-4 text-sm text-slate-500 whitespace-nowrap">
                   {e.schedule?.dayAndTimeInfo || '—'}
                 </td>
-                <td className="py-3 px-4 text-sm text-slate-500 whitespace-nowrap">
+                <td className="hidden md:table-cell py-3 px-4 text-sm text-slate-500 whitespace-nowrap">
                   {e.grouping?.eventBlock?.name || '—'}
                 </td>
                 <td className="py-3 px-4 text-sm font-semibold text-brand-dark tabular-nums">
                   {e.statistics?.accepted ?? '—'}
                 </td>
-                <td className="py-3 px-4 text-sm text-slate-500 tabular-nums">
+                <td className="hidden sm:table-cell py-3 px-4 text-sm text-slate-500 tabular-nums">
                   {e.requirements?.maxParticipants ?? '—'}
                 </td>
                 <td className="py-3 px-4">
@@ -141,10 +141,10 @@ export function EventsTable({ events, loading, search, onSelect }: EventsTablePr
                     <span className="text-sm text-slate-400">—</span>
                   )}
                 </td>
-                <td className="py-3 px-4 text-sm text-slate-600 tabular-nums whitespace-nowrap">
+                <td className="hidden lg:table-cell py-3 px-4 text-sm text-slate-600 tabular-nums whitespace-nowrap">
                   {e.pricing?.basePriceInclVat ? e.pricing.basePriceInclVat.toLocaleString('sv-SE') : '—'}
                 </td>
-                <td className="py-3 px-4 text-sm font-medium text-slate-700 tabular-nums whitespace-nowrap">
+                <td className="hidden lg:table-cell py-3 px-4 text-sm font-medium text-slate-700 tabular-nums whitespace-nowrap">
                   {e._revenue > 0 ? e._revenue.toLocaleString('sv-SE') : '—'}
                 </td>
                 <td className="py-3 px-2">
