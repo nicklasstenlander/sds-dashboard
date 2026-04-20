@@ -46,6 +46,8 @@ export function Dashboard() {
 
   return (
     <div className="space-y-6">
+      <h1 className="text-2xl font-bold text-brand-dark">Översikt</h1>
+
       {/* Filters */}
       <div className="space-y-4">
         <PeriodFilter value={eventBlockId} onChange={setEventBlockId} />

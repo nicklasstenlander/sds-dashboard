@@ -21,7 +21,7 @@ function AppShell() {
   return (
     <div className="flex h-screen bg-white overflow-hidden">
       {/* ── Sidebar (desktop) ── */}
-      <aside className="hidden md:flex w-56 shrink-0 flex-col border-r border-slate-100">
+      <aside className="hidden md:flex w-56 shrink-0 flex-col bg-slate-50 border-r border-slate-200">
         {/* Logo */}
         <div className="p-5 flex items-center gap-3 border-b border-slate-100">
           <img src="logo.png" alt="SDS" className="w-9 h-9 object-contain" />
