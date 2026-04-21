@@ -15,7 +15,7 @@ const colorMap = {
   emerald: { bg: 'bg-brand-mint',      icon: 'text-brand-forest',   border: 'border-brand-sage'   },
   amber:   { bg: 'bg-[#fffbe6]',        icon: 'text-[#b8860b]',      border: 'border-[#ffe65f]'    },
   sky:     { bg: 'bg-slate-50',        icon: 'text-brand-forest',   border: 'border-brand-mint'   },
-  red:     { bg: 'bg-red-50',          icon: 'text-red-600',        border: 'border-red-100'      },
+  red:     { bg: 'bg-[#fff0f0]',        icon: 'text-[#ff5f5f]',      border: 'border-[#ff5f5f]'    },
 }
 
 export function KPICard({ title, value, subtitle, icon, trend, color = 'violet', onClick }: KPICardProps) {
