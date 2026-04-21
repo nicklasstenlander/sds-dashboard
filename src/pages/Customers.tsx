@@ -129,7 +129,7 @@ function Avatar({ user, size = 'md', active = false }: { user: UserType; size?: 
     <div className={`${cls} rounded-full flex items-center justify-center font-semibold shrink-0 transition-colors ${
       listItem
         ? active
-          ? 'bg-white text-[#45aba5]'
+          ? 'bg-[#45aba5] text-white'
           : 'bg-[#45aba5] text-white group-hover:bg-white group-hover:text-[#45aba5]'
         : 'bg-brand-mintLight text-brand-forest'
     }`}>
