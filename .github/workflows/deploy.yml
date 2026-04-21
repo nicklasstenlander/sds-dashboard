@@ -40,6 +40,7 @@ jobs:
           SHOPIFY_ACCESS_TOKEN: ${{ secrets.SHOPIFY_ACCESS_TOKEN }}
           SHOPIFY_CLIENT_ID: ${{ secrets.SHOPIFY_CLIENT_ID }}
           SHOPIFY_SECRET: ${{ secrets.SHOPIFY_SECRET }}
+          SHOPIFY_SHOP: ${{ secrets.SHOPIFY_SHOP }}
         run: node scripts/fetch-shopify.js
 
       - run: npm run build

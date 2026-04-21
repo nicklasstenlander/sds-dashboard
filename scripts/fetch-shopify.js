@@ -1,7 +1,7 @@
 import { writeFileSync, mkdirSync } from 'fs'
 
-const SHOP = 'sollentuna-dans-scenskola.myshopify.com'
-const ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN   // shpat_... från Custom App
+const SHOP         = process.env.SHOPIFY_SHOP ?? 'sollentuna-dans-scenskola.myshopify.com'
+const ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN
 const CLIENT_ID    = process.env.SHOPIFY_CLIENT_ID
 const CLIENT_SECRET = process.env.SHOPIFY_SECRET
 
@@ -12,13 +12,13 @@ function writeEmpty(reason) {
 }
 
 async function shopifyFetch(endpoint) {
-  // Custom App: använd access token (shpat_...) via X-Shopify-Access-Token
-  // Fallback: Basic Auth för äldre Private Apps
   const headers = ACCESS_TOKEN
     ? { 'X-Shopify-Access-Token': ACCESS_TOKEN, 'Content-Type': 'application/json' }
     : { 'Authorization': `Basic ${Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString('base64')}`, 'Content-Type': 'application/json' }
 
-  const res = await fetch(`https://${SHOP}/admin/api/2024-10/${endpoint}`, { headers })
+  const url = `https://${SHOP}/admin/api/2024-10/${endpoint}`
+  console.log(`→ GET ${url.replace(/\?.*/, '')} (auth: ${ACCESS_TOKEN ? 'access-token' : 'basic'})`)
+  const res = await fetch(url, { headers })
   if (!res.ok) throw new Error(`Shopify ${res.status}: ${await res.text()}`)
   return res.json()
 }
