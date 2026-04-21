@@ -131,7 +131,7 @@ function Avatar({ user, size = 'md', active = false }: { user: UserType; size?: 
         ? active
           ? 'bg-[#45aba5] text-white'
           : 'bg-[#45aba5] text-white group-hover:bg-white group-hover:text-[#45aba5]'
-        : 'bg-brand-mintLight text-brand-forest'
+        : 'bg-[#45aba5] text-white'
     }`}>
       {initials.toUpperCase()}
     </div>
