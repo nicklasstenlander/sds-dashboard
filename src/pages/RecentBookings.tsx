@@ -6,6 +6,7 @@ import { Search, RefreshCw } from 'lucide-react'
 import { useBookings } from '../hooks/useBookings'
 import { useApiConfig } from '../context/ApiContext'
 import { PeriodFilter } from '../components/PeriodFilter'
+import { ParticipantPanel } from '../components/ParticipantPanel'
 import type { Booking, BookingPayment } from '../types/cogwork'
 
 // ---------------------------------------------------------------------------
@@ -83,6 +84,7 @@ export function RecentBookings() {
   const [eventBlockId, setEventBlockId] = useState('')
   const [payFilter, setPayFilter] = useState<'' | 'paid' | 'unpaid' | 'partial'>('')
   const [search, setSearch] = useState('')
+  const [selectedName, setSelectedName] = useState<string | null>(null)
 
   // Server-side period filter; client-side for payment + search
   const { data: bookings = [], isLoading, isError, error, isFetching } = useBookings({ eventBlockId })
@@ -236,8 +238,15 @@ export function RecentBookings() {
                     <td className="py-3 px-5 text-sm text-slate-400 whitespace-nowrap">
                       {formatDate(b.created)}
                     </td>
-                    <td className="py-3 px-5 text-sm font-medium text-brand-dark whitespace-nowrap">
-                      {b.participant?.name ?? '—'}
+                    <td className="py-3 px-5 text-sm font-medium whitespace-nowrap">
+                      {b.participant?.name ? (
+                        <button
+                          onClick={() => setSelectedName(b.participant!.name!)}
+                          className="text-brand-dark hover:text-brand-forest hover:underline text-left"
+                        >
+                          {b.participant.name}
+                        </button>
+                      ) : '—'}
                     </td>
                     <td className="py-3 px-5 text-sm text-slate-700 max-w-[280px]">
                       <span className="line-clamp-1">{b.event?.name ?? '—'}</span>
@@ -258,6 +267,8 @@ export function RecentBookings() {
           </div>
         )}
       </div>
+
+      <ParticipantPanel name={selectedName} onClose={() => setSelectedName(null)} />
     </div>
   )
 }

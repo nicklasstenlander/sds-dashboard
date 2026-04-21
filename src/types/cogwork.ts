@@ -119,6 +119,32 @@ export interface Booking {
   finStatus?: string
 }
 
+export interface User {
+  id: number
+  key: string
+  name: string
+  firstName?: string
+  lastName?: string
+  dateOfBirth?: string
+  thumb?: { url: string; width: number }
+  addresses?: {
+    careOf?: string | null
+    streetAddress?: string
+    postalCode?: string
+    city?: string
+    country?: string
+  }[]
+  emails?: { email: string }[]
+  telephoneNumbers?: { telephoneNumber: string; type?: string }[]
+  isMember?: boolean
+  membershipNumber?: string
+}
+
+export interface UsersResponse {
+  search: SearchMeta
+  users: User[]
+}
+
 export interface EventsResponse {
   search: SearchMeta
   events: Event[]
