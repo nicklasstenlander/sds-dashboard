@@ -173,7 +173,8 @@ function UserCard({ user }: { user: UserType }) {
         <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {user.dateOfBirth && (
             <DetailRow icon={<Calendar className="w-4 h-4" />} label="Födelsedag">
-              {formatDate(user.dateOfBirth)}
+              {formatDate(user.dateOfBirth)}{' '}
+              <span className="text-slate-400">({calcAge(user.dateOfBirth)} år)</span>
             </DetailRow>
           )}
           {user.membershipNumber && (
@@ -260,4 +261,15 @@ function DetailRow({ icon, label, children }: { icon: React.ReactNode; label: st
 function formatDate(iso: string) {
   const [y, m, d] = iso.split('-')
   return `${d}/${m} ${y}`
+}
+
+function calcAge(iso: string) {
+  const today = new Date()
+  const birth = new Date(iso)
+  let age = today.getFullYear() - birth.getFullYear()
+  const hasHadBirthday =
+    today.getMonth() > birth.getMonth() ||
+    (today.getMonth() === birth.getMonth() && today.getDate() >= birth.getDate())
+  if (!hasHadBirthday) age--
+  return age
 }
