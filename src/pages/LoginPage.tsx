@@ -67,7 +67,7 @@ export function LoginPage() {
             CORE
           </h1>
           <p className="mt-4 text-white/70 text-lg md:text-xl font-light leading-snug max-w-xs">
-            Kärnan i din<br />verksamhet.
+            Kärnan i<br />varje steg.
           </p>
         </div>
 

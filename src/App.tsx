@@ -20,16 +20,16 @@ function AppShell() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const { config, setConfig } = useApiConfig()
   const hasPw = Boolean(config.pw)
-
-  if (!hasPw) return <LoginPage />
-
   const navRef = useRef<HTMLElement>(null)
   const [pill, setPill] = useState({ top: 0, height: 0 })
 
   useLayoutEffect(() => {
+    if (!hasPw) return
     const btn = navRef.current?.querySelector<HTMLButtonElement>('[data-active="true"]')
     if (btn) setPill({ top: btn.offsetTop, height: btn.offsetHeight })
-  }, [tab])
+  }, [tab, hasPw])
+
+  if (!hasPw) return <LoginPage />
 
   return (
     <div className="flex h-screen bg-white overflow-hidden">
