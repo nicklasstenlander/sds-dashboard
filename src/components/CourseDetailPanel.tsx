@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import { X, Users, Clock, MapPin, User } from 'lucide-react'
 import { useEventBookings } from '../hooks/useEventBookings'
+import { ParticipantPanel } from './ParticipantPanel'
 import type { Event, Booking } from '../types/cogwork'
 
 interface CourseDetailPanelProps {
@@ -17,6 +19,7 @@ function payLabel(b: Booking): { text: string; cls: string } {
 
 export function CourseDetailPanel({ event, onClose }: CourseDetailPanelProps) {
   const { data: bookings = [], isLoading } = useEventBookings(event?.id ?? null)
+  const [selectedParticipant, setSelectedParticipant] = useState<string | null>(null)
 
   return (
     <>
@@ -110,9 +113,16 @@ export function CourseDetailPanel({ event, onClose }: CourseDetailPanelProps) {
                 return (
                   <li key={b.key} className="flex items-center justify-between px-5 py-3 hover:bg-slate-50/60">
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-brand-dark truncate">
-                        {b.participant?.name ?? '—'}
-                      </p>
+                      {b.participant?.name ? (
+                        <button
+                          onClick={() => setSelectedParticipant(b.participant!.name!)}
+                          className="text-sm font-medium text-brand-dark hover:text-brand-forest hover:underline truncate text-left"
+                        >
+                          {b.participant.name}
+                        </button>
+                      ) : (
+                        <p className="text-sm font-medium text-brand-dark truncate">—</p>
+                      )}
                       {b.status?.name && (
                         <p className="text-xs text-slate-400">{b.status.name}</p>
                       )}
@@ -132,6 +142,12 @@ export function CourseDetailPanel({ event, onClose }: CourseDetailPanelProps) {
           )}
         </div>
       </div>
+
+      <ParticipantPanel
+        name={selectedParticipant}
+        onClose={() => setSelectedParticipant(null)}
+        elevated
+      />
     </>
   )
 }

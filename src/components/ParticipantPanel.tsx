@@ -4,23 +4,27 @@ import { useUser } from '../hooks/useUser'
 interface ParticipantPanelProps {
   name: string | null
   onClose: () => void
+  /** Render at higher z-index when stacked on top of another panel */
+  elevated?: boolean
 }
 
-export function ParticipantPanel({ name, onClose }: ParticipantPanelProps) {
+export function ParticipantPanel({ name, onClose, elevated }: ParticipantPanelProps) {
   const { data: user, isLoading, isError } = useUser(name)
   const open = Boolean(name)
+  const backdropZ = elevated ? 'z-[60]' : 'z-40'
+  const panelZ    = elevated ? 'z-[70]' : 'z-50'
 
   return (
     <>
       {/* Backdrop */}
       <div
-        className={`fixed inset-0 bg-black/20 z-40 transition-opacity duration-200 ${open ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+        className={`fixed inset-0 bg-black/20 ${backdropZ} transition-opacity duration-200 ${open ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
         onClick={onClose}
       />
 
-      {/* Panel — slides in from the left */}
+      {/* Panel */}
       <div
-        className={`fixed top-0 right-0 h-full w-full max-w-sm bg-white shadow-xl z-50 flex flex-col transition-transform duration-300 ${open ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`fixed top-0 right-0 h-full w-full max-w-sm bg-white shadow-xl ${panelZ} flex flex-col transition-transform duration-300 ${open ? 'translate-x-0' : 'translate-x-full'}`}
       >
         {/* Header */}
         <div className="flex items-start justify-between gap-4 p-5 border-b border-slate-100">
