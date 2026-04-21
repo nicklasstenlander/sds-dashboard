@@ -7,6 +7,7 @@ import { BookingsChart } from '../components/BookingsChart'
 import { CategoryChart } from '../components/CategoryChart'
 import { EventsTable } from '../components/EventsTable'
 import { CourseDetailPanel } from '../components/CourseDetailPanel'
+import { BookingListPanel } from '../components/BookingListPanel'
 import { useEvents } from '../hooks/useEvents'
 import { useBookings } from '../hooks/useBookings'
 import type { Event } from '../types/cogwork'
@@ -16,6 +17,7 @@ export function Dashboard() {
   const [categoryFilter, setCategoryFilter] = useState('')
   const [search, setSearch] = useState('')
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
+  const [activeFilter, setActiveFilter] = useState<'total' | 'antagna' | 'ejBetalda' | 'vantarAterkoppling' | null>(null)
 
   const queryClient   = useQueryClient()
   const eventsQuery   = useEvents({ eventBlockId })
@@ -44,6 +46,20 @@ export function Dashboard() {
   const bookings    = bookingsQuery.data ?? []
   const kpi         = computeKPIs(events)
   const bookingKpi  = computeBookingKPIs(bookings)
+
+  const panelTitles = { total: 'Alla anmälda', antagna: 'Antagna', ejBetalda: 'Ej betalda', vantarAterkoppling: 'Väntar återkoppling' }
+
+  const filteredForPanel = useMemo(() => {
+    if (!activeFilter) return []
+    if (activeFilter === 'total') return bookings
+    if (activeFilter === 'antagna') return bookings.filter(b => b.status?.name?.toLowerCase().includes('antagen'))
+    if (activeFilter === 'ejBetalda') return bookings.filter(b => b.payment?.paid === false)
+    if (activeFilter === 'vantarAterkoppling') return bookings.filter(b => {
+      const s = b.status?.name?.toLowerCase() ?? ''
+      return s.includes('väntar') || s.includes('återkoppling')
+    })
+    return []
+  }, [activeFilter, bookings])
 
   return (
     <div className="space-y-6">
@@ -95,6 +111,7 @@ export function Dashboard() {
           subtitle={`${events.length} kurser`}
           icon={<Users className="w-6 h-6" />}
           color="violet"
+          onClick={() => setActiveFilter('total')}
         />
         <KPICard
           title="Antagna"
@@ -102,6 +119,7 @@ export function Dashboard() {
           subtitle={bookingKpi.total > 0 ? `${Math.round((bookingKpi.antagna / bookingKpi.total) * 100)}% av anmälda` : undefined}
           icon={<UserCheck className="w-6 h-6" />}
           color="emerald"
+          onClick={() => setActiveFilter('antagna')}
         />
         <KPICard
           title="Ej betalda"
@@ -109,6 +127,7 @@ export function Dashboard() {
           subtitle={bookingKpi.ejBetalda > 0 ? 'Kräver åtgärd' : 'Alla betalda'}
           icon={<CreditCard className="w-6 h-6" />}
           color={bookingKpi.ejBetalda > 0 ? 'red' : 'emerald'}
+          onClick={() => setActiveFilter('ejBetalda')}
         />
         <KPICard
           title="Väntar återkoppling"
@@ -116,6 +135,7 @@ export function Dashboard() {
           subtitle="avvaktar svar"
           icon={<Clock className="w-6 h-6" />}
           color="amber"
+          onClick={() => setActiveFilter('vantarAterkoppling')}
         />
       </div>
 
@@ -161,6 +181,13 @@ export function Dashboard() {
 
       {/* Course detail slide-in */}
       <CourseDetailPanel event={selectedEvent} onClose={() => setSelectedEvent(null)} />
+
+      {/* Booking list slide-in for KPI cards */}
+      <BookingListPanel
+        title={activeFilter ? panelTitles[activeFilter] : ''}
+        bookings={filteredForPanel}
+        onClose={() => setActiveFilter(null)}
+      />
     </div>
   )
 }

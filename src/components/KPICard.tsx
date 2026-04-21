@@ -7,6 +7,7 @@ interface KPICardProps {
   icon: ReactNode
   trend?: { value: number; label: string }
   color?: 'violet' | 'emerald' | 'amber' | 'sky' | 'red'
+  onClick?: () => void
 }
 
 const colorMap = {
@@ -17,11 +18,14 @@ const colorMap = {
   red:     { bg: 'bg-red-50',          icon: 'text-red-600',      border: 'border-red-100'    },
 }
 
-export function KPICard({ title, value, subtitle, icon, trend, color = 'violet' }: KPICardProps) {
+export function KPICard({ title, value, subtitle, icon, trend, color = 'violet', onClick }: KPICardProps) {
   const c = colorMap[color]
 
   return (
-    <div className={`card p-5 border ${c.border}`}>
+    <div
+      className={`card p-5 border ${c.border} ${onClick ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}`}
+      onClick={onClick}
+    >
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-slate-500 truncate">{title}</p>
