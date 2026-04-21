@@ -1,10 +1,10 @@
 import { useState, useMemo } from 'react'
-import { ShoppingBag, TrendingUp, Receipt, RefreshCw, Clock } from 'lucide-react'
+import { ShoppingBag, TrendingUp, Receipt, RefreshCw, Clock, Zap } from 'lucide-react'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts'
 import {
-  format, parseISO, startOfDay, startOfWeek, startOfMonth, getISOWeek,
+  format, formatDistanceToNow, parseISO, startOfDay, startOfWeek, startOfMonth, getISOWeek,
 } from 'date-fns'
 import { sv } from 'date-fns/locale'
 import { useShopify } from '../hooks/useShopify'
@@ -23,6 +23,7 @@ export function Shop() {
   const kpi = useMemo(() => computeKPI(orders), [orders])
   const chartData = useMemo(() => buildChartData(orders, gran), [orders, gran])
   const productStats = useMemo(() => computeProductStats(orders, products), [orders, products])
+  const recentSales = useMemo(() => buildRecentSales(orders), [orders])
 
   if (isLoading) return <ShopSkeleton />
 
@@ -98,6 +99,39 @@ export function Shop() {
           icon={<Receipt className="w-6 h-6" />}
           color="amber"
         />
+      </div>
+
+      {/* Live sales feed */}
+      <div className="card overflow-hidden">
+        <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-2">
+          <Zap className="w-4 h-4 text-brand-pinkDark" />
+          <h2 className="text-sm font-semibold text-slate-700">Senaste försäljningar</h2>
+          <span className="text-xs text-slate-400">{recentSales.length} varor</span>
+        </div>
+        <ul className="divide-y divide-slate-50">
+          {recentSales.length === 0 ? (
+            <li className="px-5 py-8 text-center text-sm text-slate-400">Inga försäljningar hittades</li>
+          ) : (
+            recentSales.map((s, i) => (
+              <li key={i} className="flex items-center justify-between gap-4 px-5 py-3 hover:bg-brand-mint/30 transition-colors">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-brand-dark truncate">{s.title}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {formatDistanceToNow(parseISO(s.createdAt), { addSuffix: true, locale: sv })}
+                  </p>
+                </div>
+                <div className="shrink-0 text-right">
+                  {s.quantity > 1 && (
+                    <p className="text-xs text-slate-400">{s.quantity} st</p>
+                  )}
+                  <p className="text-sm font-semibold text-brand-dark tabular-nums">
+                    {(parseFloat(s.price) * s.quantity).toLocaleString('sv-SE')} kr
+                  </p>
+                </div>
+              </li>
+            ))
+          )}
+        </ul>
       </div>
 
       {/* Chart */}
@@ -210,6 +244,17 @@ function buildChartData(orders: ShopifyOrder[], gran: Granularity) {
       else                      label = format(parseISO(key), 'd/M', { locale: sv })
       return { label, revenue: Math.round(revenue) }
     })
+}
+
+function buildRecentSales(orders: ShopifyOrder[]) {
+  const items: { title: string; quantity: number; price: string; createdAt: string }[] = []
+  for (const o of orders) {
+    if (o.financial_status !== 'paid') continue
+    for (const li of o.line_items) {
+      items.push({ title: li.title, quantity: li.quantity, price: li.price, createdAt: o.created_at })
+    }
+  }
+  return items.sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 50)
 }
 
 function computeProductStats(
