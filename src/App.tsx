@@ -1,15 +1,17 @@
 import { useState, useRef, useLayoutEffect } from 'react'
-import { LayoutDashboard, ClipboardList, Settings } from 'lucide-react'
+import { LayoutDashboard, ClipboardList, Users, Settings } from 'lucide-react'
 import { ApiProvider, useApiConfig } from './context/ApiContext'
 import { Dashboard } from './pages/Dashboard'
 import { RecentBookings } from './pages/RecentBookings'
+import { Customers } from './pages/Customers'
 import { SettingsModal } from './components/SettingsModal'
 
-type Tab = 'dashboard' | 'bookings'
+type Tab = 'dashboard' | 'bookings' | 'customers'
 
 const NAV = [
   { id: 'dashboard' as Tab, label: 'Översikt',    Icon: LayoutDashboard },
   { id: 'bookings'  as Tab, label: 'Anmälningar', Icon: ClipboardList   },
+  { id: 'customers' as Tab, label: 'Kunder',       Icon: Users           },
 ]
 
 function AppShell() {
@@ -91,6 +93,7 @@ function AppShell() {
         <main className="flex-1 overflow-y-auto px-4 py-4 md:px-6 md:py-6 pb-24 md:pb-6">
           {tab === 'dashboard' && <Dashboard />}
           {tab === 'bookings'  && <RecentBookings />}
+          {tab === 'customers' && <Customers />}
         </main>
       </div>
 

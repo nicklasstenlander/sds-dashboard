@@ -34,6 +34,17 @@ export async function fetchUser(config: ApiConfig, name: string): Promise<UsersR
   return data as UsersResponse
 }
 
+export async function fetchUsers(config: ApiConfig, query: string): Promise<UsersResponse> {
+  const params = new URLSearchParams({ org: config.org, verbose: '1', maxRows: '50' })
+  if (config.pw) params.set('pw', config.pw)
+  params.set('textSearch', query)
+  const res = await fetch(`${BASE}/users/?${params}`)
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  const data = await res.json()
+  if (data.errors?.length) throw new Error(data.errors[0]?.msg ?? 'API-fel')
+  return data as UsersResponse
+}
+
 export async function fetchBookings(
   config: ApiConfig,
   extra: Record<string, string> = {},
