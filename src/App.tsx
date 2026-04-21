@@ -1,5 +1,5 @@
 import { useState, useRef, useLayoutEffect } from 'react'
-import { LayoutDashboard, ClipboardList, Users, Settings } from 'lucide-react'
+import { LayoutDashboard, ClipboardList, Users, Settings, LogOut } from 'lucide-react'
 import { ApiProvider, useApiConfig } from './context/ApiContext'
 import { Dashboard } from './pages/Dashboard'
 import { RecentBookings } from './pages/RecentBookings'
@@ -18,7 +18,7 @@ const NAV = [
 function AppShell() {
   const [tab, setTab] = useState<Tab>('dashboard')
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const { config } = useApiConfig()
+  const { config, setConfig } = useApiConfig()
   const hasPw = Boolean(config.pw)
 
   if (!hasPw) return <LoginPage />
@@ -68,8 +68,8 @@ function AppShell() {
           ))}
         </nav>
 
-        {/* Settings */}
-        <div className="p-3 border-t border-slate-100">
+        {/* Settings + Logout */}
+        <div className="p-3 border-t border-slate-100 space-y-0.5">
           <button
             onClick={() => setSettingsOpen(true)}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
@@ -81,6 +81,15 @@ function AppShell() {
             <Settings className="w-4 h-4 shrink-0" />
             {hasPw ? 'Inställningar' : 'Ange API-nyckel'}
           </button>
+          {hasPw && (
+            <button
+              onClick={() => setConfig({ org: 'sollentunadans', pw: '' })}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+            >
+              <LogOut className="w-4 h-4 shrink-0" />
+              Logga ut
+            </button>
+          )}
         </div>
       </aside>
 
