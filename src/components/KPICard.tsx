@@ -13,7 +13,7 @@ interface KPICardProps {
 const colorMap = {
   violet:  { bg: 'bg-brand-mintLight', icon: 'text-brand-pinkDark', border: 'border-brand-pink'   },
   emerald: { bg: 'bg-brand-mint',      icon: 'text-brand-forest',   border: 'border-brand-sage'   },
-  amber:   { bg: 'bg-brand-mintLight', icon: 'text-brand-pinkMid',  border: 'border-brand-pink'   },
+  amber:   { bg: 'bg-[#fffbe6]',        icon: 'text-[#b8860b]',      border: 'border-[#ffe65f]'    },
   sky:     { bg: 'bg-slate-50',        icon: 'text-brand-forest',   border: 'border-brand-mint'   },
   red:     { bg: 'bg-red-50',          icon: 'text-red-600',        border: 'border-red-100'      },
 }
