@@ -20,7 +20,7 @@ export function ParticipantPanel({ name, onClose }: ParticipantPanelProps) {
 
       {/* Panel — slides in from the left */}
       <div
-        className={`fixed top-0 left-0 h-full w-full max-w-sm bg-white shadow-xl z-50 flex flex-col transition-transform duration-300 ${open ? 'translate-x-0' : '-translate-x-full'}`}
+        className={`fixed top-0 right-0 h-full w-full max-w-sm bg-white shadow-xl z-50 flex flex-col transition-transform duration-300 ${open ? 'translate-x-0' : 'translate-x-full'}`}
       >
         {/* Header */}
         <div className="flex items-start justify-between gap-4 p-5 border-b border-slate-100">
