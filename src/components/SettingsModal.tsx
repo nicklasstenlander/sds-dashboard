@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { X, Eye, EyeOff, Settings } from 'lucide-react'
+import { X, Eye, EyeOff, Settings, LogOut } from 'lucide-react'
 import { useApiConfig } from '../context/ApiContext'
 import type { ApiConfig } from '../types/cogwork'
 
@@ -88,6 +88,16 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
             className="flex-1 px-4 py-2 text-sm bg-brand-dark text-white rounded-full hover:bg-brand-forest transition-colors font-medium"
           >
             Spara
+          </button>
+        </div>
+
+        <div className="mt-4 pt-4 border-t border-slate-100">
+          <button
+            onClick={() => { setConfig({ org: 'sollentunadans', pw: '' }); onClose() }}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+          >
+            <LogOut className="w-4 h-4" />
+            Logga ut
           </button>
         </div>
       </div>

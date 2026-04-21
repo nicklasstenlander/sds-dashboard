@@ -4,6 +4,7 @@ import { ApiProvider, useApiConfig } from './context/ApiContext'
 import { Dashboard } from './pages/Dashboard'
 import { RecentBookings } from './pages/RecentBookings'
 import { Customers } from './pages/Customers'
+import { LoginPage } from './pages/LoginPage'
 import { SettingsModal } from './components/SettingsModal'
 
 type Tab = 'dashboard' | 'bookings' | 'customers'
@@ -19,6 +20,8 @@ function AppShell() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const { config } = useApiConfig()
   const hasPw = Boolean(config.pw)
+
+  if (!hasPw) return <LoginPage />
 
   const navRef = useRef<HTMLElement>(null)
   const [pill, setPill] = useState({ top: 0, height: 0 })
