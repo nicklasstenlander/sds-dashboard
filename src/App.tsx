@@ -98,27 +98,29 @@ function AppShell() {
       </div>
 
       {/* ── Bottom nav (mobile) ── */}
-      <nav className="md:hidden fixed bottom-0 inset-x-0 bg-white border-t border-slate-100 flex safe-area-inset-bottom z-30">
+      <nav className="md:hidden fixed bottom-0 inset-x-0 bg-white border-t border-slate-100 flex z-30 pb-safe">
         {NAV.map(({ id, label, Icon }) => (
           <button
             key={id}
             onClick={() => setTab(id)}
-            className={`flex-1 flex flex-col items-center gap-1 py-3 text-xs font-medium transition-colors ${
+            aria-label={label}
+            className={`flex-1 flex flex-col items-center gap-1 py-3 transition-colors ${
               tab === id ? 'text-brand-dark' : 'text-slate-400'
             }`}
           >
-            <Icon className={`w-5 h-5 ${tab === id ? 'stroke-[2.5]' : ''}`} />
-            {label}
+            <Icon className={`w-6 h-6 ${tab === id ? 'stroke-[2.5]' : ''}`} />
+            <span className="text-[10px] font-medium leading-none">{label}</span>
           </button>
         ))}
         <button
           onClick={() => setSettingsOpen(true)}
-          className={`flex-1 flex flex-col items-center gap-1 py-3 text-xs font-medium transition-colors ${
+          aria-label="Inställningar"
+          className={`flex-1 flex flex-col items-center gap-1 py-3 transition-colors ${
             hasPw ? 'text-slate-400' : 'text-amber-500'
           }`}
         >
-          <Settings className="w-5 h-5" />
-          Inställningar
+          <Settings className="w-6 h-6" />
+          <span className="text-[10px] font-medium leading-none">Inställn.</span>
         </button>
       </nav>
 
