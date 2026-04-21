@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import { ShoppingBag, TrendingUp, Receipt, RefreshCw, Clock, Zap, ChevronLeft, ChevronRight } from 'lucide-react'
+
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts'
@@ -36,7 +37,7 @@ function autoGran(p: Period) {
 export function Shop() {
   const [period, setPeriod] = useState<Period>('month')
   const [page, setPage] = useState(0)
-  const { data, isLoading, isError, refetch, isFetching } = useShopify()
+  const { data, isLoading, isError, isFetching } = useShopify()
 
   const allOrders = data?.orders ?? []
   const products  = data?.products ?? []
@@ -84,22 +85,13 @@ export function Shop() {
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-brand-dark">Shop</h1>
-        <div className="flex items-center gap-3">
-          {data.updatedAt && (
-            <span className="hidden sm:flex items-center gap-1.5 text-xs text-slate-400">
-              <Clock className="w-3.5 h-3.5" />
-              {format(parseISO(data.updatedAt), 'd MMM HH:mm', { locale: sv })}
-            </span>
-          )}
-          <button
-            onClick={() => refetch()}
-            disabled={isFetching}
-            className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-brand-dark px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
-          >
-            <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} />
-            <span className="hidden sm:inline">Uppdatera</span>
-          </button>
-        </div>
+        {data.updatedAt && (
+          <span className="flex items-center gap-1.5 text-xs text-slate-400">
+            <Clock className="w-3.5 h-3.5" />
+            Uppdaterad {format(parseISO(data.updatedAt), 'd MMM HH:mm', { locale: sv })}
+            {isFetching && <RefreshCw className="w-3 h-3 animate-spin ml-1" />}
+          </span>
+        )}
       </div>
 
       {/* Global period filter */}
