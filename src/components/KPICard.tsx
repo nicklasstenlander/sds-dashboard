@@ -11,11 +11,11 @@ interface KPICardProps {
 }
 
 const colorMap = {
-  violet:  { bg: 'bg-brand-mintLight', icon: 'text-brand-forest', border: 'border-brand-mint' },
-  emerald: { bg: 'bg-brand-mintLight', icon: 'text-brand-forest', border: 'border-brand-mint' },
-  amber:   { bg: 'bg-amber-50',        icon: 'text-amber-700',    border: 'border-amber-100'  },
-  sky:     { bg: 'bg-slate-50',        icon: 'text-brand-dark',   border: 'border-slate-100'  },
-  red:     { bg: 'bg-red-50',          icon: 'text-red-600',      border: 'border-red-100'    },
+  violet:  { bg: 'bg-brand-mintLight', icon: 'text-brand-pinkDark', border: 'border-brand-pink'   },
+  emerald: { bg: 'bg-brand-mint',      icon: 'text-brand-forest',   border: 'border-brand-sage'   },
+  amber:   { bg: 'bg-brand-mintLight', icon: 'text-brand-pinkMid',  border: 'border-brand-pink'   },
+  sky:     { bg: 'bg-slate-50',        icon: 'text-brand-forest',   border: 'border-brand-mint'   },
+  red:     { bg: 'bg-red-50',          icon: 'text-red-600',        border: 'border-red-100'      },
 }
 
 export function KPICard({ title, value, subtitle, icon, trend, color = 'violet', onClick }: KPICardProps) {

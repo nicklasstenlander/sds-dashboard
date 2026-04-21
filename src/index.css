@@ -29,7 +29,7 @@
 @layer base {
   body {
     background-color: #ffffff;
-    color: #001617;
+    color: #1a2e2e;
     font-family: 'Agrandir', sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -46,8 +46,8 @@
   }
 
   .tab-btn-active {
-    background-color: #CDDCD1;
-    color: #001617;
+    background-color: #cfded2;
+    color: #1a2e2e;
   }
 
   .tab-btn-inactive {
@@ -55,7 +55,7 @@
   }
 
   .tab-btn-inactive:hover {
-    background-color: #e6f0ec;
-    color: #001617;
+    background-color: #f4d1ce;
+    color: #1a2e2e;
   }
 }
