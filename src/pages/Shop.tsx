@@ -153,6 +153,26 @@ export function Shop() {
         />
       </div>
 
+      {/* Chart */}
+      <div className="card p-5">
+        <h2 className="text-sm font-semibold text-slate-700 mb-4">{chartTitle[autoGran(period)]}</h2>
+        <ResponsiveContainer width="100%" height={200}>
+          <BarChart data={chartData} margin={{ top: 0, right: 8, left: -16, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+            <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+            <Tooltip
+              contentStyle={{ border: 'none', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', fontSize: '12px' }}
+              formatter={(v: number) => [`${v.toLocaleString('sv-SE')} kr`, 'Omsättning']}
+            />
+            <Bar dataKey="revenue" fill="#dd5c86" radius={[4, 4, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* Lists side by side */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
       {/* Live sales feed */}
       <div className="card overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
@@ -205,23 +225,6 @@ export function Shop() {
         </ul>
       </div>
 
-      {/* Chart */}
-      <div className="card p-5">
-        <h2 className="text-sm font-semibold text-slate-700 mb-4">{chartTitle[autoGran(period)]}</h2>
-        <ResponsiveContainer width="100%" height={200}>
-          <BarChart data={chartData} margin={{ top: 0, right: 8, left: -16, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-            <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-            <Tooltip
-              contentStyle={{ border: 'none', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', fontSize: '12px' }}
-              formatter={(v: number) => [`${v.toLocaleString('sv-SE')} kr`, 'Omsättning']}
-            />
-            <Bar dataKey="revenue" fill="#dd5c86" radius={[4, 4, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-
       {/* Products table */}
       <div className="card overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-100">
@@ -253,6 +256,8 @@ export function Shop() {
           </table>
         </div>
       </div>
+
+      </div> {/* end grid */}
     </div>
   )
 }
