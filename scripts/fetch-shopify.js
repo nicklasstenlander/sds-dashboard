@@ -1,7 +1,8 @@
 import { writeFileSync, mkdirSync } from 'fs'
 
 const SHOP = 'sollentuna-dans-scenskola.myshopify.com'
-const CLIENT_ID = process.env.SHOPIFY_CLIENT_ID
+const ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN   // shpat_... från Custom App
+const CLIENT_ID    = process.env.SHOPIFY_CLIENT_ID
 const CLIENT_SECRET = process.env.SHOPIFY_SECRET
 
 function writeEmpty(reason) {
@@ -11,17 +12,20 @@ function writeEmpty(reason) {
 }
 
 async function shopifyFetch(endpoint) {
-  const token = Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString('base64')
-  const res = await fetch(`https://${SHOP}/admin/api/2026-04/${endpoint}`, {
-    headers: { 'Authorization': `Basic ${token}`, 'Content-Type': 'application/json' },
-  })
+  // Custom App: använd access token (shpat_...) via X-Shopify-Access-Token
+  // Fallback: Basic Auth för äldre Private Apps
+  const headers = ACCESS_TOKEN
+    ? { 'X-Shopify-Access-Token': ACCESS_TOKEN, 'Content-Type': 'application/json' }
+    : { 'Authorization': `Basic ${Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString('base64')}`, 'Content-Type': 'application/json' }
+
+  const res = await fetch(`https://${SHOP}/admin/api/2024-10/${endpoint}`, { headers })
   if (!res.ok) throw new Error(`Shopify ${res.status}: ${await res.text()}`)
   return res.json()
 }
 
 async function main() {
-  if (!CLIENT_ID || !CLIENT_SECRET) {
-    writeEmpty('SHOPIFY_CLIENT_ID eller SHOPIFY_SECRET saknas')
+  if (!ACCESS_TOKEN && (!CLIENT_ID || !CLIENT_SECRET)) {
+    writeEmpty('SHOPIFY_ACCESS_TOKEN (eller CLIENT_ID + SECRET) saknas')
     return
   }
 
