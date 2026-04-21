@@ -3,6 +3,9 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [main]
+  schedule:
+    # Kör varje kvart för att hålla Shopify-data färsk
+    - cron: '*/15 * * * *'
   workflow_dispatch:
 
 permissions:
@@ -31,6 +34,12 @@ jobs:
           enablement: true
 
       - run: npm ci
+
+      - name: Fetch Shopify data
+        env:
+          SHOPIFY_CLIENT_ID: ${{ secrets.SHOPIFY_CLIENT_ID }}
+          SHOPIFY_SECRET: ${{ secrets.SHOPIFY_SECRET }}
+        run: node scripts/fetch-shopify.js
 
       - run: npm run build
         env:

@@ -1,18 +1,20 @@
 import { useState, useRef, useLayoutEffect } from 'react'
-import { LayoutDashboard, ClipboardList, Users, Settings, LogOut } from 'lucide-react'
+import { LayoutDashboard, ClipboardList, Users, Settings, LogOut, ShoppingBag } from 'lucide-react'
 import { ApiProvider, useApiConfig } from './context/ApiContext'
 import { Dashboard } from './pages/Dashboard'
 import { RecentBookings } from './pages/RecentBookings'
 import { Customers } from './pages/Customers'
+import { Shop } from './pages/Shop'
 import { LoginPage } from './pages/LoginPage'
 import { SettingsModal } from './components/SettingsModal'
 
-type Tab = 'dashboard' | 'bookings' | 'customers'
+type Tab = 'dashboard' | 'bookings' | 'customers' | 'shop'
 
 const NAV = [
   { id: 'dashboard' as Tab, label: 'Översikt',    Icon: LayoutDashboard },
   { id: 'bookings'  as Tab, label: 'Anmälningar', Icon: ClipboardList   },
   { id: 'customers' as Tab, label: 'Kunder',       Icon: Users           },
+  { id: 'shop'      as Tab, label: 'Shop',          Icon: ShoppingBag    },
 ]
 
 function AppShell() {
@@ -106,6 +108,7 @@ function AppShell() {
           {tab === 'dashboard' && <Dashboard />}
           {tab === 'bookings'  && <RecentBookings />}
           {tab === 'customers' && <Customers />}
+          {tab === 'shop'      && <Shop />}
         </main>
       </div>
 
