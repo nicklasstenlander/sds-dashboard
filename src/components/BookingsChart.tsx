@@ -55,7 +55,7 @@ export function BookingsChart({ bookings, loading }: BookingsChartProps) {
               }}
               formatter={(v: number) => [v, 'Anmälningar']}
             />
-            <Bar dataKey="count" fill="#7c3aed" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="count" fill="#dd5c86" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       )}

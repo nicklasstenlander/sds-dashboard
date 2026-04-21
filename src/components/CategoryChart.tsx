@@ -1,7 +1,7 @@
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import type { Event } from '../types/cogwork'
 
-const COLORS = ['#7c3aed', '#a78bfa', '#c4b5fd', '#06b6d4', '#0891b2', '#0e7490', '#10b981', '#059669']
+const COLORS = ['#dd5c86', '#ee7a9f', '#f192ac', '#f4d1ce', '#009399', '#45aba5', '#a0c4b9', '#cfded2']
 
 interface CategoryChartProps {
   events: Event[]
