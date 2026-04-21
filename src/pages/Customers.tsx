@@ -78,7 +78,7 @@ export function Customers() {
                     <li key={u.key}>
                       <button
                         onClick={() => setSelected(u)}
-                        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-brand-mintLight transition-colors ${selected?.key === u.key ? 'bg-brand-mintLight' : ''}`}
+                        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-brand-mint transition-colors ${selected?.key === u.key ? 'bg-brand-mint' : ''}`}
                       >
                         <Avatar user={u} size="sm" />
                         <div className="min-w-0">

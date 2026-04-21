@@ -124,7 +124,7 @@ export function EventsTable({ events, loading, search, onSelect, onRefresh, isRe
               <tr
                 key={e.key}
                 onClick={() => onSelect?.(e)}
-                className={`hover:bg-brand-mintLight transition-colors ${onSelect ? 'cursor-pointer' : ''}`}
+                className={`hover:bg-brand-mint transition-colors ${onSelect ? 'cursor-pointer' : ''}`}
               >
                 <td className="py-3 px-4 text-sm font-medium text-brand-dark max-w-[160px] sm:max-w-[220px]">
                   <span className="line-clamp-2">{e.name}</span>
