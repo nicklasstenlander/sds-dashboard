@@ -39,26 +39,31 @@ async function fetchAllOrders() {
   return all
 }
 
-async function main() {
-  if (!CLIENT_ID || !CLIENT_SECRET) {
-    console.error('Missing SHOPIFY_CLIENT_ID or SHOPIFY_SECRET')
-    process.exit(1)
-  }
-
-  const [orders, products] = await Promise.all([
-    fetchAllOrders(),
-    fetchShopify('products.json?limit=250').then((d) => d.products ?? []),
-  ])
-
-  const output = {
-    updatedAt: new Date().toISOString(),
-    orders,
-    products,
-  }
-
+function writeEmpty(reason) {
   fs.mkdirSync('public/data', { recursive: true })
-  fs.writeFileSync('public/data/shopify.json', JSON.stringify(output, null, 2))
-  console.log(`✓ Hämtade ${orders.length} ordrar och ${products.length} produkter`)
+  fs.writeFileSync('public/data/shopify.json', JSON.stringify({ updatedAt: null, orders: [], products: [] }, null, 2))
+  console.warn(`⚠ Shopify-data hoppades över: ${reason}`)
 }
 
-main().catch((e) => { console.error(e); process.exit(1) })
+async function main() {
+  if (!CLIENT_ID || !CLIENT_SECRET) {
+    writeEmpty('SHOPIFY_CLIENT_ID eller SHOPIFY_SECRET saknas')
+    return
+  }
+
+  try {
+    const [orders, products] = await Promise.all([
+      fetchAllOrders(),
+      fetchShopify('products.json?limit=250').then((d) => d.products ?? []),
+    ])
+
+    const output = { updatedAt: new Date().toISOString(), orders, products }
+    fs.mkdirSync('public/data', { recursive: true })
+    fs.writeFileSync('public/data/shopify.json', JSON.stringify(output, null, 2))
+    console.log(`✓ Hämtade ${orders.length} ordrar och ${products.length} produkter`)
+  } catch (e) {
+    writeEmpty(e.message)
+  }
+}
+
+main()
