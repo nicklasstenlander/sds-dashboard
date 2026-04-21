@@ -78,9 +78,9 @@ export function Customers() {
                     <li key={u.key}>
                       <button
                         onClick={() => setSelected(u)}
-                        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-brand-mint transition-colors ${selected?.key === u.key ? 'bg-brand-mint' : ''}`}
+                        className={`group w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${selected?.key === u.key ? 'bg-brand-mint' : 'bg-white hover:bg-brand-mint'}`}
                       >
-                        <Avatar user={u} size="sm" />
+                        <Avatar user={u} size="sm" active={selected?.key === u.key} />
                         <div className="min-w-0">
                           <p className="text-sm font-medium text-brand-dark truncate">{u.name}</p>
                           {u.emails?.[0] && (
@@ -118,14 +118,21 @@ export function Customers() {
   )
 }
 
-function Avatar({ user, size = 'md' }: { user: UserType; size?: 'sm' | 'md' | 'lg' }) {
+function Avatar({ user, size = 'md', active = false }: { user: UserType; size?: 'sm' | 'md' | 'lg'; active?: boolean }) {
   const cls = size === 'lg' ? 'w-16 h-16 text-xl' : size === 'sm' ? 'w-8 h-8 text-xs' : 'w-10 h-10 text-sm'
   if (user.thumb?.url) {
     return <img src={user.thumb.url} alt={user.name} className={`${cls} rounded-full object-cover border border-slate-100 shrink-0`} />
   }
   const initials = (user.firstName?.[0] ?? '') + (user.lastName?.[0] ?? '') || user.name[0]
+  const listItem = size === 'sm'
   return (
-    <div className={`${cls} rounded-full bg-brand-mintLight flex items-center justify-center font-semibold text-brand-forest shrink-0`}>
+    <div className={`${cls} rounded-full flex items-center justify-center font-semibold shrink-0 transition-colors ${
+      listItem
+        ? active
+          ? 'bg-white text-[#45aba5]'
+          : 'bg-[#45aba5] text-white group-hover:bg-white group-hover:text-[#45aba5]'
+        : 'bg-brand-mintLight text-brand-forest'
+    }`}>
       {initials.toUpperCase()}
     </div>
   )
