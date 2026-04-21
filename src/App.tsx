@@ -33,11 +33,11 @@ function AppShell() {
       {/* ── Sidebar (desktop) ── */}
       <aside className="hidden md:flex w-56 shrink-0 flex-col bg-slate-50 border-r border-slate-200">
         {/* Logo */}
-        <div className="p-5 flex items-center gap-3 border-b border-slate-100">
-          <img src="logo.png" alt="SDS" className="w-9 h-9 object-contain" />
+        <div className="px-5 py-4 border-b border-slate-200 flex items-center gap-3">
+          <img src="logo.png" alt="SDS" className="w-8 h-8 object-contain shrink-0" />
           <div>
-            <p className="text-sm font-bold text-brand-dark leading-tight">SDS</p>
-            <p className="text-xs text-slate-400 font-light leading-tight">Dashboard</p>
+            <p className="text-xl font-bold tracking-widest text-brand-forest leading-none">CORE</p>
+            <p className="text-[10px] text-slate-400 font-medium tracking-wider uppercase leading-tight mt-0.5">by SDS</p>
           </div>
         </div>
 
