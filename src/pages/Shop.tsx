@@ -147,7 +147,7 @@ export function Shop() {
         <KPICard
           title="Sålda varor"
           value={kpi.totalItems.toLocaleString('sv-SE')}
-          subtitle="antal artiklar"
+          subtitle={`APK: ${kpi.totalOrders > 0 ? (kpi.totalItems / kpi.totalOrders).toFixed(1) : '—'} art/kvitto`}
           icon={<Receipt className="w-6 h-6" />}
           color="amber"
         />
