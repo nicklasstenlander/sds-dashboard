@@ -234,7 +234,7 @@ function UserCard({ user }: { user: UserType }) {
               <li key={i} className="flex items-start justify-between gap-3 bg-slate-50/60 rounded-lg px-3 py-2.5">
                 <p className="text-sm font-medium text-brand-dark leading-snug">{c.name}</p>
                 <div className="shrink-0 text-right space-y-0.5">
-                  {c.period && <p className="text-xs text-slate-400">{c.period}</p>}
+                  {c.period && <p className="text-xs text-slate-400">{formatTerm(c.period)}</p>}
                   {c.status && <p className="text-xs text-slate-500">{c.status}</p>}
                 </div>
               </li>
@@ -256,6 +256,14 @@ function DetailRow({ icon, label, children }: { icon: React.ReactNode; label: st
       </div>
     </div>
   )
+}
+
+function formatTerm(period: string) {
+  const lower = period.toLowerCase()
+  const prefix = lower.includes('höst') ? 'HT' : lower.includes('vår') ? 'VT' : null
+  const year = period.match(/\d{4}/)?.[0]
+  if (prefix && year) return `${prefix}${year.slice(2)}`
+  return period
 }
 
 function formatDate(iso: string) {
