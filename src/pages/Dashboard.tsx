@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Users, BookOpen, TrendingUp, Banknote, Search } from 'lucide-react'
+import { Users, UserCheck, CreditCard, Clock, BookOpen, TrendingUp, Banknote, Search } from 'lucide-react'
 import { KPICard } from '../components/KPICard'
 import { PeriodFilter } from '../components/PeriodFilter'
 import { BookingsChart } from '../components/BookingsChart'
@@ -41,8 +41,9 @@ export function Dashboard() {
     return allEvents.filter((e) => e.grouping?.primaryEventGroup?.name === categoryFilter)
   }, [allEvents, categoryFilter])
 
-  const bookings = bookingsQuery.data ?? []
-  const kpi      = computeKPIs(events)
+  const bookings    = bookingsQuery.data ?? []
+  const kpi         = computeKPIs(events)
+  const bookingKpi  = computeBookingKPIs(bookings)
 
   return (
     <div className="space-y-6">
@@ -86,15 +87,40 @@ export function Dashboard() {
         </div>
       )}
 
-      {/* KPI cards */}
+      {/* KPI — anmälningsstatus (från bokningar) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard
           title="Totalt anmälda"
-          value={kpi.totalAccepted.toLocaleString('sv-SE')}
-          subtitle={`${events.length} kurser totalt`}
+          value={bookingKpi.total > 0 ? bookingKpi.total.toLocaleString('sv-SE') : kpi.totalAccepted.toLocaleString('sv-SE')}
+          subtitle={`${events.length} kurser`}
           icon={<Users className="w-6 h-6" />}
           color="violet"
         />
+        <KPICard
+          title="Antagna"
+          value={bookingKpi.antagna.toLocaleString('sv-SE')}
+          subtitle={bookingKpi.total > 0 ? `${Math.round((bookingKpi.antagna / bookingKpi.total) * 100)}% av anmälda` : undefined}
+          icon={<UserCheck className="w-6 h-6" />}
+          color="emerald"
+        />
+        <KPICard
+          title="Ej betalda"
+          value={bookingKpi.ejBetalda.toLocaleString('sv-SE')}
+          subtitle={bookingKpi.ejBetalda > 0 ? 'Kräver åtgärd' : 'Alla betalda'}
+          icon={<CreditCard className="w-6 h-6" />}
+          color={bookingKpi.ejBetalda > 0 ? 'red' : 'emerald'}
+        />
+        <KPICard
+          title="Väntar återkoppling"
+          value={bookingKpi.vantarAterkoppling.toLocaleString('sv-SE')}
+          subtitle="avvaktar svar"
+          icon={<Clock className="w-6 h-6" />}
+          color="amber"
+        />
+      </div>
+
+      {/* KPI — kursstatus */}
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
         <KPICard
           title="Aktiva kurser"
           value={events.length}
@@ -155,4 +181,17 @@ function computeKPIs(events: Event[]) {
   }
   const avgFill = totalMax > 0 ? Math.round((totalAccepted / totalMax) * 100) : 0
   return { totalAccepted, avgFill, estimatedRevenue, openCourses }
+}
+
+function computeBookingKPIs(bookings: import('../types/cogwork').Booking[]) {
+  let antagna = 0
+  let ejBetalda = 0
+  let vantarAterkoppling = 0
+  for (const b of bookings) {
+    const status = b.status?.name?.toLowerCase() ?? ''
+    if (status.includes('antagen')) antagna++
+    if (b.payment?.paid === false) ejBetalda++
+    if (status.includes('väntar') || status.includes('återkoppling')) vantarAterkoppling++
+  }
+  return { total: bookings.length, antagna, ejBetalda, vantarAterkoppling }
 }
