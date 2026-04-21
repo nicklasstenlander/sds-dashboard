@@ -29,8 +29,8 @@ export interface ShopifyData {
 }
 
 async function fetchShopifyData(): Promise<ShopifyData> {
-  const base = import.meta.env.BASE_URL ?? '/'
-  const res = await fetch(`${base}data/shopify.json`.replace('//', '/'))
+  const base = (import.meta.env.BASE_URL ?? '/').replace(/\/?$/, '/')
+  const res = await fetch(`${base}data/shopify.json`)
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   return res.json()
 }
