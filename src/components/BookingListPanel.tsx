@@ -40,7 +40,7 @@ export function BookingListPanel({ title, bookings, onClose }: BookingListPanelP
         </div>
 
         {/* List */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto pb-6">
           {bookings.length === 0 ? (
             <div className="flex items-center justify-center h-32">
               <p className="text-sm text-slate-400">Inga poster</p>

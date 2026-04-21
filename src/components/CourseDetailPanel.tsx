@@ -83,7 +83,7 @@ export function CourseDetailPanel({ event, onClose }: CourseDetailPanelProps) {
         )}
 
         {/* Participants */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto pb-6">
           <div className="px-5 py-3 flex items-center justify-between sticky top-0 bg-white border-b border-slate-50">
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
               Anmälda deltagare
