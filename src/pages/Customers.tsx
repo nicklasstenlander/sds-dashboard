@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
-import { Search, Mail, Phone, MapPin, Calendar, Hash, User } from 'lucide-react'
+import { Search, Mail, Phone, MapPin, Calendar, Hash, User, BookOpen } from 'lucide-react'
 import { useUsers } from '../hooks/useUsers'
+import { useUserBookings } from '../hooks/useUserBookings'
 import { useApiConfig } from '../context/ApiContext'
 import type { User as UserType } from '../types/cogwork'
 
@@ -131,10 +132,24 @@ function Avatar({ user, size = 'md' }: { user: UserType; size?: 'sm' | 'md' | 'l
 }
 
 function UserCard({ user }: { user: UserType }) {
+  const { data: bookings = [], isLoading: bookingsLoading } = useUserBookings(user.id)
+
+  // Deduplicate by event name (a person can have multiple bookings for the same course)
+  const courses = bookings.reduce<{ name: string; period: string; status: string }[]>((acc, b) => {
+    const name = b.event?.name
+    if (!name || acc.some((c) => c.name === name)) return acc
+    acc.push({
+      name,
+      period: b.event?.grouping?.eventBlock?.name ?? '',
+      status: b.status?.name ?? '',
+    })
+    return acc
+  }, [])
+
   return (
-    <div className="card p-6 space-y-6">
+    <div className="card divide-y divide-slate-100">
       {/* Header */}
-      <div className="flex items-center gap-4">
+      <div className="p-6 flex items-center gap-4">
         <Avatar user={user} size="lg" />
         <div>
           <h2 className="text-lg font-bold text-brand-dark">{user.name}</h2>
@@ -146,46 +161,79 @@ function UserCard({ user }: { user: UserType }) {
         </div>
       </div>
 
-      {/* Details grid */}
-      <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {user.dateOfBirth && (
-          <DetailRow icon={<Calendar className="w-4 h-4" />} label="Födelsedag">
-            {formatDate(user.dateOfBirth)}
-          </DetailRow>
+      {/* Contact details */}
+      <div className="p-6">
+        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {user.dateOfBirth && (
+            <DetailRow icon={<Calendar className="w-4 h-4" />} label="Födelsedag">
+              {formatDate(user.dateOfBirth)}
+            </DetailRow>
+          )}
+          {user.membershipNumber && (
+            <DetailRow icon={<Hash className="w-4 h-4" />} label="Medlemsnr">
+              {user.membershipNumber}
+            </DetailRow>
+          )}
+          {user.emails?.map((e, i) => (
+            <DetailRow key={i} icon={<Mail className="w-4 h-4" />} label="E-post">
+              <a href={`mailto:${e.email}`} className="text-brand-forest hover:underline break-all">
+                {e.email}
+              </a>
+            </DetailRow>
+          ))}
+          {user.telephoneNumbers?.map((t, i) => (
+            <DetailRow key={i} icon={<Phone className="w-4 h-4" />} label={t.type ?? 'Telefon'}>
+              <a href={`tel:${t.telephoneNumber}`} className="text-brand-forest hover:underline">
+                {t.telephoneNumber}
+              </a>
+            </DetailRow>
+          ))}
+          {user.addresses?.map((a, i) => (
+            <DetailRow key={i} icon={<MapPin className="w-4 h-4" />} label="Adress">
+              <span className="whitespace-pre-line">
+                {[a.careOf, a.streetAddress, `${a.postalCode ?? ''} ${a.city ?? ''}`.trim(), a.country !== 'SE' ? a.country : '']
+                  .filter(Boolean)
+                  .join('\n')}
+              </span>
+            </DetailRow>
+          ))}
+        </dl>
+      </div>
+
+      {/* Courses */}
+      <div className="p-6">
+        <div className="flex items-center gap-2 mb-3">
+          <BookOpen className="w-4 h-4 text-slate-400" />
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+            Anmälda kurser
+          </p>
+          {!bookingsLoading && (
+            <span className="text-xs text-slate-400">{courses.length} st</span>
+          )}
+        </div>
+
+        {bookingsLoading ? (
+          <div className="space-y-2">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="h-10 bg-slate-50 rounded-lg animate-pulse" />
+            ))}
+          </div>
+        ) : courses.length === 0 ? (
+          <p className="text-sm text-slate-400">Inga kursanmälningar hittades.</p>
+        ) : (
+          <ul className="space-y-2">
+            {courses.map((c, i) => (
+              <li key={i} className="flex items-start justify-between gap-3 bg-slate-50/60 rounded-lg px-3 py-2.5">
+                <p className="text-sm font-medium text-brand-dark leading-snug">{c.name}</p>
+                <div className="shrink-0 text-right space-y-0.5">
+                  {c.period && <p className="text-xs text-slate-400">{c.period}</p>}
+                  {c.status && <p className="text-xs text-slate-500">{c.status}</p>}
+                </div>
+              </li>
+            ))}
+          </ul>
         )}
-
-        {user.membershipNumber && (
-          <DetailRow icon={<Hash className="w-4 h-4" />} label="Medlemsnr">
-            {user.membershipNumber}
-          </DetailRow>
-        )}
-
-        {user.emails?.map((e, i) => (
-          <DetailRow key={i} icon={<Mail className="w-4 h-4" />} label="E-post">
-            <a href={`mailto:${e.email}`} className="text-brand-forest hover:underline break-all">
-              {e.email}
-            </a>
-          </DetailRow>
-        ))}
-
-        {user.telephoneNumbers?.map((t, i) => (
-          <DetailRow key={i} icon={<Phone className="w-4 h-4" />} label={t.type ?? 'Telefon'}>
-            <a href={`tel:${t.telephoneNumber}`} className="text-brand-forest hover:underline">
-              {t.telephoneNumber}
-            </a>
-          </DetailRow>
-        ))}
-
-        {user.addresses?.map((a, i) => (
-          <DetailRow key={i} icon={<MapPin className="w-4 h-4" />} label="Adress">
-            <span className="whitespace-pre-line">
-              {[a.careOf, a.streetAddress, `${a.postalCode ?? ''} ${a.city ?? ''}`.trim(), a.country !== 'SE' ? a.country : '']
-                .filter(Boolean)
-                .join('\n')}
-            </span>
-          </DetailRow>
-        ))}
-      </dl>
+      </div>
     </div>
   )
 }
