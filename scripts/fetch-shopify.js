@@ -1,6 +1,6 @@
 import { writeFileSync, mkdirSync } from 'fs'
 
-const SHOP         = process.env.SHOPIFY_SHOP ?? 'sollentuna-dans-scenskola.myshopify.com'
+const SHOP         = process.env.SHOPIFY_SHOP || 'sollentuna-dans-scenskola.myshopify.com'
 const ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN
 const CLIENT_ID    = process.env.SHOPIFY_CLIENT_ID
 const CLIENT_SECRET = process.env.SHOPIFY_SECRET
