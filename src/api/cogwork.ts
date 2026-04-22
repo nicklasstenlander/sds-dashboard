@@ -18,7 +18,10 @@ export async function fetchEvents(
   const res = await fetch(`${BASE}/events/?${buildParams(config, extra)}`)
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   const data = await res.json()
-  if (data.errors?.length) throw new Error(data.errors[0]?.msg ?? 'API-fel')
+  if (data.errors?.length) {
+    const e = data.errors[0]
+    throw new Error(typeof e === 'string' ? e : (e?.msg ?? 'API-fel'))
+  }
   return data as EventsResponse
 }
 
@@ -30,7 +33,10 @@ export async function fetchUser(config: ApiConfig, name: string): Promise<UsersR
   const res = await fetch(`${BASE}/users/?${params}`)
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   const data = await res.json()
-  if (data.errors?.length) throw new Error(data.errors[0]?.msg ?? 'API-fel')
+  if (data.errors?.length) {
+    const e = data.errors[0]
+    throw new Error(typeof e === 'string' ? e : (e?.msg ?? 'API-fel'))
+  }
   return data as UsersResponse
 }
 
@@ -41,7 +47,10 @@ export async function fetchUsers(config: ApiConfig, query: string): Promise<User
   const res = await fetch(`${BASE}/users/?${params}`)
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   const data = await res.json()
-  if (data.errors?.length) throw new Error(data.errors[0]?.msg ?? 'API-fel')
+  if (data.errors?.length) {
+    const e = data.errors[0]
+    throw new Error(typeof e === 'string' ? e : (e?.msg ?? 'API-fel'))
+  }
   return data as UsersResponse
 }
 
@@ -52,6 +61,9 @@ export async function fetchBookings(
   const res = await fetch(`${BASE}/bookings/?${buildParams(config, extra)}`)
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   const data = await res.json()
-  if (data.errors?.length) throw new Error(data.errors[0]?.msg ?? 'API-fel')
+  if (data.errors?.length) {
+    const e = data.errors[0]
+    throw new Error(typeof e === 'string' ? e : (e?.msg ?? 'API-fel'))
+  }
   return data as BookingsResponse
 }
