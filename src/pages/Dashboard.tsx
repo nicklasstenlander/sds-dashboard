@@ -172,6 +172,7 @@ export function Dashboard() {
 
       <EventsTable
         events={events}
+        bookings={bookings}
         loading={eventsQuery.isLoading}
         search={search}
         onSelect={setSelectedEvent}

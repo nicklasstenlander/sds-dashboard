@@ -9,12 +9,67 @@ interface CourseDetailPanelProps {
   onClose: () => void
 }
 
-function payLabel(b: Booking): { text: string; cls: string } {
-  const p = b.payment
-  if (!p) return { text: '—', cls: 'text-slate-400' }
-  if (p.paid === true)  return { text: 'Betald',  cls: 'text-brand-forest font-medium' }
-  if (p.paid === false) return { text: 'Obetald', cls: 'text-red-600 font-medium' }
-  return { text: '—', cls: 'text-slate-400' }
+function BookingSection({ bookings, onSelectParticipant }: { bookings: Booking[]; onSelectParticipant: (name: string) => void }) {
+  const antagna    = bookings.filter((b) => b.payment?.paid === true)
+  const ejAntagna  = bookings.filter((b) => b.payment?.paid !== true)
+
+  return (
+    <div>
+      <SectionHeader label="Antagna" count={antagna.length} color="text-brand-forest" />
+      {antagna.length === 0 ? (
+        <p className="px-5 py-3 text-sm text-slate-400">Inga antagna ännu</p>
+      ) : (
+        <ul className="divide-y divide-slate-50">
+          {antagna.map((b) => <BookingRow key={b.key} b={b} onSelect={onSelectParticipant} />)}
+        </ul>
+      )}
+
+      <SectionHeader label="Anmälda — ej antagna" count={ejAntagna.length} color="text-amber-600" />
+      {ejAntagna.length === 0 ? (
+        <p className="px-5 py-3 text-sm text-slate-400">Alla anmälda är antagna</p>
+      ) : (
+        <ul className="divide-y divide-slate-50">
+          {ejAntagna.map((b) => <BookingRow key={b.key} b={b} onSelect={onSelectParticipant} />)}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+function SectionHeader({ label, count, color }: { label: string; count: number; color: string }) {
+  return (
+    <div className={`px-5 py-2.5 flex items-center justify-between sticky top-0 bg-white border-b border-slate-100`}>
+      <p className={`text-xs font-semibold uppercase tracking-wide ${color}`}>{label}</p>
+      <span className="text-xs text-slate-400">{count} st</span>
+    </div>
+  )
+}
+
+function BookingRow({ b, onSelect }: { b: Booking; onSelect: (name: string) => void }) {
+  return (
+    <li className="flex items-center justify-between px-5 py-3 hover:bg-slate-50/60">
+      <div className="min-w-0">
+        {b.participant?.name ? (
+          <button
+            onClick={() => onSelect(b.participant!.name!)}
+            className="text-sm font-medium text-brand-dark hover:text-brand-forest hover:underline truncate text-left"
+          >
+            {b.participant.name}
+          </button>
+        ) : (
+          <p className="text-sm font-medium text-brand-dark truncate">—</p>
+        )}
+        {b.status?.name && (
+          <p className="text-xs text-slate-400">{b.status.name}</p>
+        )}
+      </div>
+      {b.payment?.priceAgreed != null && (
+        <p className="text-xs text-slate-400 shrink-0 ml-4 tabular-nums">
+          {b.payment.priceAgreed.toLocaleString('sv-SE')} {b.payment.currency ?? 'SEK'}
+        </p>
+      )}
+    </li>
+  )
 }
 
 export function CourseDetailPanel({ event, onClose }: CourseDetailPanelProps) {
@@ -74,25 +129,16 @@ export function CourseDetailPanel({ event, onClose }: CourseDetailPanelProps) {
             )}
             <span className="flex items-center gap-1.5 text-sm text-slate-500">
               <Users className="w-3.5 h-3.5 shrink-0" />
-              {event.statistics?.accepted ?? 0}
+              {event.statistics?.accepted ?? 0} antagna
               {event.requirements?.maxParticipants
                 ? ` / ${event.requirements.maxParticipants} platser`
-                : ' anmälda'}
+                : ''}
             </span>
           </div>
         )}
 
         {/* Participants */}
         <div className="flex-1 overflow-y-auto pb-6">
-          <div className="px-5 py-3 flex items-center justify-between sticky top-0 bg-white border-b border-slate-50">
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-              Anmälda deltagare
-            </p>
-            {!isLoading && (
-              <span className="text-xs text-slate-400">{bookings.length} st</span>
-            )}
-          </div>
-
           {isLoading ? (
             <div className="p-5 space-y-3">
               {Array.from({ length: 6 }).map((_, i) => (
@@ -107,38 +153,10 @@ export function CourseDetailPanel({ event, onClose }: CourseDetailPanelProps) {
               <p className="text-sm text-slate-400 font-light">Inga anmälda hittades</p>
             </div>
           ) : (
-            <ul className="divide-y divide-slate-50">
-              {bookings.map((b) => {
-                const pay = payLabel(b)
-                return (
-                  <li key={b.key} className="flex items-center justify-between px-5 py-3 hover:bg-slate-50/60">
-                    <div className="min-w-0">
-                      {b.participant?.name ? (
-                        <button
-                          onClick={() => setSelectedParticipant(b.participant!.name!)}
-                          className="text-sm font-medium text-brand-dark hover:text-brand-forest hover:underline truncate text-left"
-                        >
-                          {b.participant.name}
-                        </button>
-                      ) : (
-                        <p className="text-sm font-medium text-brand-dark truncate">—</p>
-                      )}
-                      {b.status?.name && (
-                        <p className="text-xs text-slate-400">{b.status.name}</p>
-                      )}
-                    </div>
-                    <div className="shrink-0 text-right ml-4">
-                      <p className={`text-xs ${pay.cls}`}>{pay.text}</p>
-                      {b.payment?.priceAgreed != null && (
-                        <p className="text-xs text-slate-400">
-                          {b.payment.priceAgreed.toLocaleString('sv-SE')} {b.payment.currency ?? 'SEK'}
-                        </p>
-                      )}
-                    </div>
-                  </li>
-                )
-              })}
-            </ul>
+            <BookingSection
+              bookings={bookings}
+              onSelectParticipant={setSelectedParticipant}
+            />
           )}
         </div>
       </div>

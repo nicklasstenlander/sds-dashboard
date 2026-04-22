@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { ArrowUpDown, ChevronRight, RefreshCw } from 'lucide-react'
-import type { Event } from '../types/cogwork'
+import type { Event, Booking } from '../types/cogwork'
 
 interface EventsTableProps {
   events: Event[]
+  bookings?: Booking[]
   loading?: boolean
   search: string
   onSelect?: (event: Event) => void
@@ -27,8 +28,19 @@ function fillColor(pct: number) {
   return 'bg-brand-mint text-brand-forest'
 }
 
-export function EventsTable({ events, loading, search, onSelect, onRefresh, isRefreshing }: EventsTableProps) {
+export function EventsTable({ events, bookings = [], loading, search, onSelect, onRefresh, isRefreshing }: EventsTableProps) {
   const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: 'accepted', dir: 'desc' })
+
+  // Count paid (antagna) bookings per event id
+  const antagnaPer = useMemo(() => {
+    const map: Record<number, number> = {}
+    for (const b of bookings) {
+      if (b.payment?.paid === true && b.event?.id) {
+        map[b.event.id] = (map[b.event.id] ?? 0) + 1
+      }
+    }
+    return map
+  }, [bookings])
 
   const filtered = events
     .filter((e) => !search || e.name.toLowerCase().includes(search.toLowerCase()))
@@ -105,6 +117,7 @@ export function EventsTable({ events, loading, search, onSelect, onRefresh, isRe
               <Th label="Dag / tid"   hide="hidden md:table-cell" />
               <Th label="Period"      hide="hidden md:table-cell" />
               <Th label="Anmälda"     sortKey="accepted" />
+              <Th label="Antagna"     hide="hidden sm:table-cell" />
               <Th label="Max"         hide="hidden sm:table-cell" />
               <Th label="Beläggning"  sortKey="fill"     />
               <Th label="Pris (kr)"   sortKey="price"    hide="hidden lg:table-cell" />
@@ -140,6 +153,9 @@ export function EventsTable({ events, loading, search, onSelect, onRefresh, isRe
                 </td>
                 <td className="py-3 px-4 text-sm font-semibold text-brand-dark tabular-nums">
                   {e.statistics?.accepted ?? '—'}
+                </td>
+                <td className="hidden sm:table-cell py-3 px-4 text-sm font-medium text-brand-forest tabular-nums">
+                  {antagnaPer[e.id] ?? 0}
                 </td>
                 <td className="hidden sm:table-cell py-3 px-4 text-sm text-slate-500 tabular-nums">
                   {e.requirements?.maxParticipants ?? '—'}
