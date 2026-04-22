@@ -12,7 +12,7 @@ interface EventsTableProps {
   isRefreshing?: boolean
 }
 
-type SortKey = 'name' | 'accepted' | 'fill' | 'price' | 'revenue'
+type SortKey = 'name' | 'accepted' | 'antagna' | 'fill' | 'price' | 'revenue' | 'category'
 type SortDir = 'asc' | 'desc'
 
 function fillRate(e: Event): number {
@@ -54,9 +54,11 @@ export function EventsTable({ events, bookings = [], loading, search, onSelect, 
       switch (sort.key) {
         case 'name':     diff = a.name.localeCompare(b.name, 'sv'); break
         case 'accepted': diff = (a.statistics?.accepted ?? 0) - (b.statistics?.accepted ?? 0); break
+        case 'antagna':  diff = (antagnaPer[a.id] ?? 0) - (antagnaPer[b.id] ?? 0); break
         case 'fill':     diff = a._fill - b._fill; break
         case 'price':    diff = (a.pricing?.basePriceInclVat ?? 0) - (b.pricing?.basePriceInclVat ?? 0); break
         case 'revenue':  diff = a._revenue - b._revenue; break
+        case 'category': diff = (a.grouping?.primaryEventGroup?.name ?? '').localeCompare(b.grouping?.primaryEventGroup?.name ?? '', 'sv'); break
       }
       return sort.dir === 'asc' ? diff : -diff
     })
@@ -113,11 +115,11 @@ export function EventsTable({ events, bookings = [], loading, search, onSelect, 
           <thead className="border-y border-slate-100 bg-slate-50/60">
             <tr>
               <Th label="Kurs"        sortKey="name"     />
-              <Th label="Kategori"    hide="hidden sm:table-cell" />
+              <Th label="Kategori"    sortKey="category" hide="hidden sm:table-cell" />
               <Th label="Dag / tid"   hide="hidden md:table-cell" />
               <Th label="Period"      hide="hidden md:table-cell" />
               <Th label="Anmälda"     sortKey="accepted" />
-              <Th label="Antagna"     hide="hidden sm:table-cell" />
+              <Th label="Antagna"     sortKey="antagna"  hide="hidden sm:table-cell" />
               <Th label="Max"         hide="hidden sm:table-cell" />
               <Th label="Beläggning"  sortKey="fill"     />
               <Th label="Pris (kr)"   sortKey="price"    hide="hidden lg:table-cell" />
@@ -151,10 +153,10 @@ export function EventsTable({ events, bookings = [], loading, search, onSelect, 
                 <td className="hidden md:table-cell py-3 px-4 text-sm text-slate-500 whitespace-nowrap">
                   {e.grouping?.eventBlock?.name || '—'}
                 </td>
-                <td className="py-3 px-4 text-sm font-semibold text-brand-dark tabular-nums">
+                <td className="py-3 px-4 text-sm text-slate-600 tabular-nums">
                   {e.statistics?.accepted ?? '—'}
                 </td>
-                <td className="hidden sm:table-cell py-3 px-4 text-sm font-medium text-brand-forest tabular-nums">
+                <td className="hidden sm:table-cell py-3 px-4 text-sm font-semibold text-brand-forest tabular-nums">
                   {antagnaPer[e.id] ?? 0}
                 </td>
                 <td className="hidden sm:table-cell py-3 px-4 text-sm text-slate-500 tabular-nums">
