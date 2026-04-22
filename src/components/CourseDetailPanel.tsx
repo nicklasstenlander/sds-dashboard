@@ -76,10 +76,7 @@ export function CourseDetailPanel({ event, onClose }: CourseDetailPanelProps) {
   const { data: bookings = [], isLoading } = useEventBookings(event?.id ?? null)
   const [selectedParticipant, setSelectedParticipant] = useState<string | null>(null)
 
-  const prelCount = bookings.filter((b) => {
-    const s = b.status?.name?.toLowerCase() ?? ''
-    return s.includes('prel')
-  }).length
+  const prelCount = bookings.filter((b) => b.payment?.paid !== true).length
 
   return (
     <>
