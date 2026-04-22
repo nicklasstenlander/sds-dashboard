@@ -76,6 +76,11 @@ export function CourseDetailPanel({ event, onClose }: CourseDetailPanelProps) {
   const { data: bookings = [], isLoading } = useEventBookings(event?.id ?? null)
   const [selectedParticipant, setSelectedParticipant] = useState<string | null>(null)
 
+  const prelCount = bookings.filter((b) => {
+    const s = b.status?.name?.toLowerCase() ?? ''
+    return s.includes('prel')
+  }).length
+
   return (
     <>
       {/* Backdrop */}
@@ -133,6 +138,7 @@ export function CourseDetailPanel({ event, onClose }: CourseDetailPanelProps) {
               {event.requirements?.maxParticipants
                 ? ` / ${event.requirements.maxParticipants} platser`
                 : ''}
+              {prelCount > 0 && ` (${prelCount} prel.bokade)`}
             </span>
           </div>
         )}
