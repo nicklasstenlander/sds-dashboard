@@ -46,15 +46,21 @@ function SectionHeader({ label, count, color }: { label: string; count: number; 
 }
 
 function BookingRow({ b, onSelect }: { b: Booking; onSelect: (name: string) => void }) {
+  const name = b.participant?.name ?? ''
+  const parts = name.trim().split(' ')
+  const initials = ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase() || '?'
   return (
-    <li className="flex items-center justify-between px-5 py-3 hover:bg-slate-50/60">
-      <div className="min-w-0">
-        {b.participant?.name ? (
+    <li className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50/60">
+      <div className="w-8 h-8 rounded-full bg-brand-teal flex items-center justify-center text-white text-xs font-semibold shrink-0">
+        {initials}
+      </div>
+      <div className="min-w-0 flex-1">
+        {name ? (
           <button
-            onClick={() => onSelect(b.participant!.name!)}
+            onClick={() => onSelect(name)}
             className="text-sm font-medium text-brand-dark hover:text-brand-forest hover:underline truncate text-left"
           >
-            {b.participant.name}
+            {name}
           </button>
         ) : (
           <p className="text-sm font-medium text-brand-dark truncate">—</p>
@@ -64,7 +70,7 @@ function BookingRow({ b, onSelect }: { b: Booking; onSelect: (name: string) => v
         )}
       </div>
       {b.payment?.priceAgreed != null && (
-        <p className="text-xs text-slate-400 shrink-0 ml-4 tabular-nums">
+        <p className="text-xs text-slate-400 shrink-0 tabular-nums">
           {b.payment.priceAgreed.toLocaleString('sv-SE')} {b.payment.currency ?? 'SEK'}
         </p>
       )}
@@ -99,6 +105,7 @@ export function CourseDetailPanel({ event, onClose }: CourseDetailPanelProps) {
       {/* Panel */}
       <div
         className={`fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-xl z-50 flex flex-col transition-transform duration-300 ${event ? 'translate-x-0' : 'translate-x-full'}`}
+        style={event ? { animation: 'panel-slide-in 0.25s cubic-bezier(0.32, 0.72, 0, 1)' } : undefined}
       >
         {/* Header */}
         <div className="flex items-start justify-between gap-4 p-5 border-b border-slate-100">

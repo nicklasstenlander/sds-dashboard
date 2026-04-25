@@ -24,6 +24,7 @@ export function BookingListPanel({ title, bookings, onClose }: BookingListPanelP
       {/* Panel */}
       <div
         className={`fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-xl z-50 flex flex-col transition-transform duration-300 ${open ? 'translate-x-0' : 'translate-x-full'}`}
+        style={open ? { animation: 'panel-slide-in 0.25s cubic-bezier(0.32, 0.72, 0, 1)' } : undefined}
       >
         {/* Header */}
         <div className="flex items-center justify-between gap-4 p-5 border-b border-slate-100">
@@ -47,16 +48,22 @@ export function BookingListPanel({ title, bookings, onClose }: BookingListPanelP
             </div>
           ) : (
             <ul className="divide-y divide-slate-50">
-              {bookings.map((b) => (
-                <li key={b.key} className="px-5 py-3 hover:bg-slate-50/60 transition-colors">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      {b.participant?.name ? (
+              {bookings.map((b) => {
+                const name = b.participant?.name ?? ''
+                const parts = name.trim().split(' ')
+                const initials = ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase() || '?'
+                return (
+                  <li key={b.key} className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50/60 transition-colors">
+                    <div className="w-8 h-8 rounded-full bg-brand-teal flex items-center justify-center text-white text-xs font-semibold shrink-0">
+                      {initials}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      {name ? (
                         <button
-                          onClick={() => setSelectedName(b.participant!.name!)}
+                          onClick={() => setSelectedName(name)}
                           className="text-sm font-medium text-brand-dark hover:text-brand-forest hover:underline text-left"
                         >
-                          {b.participant.name}
+                          {name}
                         </button>
                       ) : (
                         <p className="text-sm font-medium text-brand-dark">—</p>
@@ -80,9 +87,9 @@ export function BookingListPanel({ title, bookings, onClose }: BookingListPanelP
                         </p>
                       )}
                     </div>
-                  </div>
-                </li>
-              ))}
+                  </li>
+                )
+              })}
             </ul>
           )}
         </div>

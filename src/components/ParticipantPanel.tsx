@@ -28,6 +28,7 @@ export function ParticipantPanel({ name, onClose, elevated }: ParticipantPanelPr
       {/* Panel */}
       <div
         className={`fixed top-0 right-0 h-full w-full max-w-sm bg-white shadow-xl ${panelZ} flex flex-col transition-transform duration-300 ${open ? 'translate-x-0' : 'translate-x-full'}`}
+        style={open ? { animation: 'panel-slide-in 0.25s cubic-bezier(0.32, 0.72, 0, 1)' } : undefined}
       >
         {/* Header */}
         <div className="flex items-start justify-between gap-4 p-5 border-b border-slate-100">

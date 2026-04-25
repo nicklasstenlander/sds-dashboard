@@ -1,5 +1,5 @@
 import { useState, useRef, useLayoutEffect } from 'react'
-import { LayoutDashboard, ClipboardList, Users, Settings, LogOut, ShoppingBag } from 'lucide-react'
+import { LayoutDashboard, ClipboardList, Users, Settings, LogOut, ShoppingBag, PanelLeft } from 'lucide-react'
 import { ApiProvider, useApiConfig } from './context/ApiContext'
 import { Dashboard } from './pages/Dashboard'
 import { RecentBookings } from './pages/RecentBookings'
@@ -20,6 +20,7 @@ const NAV = [
 function AppShell() {
   const [tab, setTab] = useState<Tab>('dashboard')
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [collapsed, setCollapsed] = useState(false)
   const { config, setConfig } = useApiConfig()
   const hasPw = Boolean(config.pw)
   const navRef = useRef<HTMLElement>(null)
@@ -29,21 +30,26 @@ function AppShell() {
     if (!hasPw) return
     const btn = navRef.current?.querySelector<HTMLButtonElement>('[data-active="true"]')
     if (btn) setPill({ top: btn.offsetTop, height: btn.offsetHeight })
-  }, [tab, hasPw])
+  }, [tab, hasPw, collapsed])
 
   if (!hasPw) return <LoginPage />
 
   return (
     <div className="flex h-screen bg-white overflow-hidden">
       {/* ── Sidebar (desktop) ── */}
-      <aside className="hidden md:flex w-56 shrink-0 flex-col bg-slate-50 border-r border-slate-200">
+      <aside
+        className="hidden md:flex shrink-0 flex-col bg-slate-50 border-r border-slate-200 transition-all duration-250 ease-out"
+        style={{ width: collapsed ? 68 : 224 }}
+      >
         {/* Logo */}
-        <div className="px-5 py-4 border-b border-slate-200 flex items-center gap-3">
+        <div className={`py-4 border-b border-slate-200 flex items-center gap-3 transition-all duration-250 ${collapsed ? 'justify-center px-0' : 'px-5'}`}>
           <img src="logo.png" alt="SDS" className="w-8 h-8 object-contain shrink-0" />
-          <div>
-            <p className="text-xl font-bold tracking-widest text-brand-forest leading-none">CORE</p>
-            <p className="text-[10px] text-slate-400 font-medium tracking-wider uppercase leading-tight mt-0.5">by SDS</p>
-          </div>
+          {!collapsed && (
+            <div>
+              <p className="text-xl font-bold tracking-widest text-brand-forest leading-none">CORE</p>
+              <p className="text-[10px] text-slate-400 font-medium tracking-wider uppercase leading-tight mt-0.5">by SDS</p>
+            </div>
+          )}
         </div>
 
         {/* Nav */}
@@ -60,36 +66,47 @@ function AppShell() {
               key={id}
               data-active={String(tab === id)}
               onClick={() => setTab(id)}
-              className={`relative z-10 w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                tab === id ? 'text-brand-dark' : 'text-slate-500 hover:text-brand-dark'
-              }`}
+              title={collapsed ? label : undefined}
+              className={`relative z-10 w-full flex items-center gap-3 rounded-xl text-sm font-medium transition-colors ${
+                collapsed ? 'justify-center px-0 py-2.5' : 'px-3 py-2.5'
+              } ${tab === id ? 'text-brand-dark' : 'text-slate-500 hover:text-brand-dark'}`}
             >
               <Icon className="w-4 h-4 shrink-0" />
-              {label}
+              {!collapsed && label}
             </button>
           ))}
         </nav>
 
-        {/* Settings + Logout */}
+        {/* Collapse toggle + Settings + Logout */}
         <div className="p-3 border-t border-slate-100 space-y-0.5">
           <button
+            onClick={() => setCollapsed(c => !c)}
+            title={collapsed ? 'Expandera meny' : 'Minimera meny'}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:text-brand-dark hover:bg-slate-100 transition-colors ${collapsed ? 'justify-center px-0' : ''}`}
+          >
+            <PanelLeft className={`w-4 h-4 shrink-0 transition-transform duration-250 ${collapsed ? 'rotate-180' : ''}`} />
+            {!collapsed && 'Minimera'}
+          </button>
+          <button
             onClick={() => setSettingsOpen(true)}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+            title={collapsed ? 'Inställningar' : undefined}
+            className={`w-full flex items-center gap-3 rounded-xl text-sm font-medium transition-colors ${collapsed ? 'justify-center px-0 py-2.5' : 'px-3 py-2.5'} ${
               hasPw
                 ? 'text-slate-500 hover:bg-slate-50 hover:text-brand-dark'
                 : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
             }`}
           >
             <Settings className="w-4 h-4 shrink-0" />
-            {hasPw ? 'Inställningar' : 'Ange API-nyckel'}
+            {!collapsed && (hasPw ? 'Inställningar' : 'Ange API-nyckel')}
           </button>
           {hasPw && (
             <button
               onClick={() => setConfig({ org: 'sollentunadans', pw: '' })}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+              title={collapsed ? 'Logga ut' : undefined}
+              className={`w-full flex items-center gap-3 rounded-xl text-sm font-medium text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors ${collapsed ? 'justify-center px-0 py-2.5' : 'px-3 py-2.5'}`}
             >
               <LogOut className="w-4 h-4 shrink-0" />
-              Logga ut
+              {!collapsed && 'Logga ut'}
             </button>
           )}
         </div>
