@@ -47,6 +47,12 @@ export function Dashboard() {
   const kpi         = computeKPIs(events)
   const bookingKpi  = computeBookingKPIs(bookings)
 
+  const today = new Date().toISOString().slice(0, 10)
+  const newToday = useMemo(
+    () => bookings.filter((b) => b.created?.startsWith(today)).length,
+    [bookings, today],
+  )
+
   const panelTitles = { total: 'Alla anmälda', antagna: 'Antagna', ejBetalda: 'Ej betalda', vantarAterkoppling: 'Väntar återkoppling' }
 
   const filteredForPanel = useMemo(() => {
@@ -109,6 +115,7 @@ export function Dashboard() {
           title="Totalt anmälda"
           value={bookingKpi.total > 0 ? bookingKpi.total.toLocaleString('sv-SE') : kpi.totalAccepted.toLocaleString('sv-SE')}
           subtitle={`${events.length} kurser`}
+          delta={newToday > 0 ? { count: newToday, label: 'nya idag' } : undefined}
           icon={<Users className="w-6 h-6" />}
           color="violet"
           onClick={() => setActiveFilter('total')}

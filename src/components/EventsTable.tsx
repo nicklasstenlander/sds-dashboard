@@ -93,7 +93,7 @@ export function EventsTable({ events, bookings = [], loading, search, onSelect, 
   }
 
   return (
-    <div className="card overflow-hidden">
+    <div className="card">
       <div className="p-5 pb-0 flex items-center justify-between">
         <h2 className="text-sm font-bold text-brand-dark">
           Kursöversikt{' '}
@@ -110,7 +110,7 @@ export function EventsTable({ events, bookings = [], loading, search, onSelect, 
           </button>
         )}
       </div>
-      <div className="overflow-x-auto mt-3">
+      <div className="overflow-x-auto mt-3 rounded-b-2xl">
         <table className="w-full">
           <thead className="border-y border-slate-100 bg-slate-50/60">
             <tr>

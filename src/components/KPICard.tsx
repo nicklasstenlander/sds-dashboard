@@ -6,6 +6,7 @@ interface KPICardProps {
   subtitle?: string
   icon: ReactNode
   trend?: { value: number; label: string }
+  delta?: { count: number; label: string }
   color?: 'violet' | 'emerald' | 'amber' | 'sky' | 'red'
   onClick?: () => void
 }
@@ -18,7 +19,7 @@ const colorMap = {
   red:     { bg: 'bg-[#fff0f0]',        icon: 'text-[#ff5f5f]',      border: 'border-[#ff5f5f]'    },
 }
 
-export function KPICard({ title, value, subtitle, icon, trend, color = 'violet', onClick }: KPICardProps) {
+export function KPICard({ title, value, subtitle, icon, trend, delta, color = 'violet', onClick }: KPICardProps) {
   const c = colorMap[color]
 
   return (
@@ -31,6 +32,11 @@ export function KPICard({ title, value, subtitle, icon, trend, color = 'violet',
           <p className="text-sm font-medium text-slate-500 truncate">{title}</p>
           <p className="mt-1 text-3xl font-bold text-slate-900 tabular-nums">{value}</p>
           {subtitle && <p className="mt-1 text-sm text-slate-400">{subtitle}</p>}
+          {delta != null && delta.count !== 0 && (
+            <p className={`mt-1 text-xs font-semibold ${delta.count > 0 ? 'text-brand-forest' : 'text-slate-400'}`}>
+              {delta.count > 0 ? '+' : ''}{delta.count} {delta.label}
+            </p>
+          )}
           {trend && (
             <p className={`mt-2 text-xs font-medium ${trend.value >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
               {trend.value >= 0 ? '↑' : '↓'} {Math.abs(trend.value)}% {trend.label}

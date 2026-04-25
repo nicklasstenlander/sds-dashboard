@@ -1,5 +1,6 @@
-import { X, Mail, Phone, MapPin, Calendar, Hash } from 'lucide-react'
+import { X, Mail, Phone, MapPin, Calendar, Hash, BookOpen } from 'lucide-react'
 import { useUser } from '../hooks/useUser'
+import { useUserBookings } from '../hooks/useUserBookings'
 
 interface ParticipantPanelProps {
   name: string | null
@@ -10,6 +11,7 @@ interface ParticipantPanelProps {
 
 export function ParticipantPanel({ name, onClose, elevated }: ParticipantPanelProps) {
   const { data: user, isLoading, isError } = useUser(name)
+  const { data: userBookings = [] } = useUserBookings(user?.id ?? null)
   const open = Boolean(name)
   const backdropZ = elevated ? 'z-[60]' : 'z-40'
   const panelZ    = elevated ? 'z-[70]' : 'z-50'
@@ -113,6 +115,36 @@ export function ParticipantPanel({ name, onClose, elevated }: ParticipantPanelPr
                   </Row>
                 )}
               </dl>
+
+              {userBookings.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <BookOpen className="w-4 h-4 text-slate-400" />
+                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Kurser</p>
+                  </div>
+                  <ul className="space-y-2">
+                    {userBookings
+                      .sort((a, b) => b.created.localeCompare(a.created))
+                      .map((b) => (
+                        <li key={b.key} className="rounded-xl bg-slate-50 px-3 py-2">
+                          <p className="text-sm font-medium text-brand-dark leading-snug">
+                            {b.event?.name ?? '—'}
+                          </p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            {b.event?.grouping?.eventBlock?.name && (
+                              <span className="text-xs text-brand-forest font-medium">
+                                {b.event.grouping.eventBlock.name}
+                              </span>
+                            )}
+                            {b.status?.name && (
+                              <span className="text-xs text-slate-400">{b.status.name}</span>
+                            )}
+                          </div>
+                        </li>
+                      ))}
+                  </ul>
+                </div>
+              )}
             </div>
           )}
         </div>

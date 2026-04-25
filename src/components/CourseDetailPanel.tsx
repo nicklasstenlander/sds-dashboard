@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { X, Users, Clock, MapPin, User } from 'lucide-react'
+import { useState, useMemo } from 'react'
+import { X, Users, Clock, MapPin, User, Banknote } from 'lucide-react'
 import { useEventBookings } from '../hooks/useEventBookings'
 import { ParticipantPanel } from './ParticipantPanel'
 import type { Event, Booking } from '../types/cogwork'
@@ -78,6 +78,16 @@ export function CourseDetailPanel({ event, onClose }: CourseDetailPanelProps) {
 
   const prelCount = bookings.filter((b) => b.payment?.paid !== true).length
 
+  const revenue = useMemo(() => {
+    const fromBookings = bookings
+      .filter((b) => b.payment?.paid === true && b.payment.priceAgreed != null)
+      .reduce((s, b) => s + (b.payment!.priceAgreed ?? 0), 0)
+    if (fromBookings > 0) return fromBookings
+    const accepted = event?.statistics?.accepted ?? 0
+    const price = event?.pricing?.basePriceInclVat ?? 0
+    return accepted * price
+  }, [bookings, event])
+
   return (
     <>
       {/* Backdrop */}
@@ -137,6 +147,12 @@ export function CourseDetailPanel({ event, onClose }: CourseDetailPanelProps) {
                 : ''}
               {prelCount > 0 && ` (${prelCount} prel.bokade)`}
             </span>
+            {revenue > 0 && (
+              <span className="flex items-center gap-1.5 text-sm text-slate-500">
+                <Banknote className="w-3.5 h-3.5 shrink-0" />
+                {revenue.toLocaleString('sv-SE')} kr
+              </span>
+            )}
           </div>
         )}
 

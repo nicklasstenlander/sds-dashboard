@@ -20,7 +20,7 @@ const PAGE_SIZE = 10
 
 function periodCutoff(p: Period): Date {
   const now = new Date()
-  if (p === 'day')   return subDays(now, 1)
+  if (p === 'day')   return startOfDay(now)
   if (p === 'week')  return subDays(now, 7)
   if (p === 'month') return subMonths(now, 1)
   return subYears(now, 1)
