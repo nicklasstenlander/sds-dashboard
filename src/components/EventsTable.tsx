@@ -22,9 +22,15 @@ function fillRate(e: Event): number {
   return Math.round((accepted / max) * 100)
 }
 
-function fillColor(pct: number) {
-  if (pct >= 90) return 'bg-red-100 text-red-700'
-  if (pct >= 70) return 'bg-amber-100 text-amber-700'
+function fillBarColor(pct: number) {
+  if (pct >= 90) return '#c53030'
+  if (pct >= 70) return '#d4a942'
+  return '#009399'
+}
+
+function fillBadgeClass(pct: number) {
+  if (pct >= 90) return 'bg-red-50 text-red-700'
+  if (pct >= 70) return 'bg-amber-50 text-amber-700'
   return 'bg-brand-mint text-brand-forest'
 }
 
@@ -164,9 +170,17 @@ export function EventsTable({ events, bookings = [], loading, search, onSelect, 
                 </td>
                 <td className="py-3 px-4">
                   {e.requirements?.maxParticipants ? (
-                    <span className={`inline-block text-xs font-semibold px-2 py-0.5 rounded-full ${fillColor(e._fill)}`}>
-                      {e._fill}%
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <div className="w-14 h-1.5 bg-slate-100 rounded-full overflow-hidden shrink-0">
+                        <div
+                          className="h-full rounded-full"
+                          style={{ width: `${Math.min(e._fill, 100)}%`, background: fillBarColor(e._fill) }}
+                        />
+                      </div>
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${fillBadgeClass(e._fill)}`}>
+                        {e._fill}%
+                      </span>
+                    </div>
                   ) : (
                     <span className="text-sm text-slate-400">—</span>
                   )}

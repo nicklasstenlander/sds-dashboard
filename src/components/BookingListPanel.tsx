@@ -1,7 +1,27 @@
 import { useState } from 'react'
 import { X } from 'lucide-react'
 import { ParticipantPanel } from './ParticipantPanel'
-import type { Booking } from '../types/cogwork'
+import type { Booking, BookingPayment } from '../types/cogwork'
+
+function PayBadge({ payment }: { payment?: BookingPayment }) {
+  if (!payment) return null
+  if (payment.paid === true) {
+    const amount = payment.priceAgreed ?? payment.amountPaid
+    return (
+      <span className="shrink-0 text-xs font-semibold px-3 py-1 rounded-full bg-brand-mint text-brand-forest whitespace-nowrap">
+        Betald{amount != null ? ` · ${amount.toLocaleString('sv-SE')} kr` : ''}
+      </span>
+    )
+  }
+  if (payment.paid === false) {
+    return (
+      <span className="shrink-0 text-xs font-semibold px-3 py-1 rounded-full bg-red-50 text-red-600 whitespace-nowrap">
+        Obetald{payment.paymentDue ? ` · ${payment.paymentDue.slice(0, 10)}` : ''}
+      </span>
+    )
+  }
+  return null
+}
 
 interface BookingListPanelProps {
   title: string
@@ -72,21 +92,7 @@ export function BookingListPanel({ title, bookings, onClose }: BookingListPanelP
                         <p className="text-xs text-slate-400 mt-0.5 line-clamp-1">{b.event.name}</p>
                       )}
                     </div>
-                    <div className="shrink-0 text-right space-y-0.5">
-                      {b.status?.name && (
-                        <p className="text-xs text-slate-500">{b.status.name}</p>
-                      )}
-                      {b.payment?.paid === false && b.payment.paymentDue && (
-                        <p className="text-xs text-red-500">
-                          Förfaller {b.payment.paymentDue.slice(0, 10)}
-                        </p>
-                      )}
-                      {b.payment?.priceAgreed != null && (
-                        <p className="text-xs text-slate-400">
-                          {b.payment.priceAgreed.toLocaleString('sv-SE')} kr
-                        </p>
-                      )}
-                    </div>
+                    <PayBadge payment={b.payment} />
                   </li>
                 )
               })}

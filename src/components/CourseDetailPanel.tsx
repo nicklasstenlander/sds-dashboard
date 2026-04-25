@@ -2,7 +2,27 @@ import { useState, useMemo } from 'react'
 import { X, Users, Clock, MapPin, User, Banknote } from 'lucide-react'
 import { useEventBookings } from '../hooks/useEventBookings'
 import { ParticipantPanel } from './ParticipantPanel'
-import type { Event, Booking } from '../types/cogwork'
+import type { Event, Booking, BookingPayment } from '../types/cogwork'
+
+function PayBadge({ payment }: { payment?: BookingPayment }) {
+  if (!payment) return null
+  if (payment.paid === true) {
+    const amount = payment.priceAgreed ?? payment.amountPaid
+    return (
+      <span className="shrink-0 text-xs font-semibold px-3 py-1 rounded-full bg-brand-mint text-brand-forest whitespace-nowrap">
+        Betald{amount != null ? ` · ${amount.toLocaleString('sv-SE')} kr` : ''}
+      </span>
+    )
+  }
+  if (payment.paid === false) {
+    return (
+      <span className="shrink-0 text-xs font-semibold px-3 py-1 rounded-full bg-red-50 text-red-600 whitespace-nowrap">
+        Obetald{payment.paymentDue ? ` · ${payment.paymentDue.slice(0, 10)}` : ''}
+      </span>
+    )
+  }
+  return null
+}
 
 interface CourseDetailPanelProps {
   event: Event | null
@@ -69,11 +89,7 @@ function BookingRow({ b, onSelect }: { b: Booking; onSelect: (name: string) => v
           <p className="text-xs text-slate-400">{b.status.name}</p>
         )}
       </div>
-      {b.payment?.priceAgreed != null && (
-        <p className="text-xs text-slate-400 shrink-0 tabular-nums">
-          {b.payment.priceAgreed.toLocaleString('sv-SE')} {b.payment.currency ?? 'SEK'}
-        </p>
-      )}
+      <PayBadge payment={b.payment} />
     </li>
   )
 }
