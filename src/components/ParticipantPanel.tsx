@@ -1,6 +1,7 @@
 import { X, Mail, Phone, MapPin, Calendar, Hash, BookOpen } from 'lucide-react'
 import { useUser } from '../hooks/useUser'
 import { useUserBookings } from '../hooks/useUserBookings'
+import { blockNameToFullLabel } from '../utils/periods'
 
 interface ParticipantPanelProps {
   name: string | null
@@ -133,7 +134,7 @@ export function ParticipantPanel({ name, onClose, elevated }: ParticipantPanelPr
                           <div className="flex items-center gap-2 mt-0.5">
                             {b.event?.grouping?.eventBlock?.name && (
                               <span className="text-xs text-brand-forest font-medium">
-                                {b.event.grouping.eventBlock.name}
+                                {blockNameToFullLabel(b.event.grouping.eventBlock.name)}
                               </span>
                             )}
                             {b.status?.name && (

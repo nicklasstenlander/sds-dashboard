@@ -7,6 +7,15 @@ export function blockNameToCode(name: string): string {
   return name
 }
 
+/** Convert CogWork eventBlock name → full Swedish term, e.g. "Hösten 2025" → "Höstterminen 2025" */
+export function blockNameToFullLabel(name: string): string {
+  const ht = name.match(/[Hh]öst(?:en)?\s+(\d{4})/)
+  const vt = name.match(/[Vv]år(?:en)?\s+(\d{4})/)
+  if (ht) return `Höstterminen ${ht[1]}`
+  if (vt) return `Vårterminen ${vt[1]}`
+  return name
+}
+
 /** Convert short code → display label, e.g. "HT25" → "HT 2025" */
 export function codeToLabel(code: string): string {
   const m = code.match(/^(HT|VT)(\d{2})$/)
