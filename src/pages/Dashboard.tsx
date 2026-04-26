@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import React, { useState, useMemo } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { format } from 'date-fns'
 import { sv } from 'date-fns/locale'
@@ -234,23 +234,28 @@ function DashboardGreeting({
   const dayName = format(now, 'EEEE', { locale: sv }).toUpperCase()
   const dateStr = format(now, 'd MMMM', { locale: sv }).toUpperCase()
 
-  const stats: string[] = []
-  if (newToday > 0) stats.push(`${newToday} nya anmälningar idag`)
-  if (ejBetalda > 0) stats.push(`${ejBetalda} fakturor väntar betalning`)
-  if (avgFill > 0) stats.push(`Terminen ligger på ${avgFill}% beläggning`)
+  const statNodes: React.ReactNode[] = []
+  if (newToday > 0) statNodes.push(<><strong>{newToday}</strong> nya anmälningar idag</>)
+  if (ejBetalda > 0) statNodes.push(<><strong>{ejBetalda}</strong> fakturor väntar betalning</>)
+  if (avgFill > 0) statNodes.push(<>Terminen ligger på <strong>{avgFill}%</strong> beläggning</>)
 
   return (
     <div>
-      <p className="text-xs font-semibold text-slate-400 tracking-widest uppercase mb-1">
+      <p className="text-xs font-semibold text-brand-forest tracking-widest uppercase mb-1">
         {dayName} {dateStr}{periodLabel ? ` · ${periodLabel}` : ''}
       </p>
-      <h1 className="text-3xl font-bold text-brand-dark leading-tight">
+      <h1
+        className="font-light italic text-brand-dark leading-none tracking-tight"
+        style={{ fontSize: 'clamp(48px, 5vw, 72px)', letterSpacing: '-0.03em', lineHeight: 0.95 }}
+      >
         {greeting},<br />
         Sollentuna.
       </h1>
-      {stats.length > 0 && (
-        <p className="text-sm text-slate-500 mt-2">
-          {stats.join('. ')}.
+      {statNodes.length > 0 && (
+        <p className="text-sm text-slate-500 mt-3">
+          {statNodes.map((node, i) => (
+            <React.Fragment key={i}>{i > 0 ? '. ' : ''}{node}</React.Fragment>
+          ))}.
         </p>
       )}
     </div>
