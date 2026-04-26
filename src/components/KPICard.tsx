@@ -30,7 +30,7 @@ export function KPICard({ title, value, subtitle, icon, trend, delta, color = 'v
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-slate-500 truncate">{title}</p>
-          <p className="mt-1 text-3xl font-bold text-slate-900 tabular-nums">{value}</p>
+          <p className="mt-1 text-4xl font-bold text-slate-900 tabular-nums leading-none">{value}</p>
           {subtitle && <p className="mt-1 text-sm text-slate-400">{subtitle}</p>}
           {delta != null && delta.count !== 0 && (
             <p className={`mt-1 text-xs font-semibold ${delta.count > 0 ? 'text-brand-forest' : 'text-slate-400'}`}>

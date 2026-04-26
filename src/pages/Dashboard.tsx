@@ -1,5 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { format } from 'date-fns'
+import { sv } from 'date-fns/locale'
 import { Users, UserCheck, CreditCard, Clock, BookOpen, TrendingUp, Banknote, Search } from 'lucide-react'
 import { KPICard } from '../components/KPICard'
 import { PeriodFilter } from '../components/PeriodFilter'
@@ -8,8 +10,9 @@ import { CategoryChart } from '../components/CategoryChart'
 import { EventsTable } from '../components/EventsTable'
 import { CourseDetailPanel } from '../components/CourseDetailPanel'
 import { BookingListPanel } from '../components/BookingListPanel'
-import { useEvents } from '../hooks/useEvents'
+import { useEvents, useEventBlocks } from '../hooks/useEvents'
 import { useBookings } from '../hooks/useBookings'
+import { blockNameToCode } from '../utils/periods'
 import type { Event } from '../types/cogwork'
 
 export function Dashboard() {
@@ -22,6 +25,7 @@ export function Dashboard() {
   const queryClient   = useQueryClient()
   const eventsQuery   = useEvents({ eventBlockId })
   const bookingsQuery = useBookings({ eventBlockId })
+  const eventBlocks   = useEventBlocks()
   const isRefreshing  = eventsQuery.isFetching || bookingsQuery.isFetching
 
   const allEvents = eventsQuery.data ?? []
@@ -43,7 +47,7 @@ export function Dashboard() {
     return allEvents.filter((e) => e.grouping?.primaryEventGroup?.name === categoryFilter)
   }, [allEvents, categoryFilter])
 
-  const bookings    = bookingsQuery.data ?? []
+  const bookings    = bookingsQuery.data?.bookings ?? []
   const kpi         = computeKPIs(events)
   const bookingKpi  = computeBookingKPIs(bookings)
 
@@ -52,6 +56,14 @@ export function Dashboard() {
     () => bookings.filter((b) => b.created?.startsWith(today)).length,
     [bookings, today],
   )
+
+  // Period label for greeting header (e.g. "HT26")
+  const periodLabel = useMemo(() => {
+    if (!eventBlockId) return ''
+    const block = eventBlocks.data?.find(b => String(b.id) === eventBlockId)
+    if (!block) return ''
+    return blockNameToCode(block.name)
+  }, [eventBlockId, eventBlocks.data])
 
   const panelTitles = { total: 'Alla anmälda', antagna: 'Antagna', ejBetalda: 'Ej betalda', vantarAterkoppling: 'Väntar återkoppling' }
 
@@ -69,7 +81,12 @@ export function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-brand-dark">Översikt</h1>
+      <DashboardGreeting
+        newToday={newToday}
+        ejBetalda={bookingKpi.ejBetalda}
+        avgFill={kpi.avgFill}
+        periodLabel={periodLabel}
+      />
 
       {/* Filters */}
       <div className="space-y-4">
@@ -196,6 +213,46 @@ export function Dashboard() {
         bookings={filteredForPanel}
         onClose={() => setActiveFilter(null)}
       />
+    </div>
+  )
+}
+
+function DashboardGreeting({
+  newToday,
+  ejBetalda,
+  avgFill,
+  periodLabel,
+}: {
+  newToday: number
+  ejBetalda: number
+  avgFill: number
+  periodLabel: string
+}) {
+  const now = new Date()
+  const hour = now.getHours()
+  const greeting = hour < 12 ? 'God morgon' : hour < 17 ? 'God dag' : 'God kväll'
+  const dayName = format(now, 'EEEE', { locale: sv }).toUpperCase()
+  const dateStr = format(now, 'd MMMM', { locale: sv }).toUpperCase()
+
+  const stats: string[] = []
+  if (newToday > 0) stats.push(`${newToday} nya anmälningar idag`)
+  if (ejBetalda > 0) stats.push(`${ejBetalda} fakturor väntar betalning`)
+  if (avgFill > 0) stats.push(`Terminen ligger på ${avgFill}% beläggning`)
+
+  return (
+    <div>
+      <p className="text-xs font-semibold text-slate-400 tracking-widest uppercase mb-1">
+        {dayName} {dateStr}{periodLabel ? ` · ${periodLabel}` : ''}
+      </p>
+      <h1 className="text-3xl font-bold text-brand-dark leading-tight">
+        {greeting},<br />
+        Sollentuna.
+      </h1>
+      {stats.length > 0 && (
+        <p className="text-sm text-slate-500 mt-2">
+          {stats.join('. ')}.
+        </p>
+      )}
     </div>
   )
 }

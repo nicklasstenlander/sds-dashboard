@@ -87,7 +87,9 @@ export function RecentBookings() {
   const [selectedName, setSelectedName] = useState<string | null>(null)
 
   // Server-side period filter; client-side for payment + search
-  const { data: bookings = [], isLoading, isError, error, isFetching } = useBookings({ eventBlockId })
+  const { data: bookingsData, isLoading, isError, error, isFetching } = useBookings({ eventBlockId })
+  const bookings = bookingsData?.bookings ?? []
+  const bookingsTotal = bookingsData?.total ?? bookings.length
 
   const filtered = useMemo(
     () =>
@@ -176,7 +178,11 @@ export function RecentBookings() {
         <div className="px-5 py-4 border-b border-slate-50 flex items-center justify-between gap-6">
           <div className="flex items-center gap-6">
             <h2 className="text-sm font-bold text-brand-dark">
-              {isLoading ? 'Hämtar…' : `${filtered.length.toLocaleString('sv-SE')}${bookings.length >= 1000 && filtered.length === bookings.length ? '+' : ''} anmälningar`}
+              {isLoading ? 'Hämtar…' : (
+                filtered.length < bookings.length
+                  ? `${filtered.length.toLocaleString('sv-SE')} av ${bookingsTotal.toLocaleString('sv-SE')} anmälningar`
+                  : `${bookingsTotal.toLocaleString('sv-SE')} anmälningar`
+              )}
             </h2>
           {!isLoading && bookings.length > 0 && (
             <div className="flex gap-4 text-xs text-slate-500">

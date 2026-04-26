@@ -21,7 +21,10 @@ export function useBookings(filters: BookingFilters = {}) {
         ...(filters.eventBlockId ? { eventBlockId: filters.eventBlockId } : {}),
         ...(filters.catId ? { catId: filters.catId } : {}),
       }),
-    select: (data) => data.bookings,
+    select: (data) => ({
+      bookings: data.bookings,
+      total: data.search?.numRowsFound ?? data.bookings.length,
+    }),
     enabled: Boolean(config.org && config.pw),
   })
 }
