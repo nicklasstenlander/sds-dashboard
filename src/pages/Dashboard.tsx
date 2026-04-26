@@ -245,11 +245,12 @@ function DashboardGreeting({
         {dayName} {dateStr}{periodLabel ? ` · ${periodLabel}` : ''}
       </p>
       <h1
-        className="font-light italic text-brand-dark leading-none tracking-tight"
-        style={{ fontSize: 'clamp(48px, 5vw, 72px)', letterSpacing: '-0.03em', lineHeight: 0.95 }}
+        className="text-brand-dark"
+        style={{ fontSize: 'clamp(36px, 4vw, 56px)', lineHeight: 0.95, letterSpacing: '-0.03em' }}
       >
-        {greeting},<br />
-        Sollentuna.
+        <span style={{ fontWeight: 300, fontStyle: 'italic' }}>{greeting},</span>
+        <br />
+        <span style={{ fontWeight: 400 }}>Sollentuna.</span>
       </h1>
       {statNodes.length > 0 && (
         <p className="text-sm text-slate-500 mt-3">
