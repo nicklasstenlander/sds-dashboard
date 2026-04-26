@@ -158,7 +158,7 @@ export function Dashboard() {
           value={bookingKpi.vantarAterkoppling.toLocaleString('sv-SE')}
           subtitle="avvaktar svar"
           icon={<Clock className="w-6 h-6" />}
-          color="amber"
+          color={bookingKpi.vantarAterkoppling > 0 ? 'amber' : 'emerald'}
           onClick={() => setActiveFilter('vantarAterkoppling')}
         />
       </div>
@@ -184,7 +184,7 @@ export function Dashboard() {
           value={kpi.estimatedRevenue > 0 ? `${(kpi.estimatedRevenue / 1000).toFixed(0)} tkr` : '—'}
           subtitle={kpi.estimatedRevenue > 0 ? `${kpi.estimatedRevenue.toLocaleString('sv-SE')} kr` : 'Behöver API-nyckel'}
           icon={<Banknote className="w-6 h-6" />}
-          color="amber"
+          color="dark"
         />
       </div>
 
@@ -241,12 +241,12 @@ function DashboardGreeting({
 
   return (
     <div>
-      <p className="text-xs font-semibold text-brand-forest tracking-widest uppercase mb-1">
+      <p className="text-xs font-semibold text-brand-forest tracking-widest uppercase mb-3">
         {dayName} {dateStr}{periodLabel ? ` · ${periodLabel}` : ''}
       </p>
       <h1
         className="text-brand-dark"
-        style={{ fontSize: 'clamp(36px, 4vw, 56px)', lineHeight: 0.95, letterSpacing: '-0.03em' }}
+        style={{ fontSize: 'clamp(36px, 4vw, 56px)', lineHeight: 1.15, letterSpacing: '-0.03em' }}
       >
         <span style={{ fontWeight: 300, fontStyle: 'italic' }}>{greeting},</span>
         <br />
