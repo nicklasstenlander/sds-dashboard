@@ -120,7 +120,7 @@ export function CourseDetailPanel({ event, onClose }: CourseDetailPanelProps) {
 
       {/* Panel */}
       <div
-        className={`fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-xl z-50 flex flex-col transition-transform duration-300 ${event ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-xl z-50 flex flex-col ${!event ? 'translate-x-full' : ''}`}
         style={event ? { animation: 'panel-slide-in 0.25s cubic-bezier(0.32, 0.72, 0, 1)' } : undefined}
       >
         {/* Header */}

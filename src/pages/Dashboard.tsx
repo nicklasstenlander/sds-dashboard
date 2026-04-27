@@ -10,8 +10,10 @@ import { CategoryChart } from '../components/CategoryChart'
 import { EventsTable } from '../components/EventsTable'
 import { CourseDetailPanel } from '../components/CourseDetailPanel'
 import { BookingListPanel } from '../components/BookingListPanel'
+import { AlertsPanel } from '../components/AlertsPanel'
 import { useEvents, useEventBlocks } from '../hooks/useEvents'
 import { useBookings } from '../hooks/useBookings'
+import { useAlerts } from '../hooks/useAlerts'
 import { blockNameToCode } from '../utils/periods'
 import type { Event } from '../types/cogwork'
 
@@ -20,7 +22,8 @@ export function Dashboard() {
   const [categoryFilter, setCategoryFilter] = useState('')
   const [search, setSearch] = useState('')
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
-  const [activeFilter, setActiveFilter] = useState<'total' | 'antagna' | 'ejBetalda' | 'vantarAterkoppling' | null>(null)
+  const [activeFilter, setActiveFilter] = useState<'total' | 'antagna' | 'ejBetalda' | null>(null)
+  const [alertsOpen, setAlertsOpen] = useState(false)
 
   const queryClient   = useQueryClient()
   const eventsQuery   = useEvents({ eventBlockId })
@@ -50,6 +53,7 @@ export function Dashboard() {
   const bookings    = bookingsQuery.data?.bookings ?? []
   const kpi         = computeKPIs(events)
   const bookingKpi  = computeBookingKPIs(bookings)
+  const { alerts, duplicateCount } = useAlerts()
 
   const today = new Date().toISOString().slice(0, 10)
   const newToday = useMemo(
@@ -65,17 +69,13 @@ export function Dashboard() {
     return blockNameToCode(block.name)
   }, [eventBlockId, eventBlocks.data])
 
-  const panelTitles = { total: 'Alla anmälda', antagna: 'Antagna', ejBetalda: 'Ej betalda', vantarAterkoppling: 'Väntar återkoppling' }
+  const panelTitles = { total: 'Alla anmälda', antagna: 'Antagna', ejBetalda: 'Ej betalda' }
 
   const filteredForPanel = useMemo(() => {
     if (!activeFilter) return []
     if (activeFilter === 'total') return bookings
     if (activeFilter === 'antagna') return bookings.filter(b => b.status?.name?.toLowerCase().includes('antagen'))
     if (activeFilter === 'ejBetalda') return bookings.filter(b => b.payment?.paid === false)
-    if (activeFilter === 'vantarAterkoppling') return bookings.filter(b => {
-      const s = b.status?.name?.toLowerCase() ?? ''
-      return s.includes('väntar') || s.includes('återkoppling')
-    })
     return []
   }, [activeFilter, bookings])
 
@@ -155,11 +155,18 @@ export function Dashboard() {
         />
         <KPICard
           title="Väntar återkoppling"
-          value={bookingKpi.vantarAterkoppling.toLocaleString('sv-SE')}
-          subtitle="avvaktar svar"
-          icon={<Clock className="w-6 h-6" />}
-          color={bookingKpi.vantarAterkoppling > 0 ? 'amber' : 'emerald'}
-          onClick={() => setActiveFilter('vantarAterkoppling')}
+          value={alerts.length.toLocaleString('sv-SE')}
+          subtitle={alerts.length > 0 ? 'bokade på samma kurs flera gånger' : 'Inga dubbelanmälda'}
+          icon={
+            <div className="relative">
+              <Clock className="w-6 h-6" />
+              {duplicateCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-orange-400 ring-1 ring-white" />
+              )}
+            </div>
+          }
+          color={alerts.length > 0 ? 'amber' : 'emerald'}
+          onClick={() => setAlertsOpen(true)}
         />
       </div>
 
@@ -212,6 +219,13 @@ export function Dashboard() {
         title={activeFilter ? panelTitles[activeFilter] : ''}
         bookings={filteredForPanel}
         onClose={() => setActiveFilter(null)}
+      />
+
+      {/* Alerts slide-in for "Väntar återkoppling" */}
+      <AlertsPanel
+        open={alertsOpen}
+        alerts={alerts}
+        onClose={() => setAlertsOpen(false)}
       />
     </div>
   )
