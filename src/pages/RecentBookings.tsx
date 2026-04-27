@@ -236,6 +236,7 @@ export function RecentBookings() {
                   <Th>Pris</Th>
                   <Th>Betalning</Th>
                   <Th>Status</Th>
+                  <Th>Kommentar</Th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
@@ -265,6 +266,11 @@ export function RecentBookings() {
                     </td>
                     <td className="py-3 px-5 text-sm text-slate-500 whitespace-nowrap">
                       {b.status?.name ?? '—'}
+                    </td>
+                    <td className="py-3 px-5 text-sm text-slate-600 max-w-[240px]">
+                      {b.comment
+                        ? <span className="line-clamp-2" title={b.comment}>{b.comment}</span>
+                        : <span className="text-slate-300">—</span>}
                     </td>
                   </tr>
                 ))}

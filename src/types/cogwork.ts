@@ -115,6 +115,7 @@ export interface Booking {
     code?: string
   }
   payment?: BookingPayment
+  comment?: string
   /** Legacy field — use payment.paid instead when available */
   finStatus?: string
 }
