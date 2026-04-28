@@ -14,7 +14,6 @@ import { AlertsPanel } from '../components/AlertsPanel'
 import { useEventBlocks } from '../hooks/useEvents'
 import { useAllData } from '../hooks/useAllData'
 import { useAlerts } from '../hooks/useAlerts'
-import { useApiConfig } from '../context/ApiContext'
 import { purgeProxyCache } from '../services/proxyService'
 import { blockNameToCode } from '../utils/periods'
 import type { Event } from '../types/cogwork'
@@ -29,7 +28,6 @@ export function Dashboard() {
   const [isDirectRefreshing, setIsDirectRefreshing] = useState(false)
 
   const queryClient   = useQueryClient()
-  const { config }    = useApiConfig()
   const allDataQuery  = useAllData(eventBlockId)
   const eventBlocks   = useEventBlocks()
   const isRefreshing  = allDataQuery.isFetching || isDirectRefreshing
