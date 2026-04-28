@@ -229,8 +229,10 @@ export function RecentBookings() {
               title="Rensa proxy-cache och hämta färsk data från CogWork (långsammare)"
               className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-brand-forest px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
             >
-              <DatabaseZap className={`w-3.5 h-3.5 ${isDirectRefreshing ? 'animate-pulse' : ''}`} />
-              <span className="hidden sm:inline">Från CogWork</span>
+              {isDirectRefreshing
+                ? <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                : <DatabaseZap className="w-3.5 h-3.5" />}
+              <span className="hidden sm:inline">{isDirectRefreshing ? 'Hämtar…' : 'Från CogWork'}</span>
             </button>
           </div>
         </div>
