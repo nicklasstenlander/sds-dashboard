@@ -61,3 +61,11 @@ export function fetchProxyEvents(eventBlockId?: string): Promise<EventsResponse>
 export function fetchProxyDuplicates(): Promise<BookingsResponse> {
   return proxyFetch<BookingsResponse>({ type: 'duplicates' })
 }
+
+/** Rensar proxy-cachen så att nästa anrop hämtar färsk data från CogWork. */
+export async function purgeProxyCache(): Promise<void> {
+  const url = new URL(PROXY_URL)
+  url.pathname = '/purge'
+  const res = await fetch(url.toString())
+  if (!res.ok) throw new Error(`Purge misslyckades: ${res.status}`)
+}

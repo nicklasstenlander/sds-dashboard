@@ -5,7 +5,7 @@ import { sv } from 'date-fns/locale'
 import { Search, RefreshCw, DatabaseZap } from 'lucide-react'
 import { useBookings } from '../hooks/useBookings'
 import { useApiConfig } from '../context/ApiContext'
-import { fetchBookings } from '../api/cogwork'
+import { purgeProxyCache } from '../services/proxyService'
 import { PeriodFilter } from '../components/PeriodFilter'
 import { ParticipantPanel } from '../components/ParticipantPanel'
 import type { Booking, BookingPayment } from '../types/cogwork'
@@ -92,14 +92,12 @@ export function RecentBookings() {
   const { data: bookingsData, isLoading, isError, error, isFetching } = useBookings({ eventBlockId })
 
   async function handleDirectRefresh() {
-    if (!config.pw) return
     setIsDirectRefreshing(true)
     try {
-      const extra: Record<string, string> = eventBlockId ? { eventBlockId } : {}
-      const fresh = await fetchBookings(config, extra)
-      queryClient.setQueryData(['bookings', eventBlockId], fresh)
+      await purgeProxyCache()
+      await queryClient.invalidateQueries()
     } catch (e) {
-      console.error('Direkt CogWork-refresh misslyckades:', e)
+      console.error('CogWork-refresh misslyckades:', e)
     } finally {
       setIsDirectRefreshing(false)
     }
@@ -225,17 +223,15 @@ export function RecentBookings() {
               <RefreshCw className={`w-3.5 h-3.5 ${isFetching && !isDirectRefreshing ? 'animate-spin' : ''}`} />
               <span className="hidden sm:inline">Uppdatera</span>
             </button>
-            {config.pw && (
-              <button
-                onClick={handleDirectRefresh}
-                disabled={isDirectRefreshing}
-                title="Hämta färsk data direkt från CogWork (långsammare)"
-                className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-brand-forest px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
-              >
-                <DatabaseZap className={`w-3.5 h-3.5 ${isDirectRefreshing ? 'animate-pulse' : ''}`} />
-                <span className="hidden sm:inline">Från CogWork</span>
-              </button>
-            )}
+            <button
+              onClick={handleDirectRefresh}
+              disabled={isDirectRefreshing}
+              title="Rensa proxy-cache och hämta färsk data från CogWork (långsammare)"
+              className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-brand-forest px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
+            >
+              <DatabaseZap className={`w-3.5 h-3.5 ${isDirectRefreshing ? 'animate-pulse' : ''}`} />
+              <span className="hidden sm:inline">Från CogWork</span>
+            </button>
           </div>
         </div>
 

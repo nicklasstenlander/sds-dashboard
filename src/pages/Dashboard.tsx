@@ -15,7 +15,7 @@ import { useEventBlocks } from '../hooks/useEvents'
 import { useAllData } from '../hooks/useAllData'
 import { useAlerts } from '../hooks/useAlerts'
 import { useApiConfig } from '../context/ApiContext'
-import { fetchBookings, fetchEvents } from '../api/cogwork'
+import { purgeProxyCache } from '../services/proxyService'
 import { blockNameToCode } from '../utils/periods'
 import type { Event } from '../types/cogwork'
 
@@ -60,24 +60,12 @@ export function Dashboard() {
   const { alerts, duplicateCount } = useAlerts()
 
   async function handleDirectRefresh() {
-    if (!config.pw) return
     setIsDirectRefreshing(true)
     try {
-      const extra: Record<string, string> = eventBlockId ? { eventBlockId } : {}
-      const [bookingsRes, eventsRes, dupRes] = await Promise.all([
-        fetchBookings(config, extra),
-        fetchEvents(config, extra),
-        fetchBookings(config, { duplicatesOnly: 'true', maxRows: '50' }),
-      ])
-      queryClient.setQueryData(['allData', eventBlockId], {
-        bookings: bookingsRes,
-        events:   eventsRes,
-        duplicates: dupRes,
-        cachedAt: new Date().toISOString(),
-      })
-      queryClient.invalidateQueries({ queryKey: ['duplicates'] })
+      await purgeProxyCache()
+      await queryClient.invalidateQueries()
     } catch (e) {
-      console.error('Direkt CogWork-refresh misslyckades:', e)
+      console.error('CogWork-refresh misslyckades:', e)
     } finally {
       setIsDirectRefreshing(false)
     }
@@ -236,7 +224,7 @@ export function Dashboard() {
         search={search}
         onSelect={setSelectedEvent}
         onRefresh={() => queryClient.invalidateQueries()}
-        onDirectRefresh={config.pw ? handleDirectRefresh : undefined}
+        onDirectRefresh={handleDirectRefresh}
         isRefreshing={isRefreshing}
         isDirectRefreshing={isDirectRefreshing}
       />
