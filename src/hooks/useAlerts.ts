@@ -36,10 +36,13 @@ export function useAlerts() {
 
   const excludeEventIds = useMemo(() => {
     const ids = new Set<number>()
-    for (const e of eventsQuery.data?.events ?? eventsQuery.data ?? []) {
-      const groupId = (e as Event).grouping?.primaryEventGroup?.id
+    const eventList: Event[] = Array.isArray(eventsQuery.data)
+      ? eventsQuery.data
+      : (eventsQuery.data as { events: Event[] } | undefined)?.events ?? []
+    for (const e of eventList) {
+      const groupId = e.grouping?.primaryEventGroup?.id
       if (groupId !== undefined && EXCLUDED_DUPLICATE_GROUP_IDS.includes(groupId)) {
-        ids.add((e as Event).id)
+        ids.add(e.id)
       }
     }
     return ids

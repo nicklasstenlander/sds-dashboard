@@ -63,7 +63,7 @@ export function Dashboard() {
     if (!config.pw) return
     setIsDirectRefreshing(true)
     try {
-      const extra = eventBlockId ? { eventBlockId } : {}
+      const extra: Record<string, string> = eventBlockId ? { eventBlockId } : {}
       const [bookingsRes, eventsRes, dupRes] = await Promise.all([
         fetchBookings(config, extra),
         fetchEvents(config, extra),
