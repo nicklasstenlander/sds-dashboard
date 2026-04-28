@@ -46,6 +46,8 @@ jobs:
       - run: npm run build
         env:
           VITE_BASE_URL: ${{ steps.pages.outputs.base_path }}
+          VITE_PROXY_URL: ${{ secrets.VITE_PROXY_URL }}
+        
 
       - uses: actions/upload-pages-artifact@v3
         with:
