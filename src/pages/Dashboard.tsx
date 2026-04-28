@@ -199,8 +199,8 @@ export function Dashboard() {
           title="Väntar återkoppling"
           value={alerts.length.toLocaleString('sv-SE')}
           subtitle={pendingCount > 0 && duplicateCount > 0
-            ? `${pendingCount} nya · ${duplicateCount} dubbelanmälda`
-            : pendingCount > 0 ? `${pendingCount} nya anmälningar`
+            ? `${pendingCount} manuell check · ${duplicateCount} dubbelanmälda`
+            : pendingCount > 0 ? `${pendingCount} behöver manuell check`
             : duplicateCount > 0 ? `${duplicateCount} dubbelanmälda`
             : 'Inga ärenden'}
           icon={

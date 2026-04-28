@@ -17,7 +17,7 @@ function AlertBadge({ type }: { type: AlertType }) {
   if (type === 'pending') {
     return (
       <span className="shrink-0 text-xs font-semibold px-3 py-1 rounded-full bg-sky-100 text-sky-700 whitespace-nowrap">
-        Ny anmälan
+        Manuell check
       </span>
     )
   }
@@ -124,7 +124,7 @@ export function AlertsPanel({ open, alerts, onClose }: AlertsPanelProps) {
             <ul className="divide-y divide-slate-50">
               {pending.length > 0 && (
                 <>
-                  <SectionDivider label="Nya anmälningar" count={pending.length} />
+                  <SectionDivider label="Behöver manuell check" count={pending.length} />
                   {pending.map(a => (
                     <AlertRow key={a.booking.key} alert={a} onSelectName={setSelectedName} />
                   ))}
