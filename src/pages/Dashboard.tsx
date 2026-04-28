@@ -73,7 +73,7 @@ export function Dashboard() {
     : (allDataQuery.data?.bookings.search?.numRowsFound ?? bookings.length)
   const kpi           = computeKPIs(events)
   const bookingKpi    = computeBookingKPIs(bookings)
-  const { alerts, duplicateCount } = useAlerts(bookings)
+  const { alerts, duplicateCount, pendingCount } = useAlerts(bookings)
 
   function handleCacheRefresh() {
     const cached = readBootstrapCache<AllDataResponse>(cacheKey('allData', queryEventBlockId || 'all'))
@@ -198,7 +198,11 @@ export function Dashboard() {
         <KPICard
           title="Väntar återkoppling"
           value={alerts.length.toLocaleString('sv-SE')}
-          subtitle={alerts.length > 0 ? 'bokade på samma kurs flera gånger' : 'Inga dubbelanmälda'}
+          subtitle={pendingCount > 0 && duplicateCount > 0
+            ? `${pendingCount} nya · ${duplicateCount} dubbelanmälda`
+            : pendingCount > 0 ? `${pendingCount} nya anmälningar`
+            : duplicateCount > 0 ? `${duplicateCount} dubbelanmälda`
+            : 'Inga ärenden'}
           icon={
             <div className="relative">
               <Clock className="w-6 h-6" />

@@ -1,7 +1,32 @@
 import { useState } from 'react'
 import { X } from 'lucide-react'
 import { ParticipantPanel } from './ParticipantPanel'
-import type { Alert } from '../hooks/useAlerts'
+import type { Alert, AlertType } from '../hooks/useAlerts'
+
+function SectionDivider({ label, count }: { label: string; count: number }) {
+  return (
+    <li className="flex items-center gap-3 px-5 py-2.5">
+      <div className="flex-1 h-px bg-slate-100" />
+      <span className="text-xs font-semibold text-slate-400 whitespace-nowrap">{label} ({count})</span>
+      <div className="flex-1 h-px bg-slate-100" />
+    </li>
+  )
+}
+
+function AlertBadge({ type }: { type: AlertType }) {
+  if (type === 'pending') {
+    return (
+      <span className="shrink-0 text-xs font-semibold px-3 py-1 rounded-full bg-sky-100 text-sky-700 whitespace-nowrap">
+        Ny anmälan
+      </span>
+    )
+  }
+  return (
+    <span className="shrink-0 text-xs font-semibold px-3 py-1 rounded-full bg-amber-100 text-amber-700 whitespace-nowrap">
+      Dubbelanmäld
+    </span>
+  )
+}
 
 function AlertRow({
   alert,
@@ -10,7 +35,7 @@ function AlertRow({
   alert: Alert
   onSelectName: (name: string) => void
 }) {
-  const { booking, count } = alert
+  const { booking, type, count } = alert
   const name     = booking.participant?.name ?? ''
   const parts    = name.trim().split(' ')
   const initials = ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase() || '?'
@@ -29,9 +54,11 @@ function AlertRow({
           {booking.event?.name && (
             <p className="text-xs text-slate-400 mt-0.5 line-clamp-1">{booking.event.name}</p>
           )}
-          <p className="text-xs text-slate-400 mt-0.5">
-            Anmäld till {count} {count === 1 ? 'kurs' : 'kurser'}
-          </p>
+          {type === 'duplicate' && (
+            <p className="text-xs text-slate-400 mt-0.5">
+              Anmäld till {count} {count === 1 ? 'kurs' : 'kurser'}
+            </p>
+          )}
           {booking.participant?.id && (
             <a
               href={`https://dans.se/admin/addressbook/person/?personId=${booking.participant.id}`}
@@ -44,9 +71,7 @@ function AlertRow({
             </a>
           )}
         </div>
-        <span className="shrink-0 text-xs font-semibold px-3 py-1 rounded-full bg-amber-100 text-amber-700 whitespace-nowrap">
-          Dubbelanmäld
-        </span>
+        <AlertBadge type={type} />
       </button>
     </li>
   )
@@ -61,6 +86,9 @@ interface AlertsPanelProps {
 export function AlertsPanel({ open, alerts, onClose }: AlertsPanelProps) {
   const [selectedName, setSelectedName] = useState<string | null>(null)
 
+  const pending    = alerts.filter(a => a.type === 'pending')
+  const duplicates = alerts.filter(a => a.type === 'duplicate')
+
   return (
     <>
       <div
@@ -73,9 +101,9 @@ export function AlertsPanel({ open, alerts, onClose }: AlertsPanelProps) {
       >
         <div className="flex items-center justify-between gap-4 p-5 border-b border-slate-100">
           <div>
-            <h2 className="text-base font-bold text-brand-dark">Dubbelanmälda</h2>
+            <h2 className="text-base font-bold text-brand-dark">Väntar återkoppling</h2>
             <p className="text-xs text-slate-400 mt-0.5">
-              {alerts.length > 0 ? `${alerts.length} ${alerts.length === 1 ? 'person' : 'personer'} bokade på samma kurs flera gånger` : 'Inga dubbelanmälda'}
+              {alerts.length > 0 ? `${alerts.length} ${alerts.length === 1 ? 'ärende' : 'ärenden'} kräver åtgärd` : 'Inga ärenden'}
             </p>
           </div>
           <button
@@ -90,13 +118,26 @@ export function AlertsPanel({ open, alerts, onClose }: AlertsPanelProps) {
           {alerts.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-48 gap-2">
               <span className="text-3xl">🎉</span>
-              <p className="text-sm font-medium" style={{ color: '#009399' }}>Inga dubbelanmälda just nu</p>
+              <p className="text-sm font-medium" style={{ color: '#009399' }}>Inga ärenden just nu</p>
             </div>
           ) : (
             <ul className="divide-y divide-slate-50">
-              {alerts.map(a => (
-                <AlertRow key={a.booking.key} alert={a} onSelectName={setSelectedName} />
-              ))}
+              {pending.length > 0 && (
+                <>
+                  <SectionDivider label="Nya anmälningar" count={pending.length} />
+                  {pending.map(a => (
+                    <AlertRow key={a.booking.key} alert={a} onSelectName={setSelectedName} />
+                  ))}
+                </>
+              )}
+              {duplicates.length > 0 && (
+                <>
+                  <SectionDivider label="Dubbelanmälda" count={duplicates.length} />
+                  {duplicates.map(a => (
+                    <AlertRow key={a.booking.key} alert={a} onSelectName={setSelectedName} />
+                  ))}
+                </>
+              )}
             </ul>
           )}
         </div>
