@@ -88,7 +88,7 @@ export function Dashboard() {
   const filteredForPanel = useMemo(() => {
     if (!activeFilter) return []
     if (activeFilter === 'total') return bookings
-    if (activeFilter === 'antagna') return bookings.filter(b => b.status?.name?.toLowerCase().includes('antagen'))
+    if (activeFilter === 'antagna') return bookings.filter(b => b.status?.code?.toUpperCase() === 'ACCEPTED')
     if (activeFilter === 'ejBetalda') return bookings.filter(b => b.payment?.paid === false)
     return []
   }, [activeFilter, bookings])
@@ -316,10 +316,10 @@ function computeBookingKPIs(bookings: import('../types/cogwork').Booking[]) {
   let ejBetalda = 0
   let vantarAterkoppling = 0
   for (const b of bookings) {
-    const status = b.status?.name?.toLowerCase() ?? ''
-    if (status.includes('antagen')) antagna++
+    const code = b.status?.code?.toUpperCase() ?? ''
+    if (code === 'ACCEPTED') antagna++
     if (b.payment?.paid === false) ejBetalda++
-    if (status.includes('väntar') || status.includes('återkoppling')) vantarAterkoppling++
+    if (code === 'AWAITING_RESPONSE' || code === 'WAITING') vantarAterkoppling++
   }
   return { total: bookings.length, antagna, ejBetalda, vantarAterkoppling }
 }
