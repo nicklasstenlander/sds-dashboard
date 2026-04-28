@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { ArrowUpDown, ChevronRight, RefreshCw } from 'lucide-react'
+import { ArrowUpDown, ChevronRight, RefreshCw, DatabaseZap } from 'lucide-react'
 import type { Event, Booking } from '../types/cogwork'
 
 interface EventsTableProps {
@@ -9,7 +9,9 @@ interface EventsTableProps {
   search: string
   onSelect?: (event: Event) => void
   onRefresh?: () => void
+  onDirectRefresh?: () => void
   isRefreshing?: boolean
+  isDirectRefreshing?: boolean
 }
 
 type SortKey = 'name' | 'accepted' | 'antagna' | 'fill' | 'price' | 'revenue' | 'category'
@@ -34,7 +36,7 @@ function fillBadgeClass(pct: number) {
   return 'bg-brand-mint text-brand-forest'
 }
 
-export function EventsTable({ events, bookings = [], loading, search, onSelect, onRefresh, isRefreshing }: EventsTableProps) {
+export function EventsTable({ events, bookings = [], loading, search, onSelect, onRefresh, onDirectRefresh, isRefreshing, isDirectRefreshing }: EventsTableProps) {
   const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: 'accepted', dir: 'desc' })
 
   // Count paid (antagna) bookings per event id
@@ -105,16 +107,30 @@ export function EventsTable({ events, bookings = [], loading, search, onSelect, 
           Kursöversikt{' '}
           <span className="text-slate-400 font-light">({filtered.length} kurser)</span>
         </h2>
-        {onRefresh && (
-          <button
-            onClick={onRefresh}
-            disabled={isRefreshing}
-            className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-brand-dark px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
-            <span className="hidden sm:inline">Uppdatera</span>
-          </button>
-        )}
+        <div className="flex items-center gap-1">
+          {onRefresh && (
+            <button
+              onClick={onRefresh}
+              disabled={isRefreshing}
+              title="Uppdatera från proxy-cache"
+              className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-brand-dark px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing && !isDirectRefreshing ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">Uppdatera</span>
+            </button>
+          )}
+          {onDirectRefresh && (
+            <button
+              onClick={onDirectRefresh}
+              disabled={isDirectRefreshing}
+              title="Hämta färsk data direkt från CogWork (långsammare)"
+              className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-brand-forest px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
+            >
+              <DatabaseZap className={`w-3.5 h-3.5 ${isDirectRefreshing ? 'animate-pulse' : ''}`} />
+              <span className="hidden sm:inline">Från CogWork</span>
+            </button>
+          )}
+        </div>
       </div>
       <div className="overflow-x-auto mt-3 rounded-b-2xl">
         <table className="w-full">

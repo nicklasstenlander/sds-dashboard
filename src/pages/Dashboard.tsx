@@ -11,9 +11,11 @@ import { EventsTable } from '../components/EventsTable'
 import { CourseDetailPanel } from '../components/CourseDetailPanel'
 import { BookingListPanel } from '../components/BookingListPanel'
 import { AlertsPanel } from '../components/AlertsPanel'
-import { useEvents, useEventBlocks } from '../hooks/useEvents'
-import { useBookings } from '../hooks/useBookings'
+import { useEventBlocks } from '../hooks/useEvents'
+import { useAllData } from '../hooks/useAllData'
 import { useAlerts } from '../hooks/useAlerts'
+import { useApiConfig } from '../context/ApiContext'
+import { fetchBookings, fetchEvents } from '../api/cogwork'
 import { blockNameToCode } from '../utils/periods'
 import type { Event } from '../types/cogwork'
 
@@ -24,14 +26,15 @@ export function Dashboard() {
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
   const [activeFilter, setActiveFilter] = useState<'total' | 'antagna' | 'ejBetalda' | null>(null)
   const [alertsOpen, setAlertsOpen] = useState(false)
+  const [isDirectRefreshing, setIsDirectRefreshing] = useState(false)
 
   const queryClient   = useQueryClient()
-  const eventsQuery   = useEvents({ eventBlockId })
-  const bookingsQuery = useBookings({ eventBlockId })
+  const { config }    = useApiConfig()
+  const allDataQuery  = useAllData(eventBlockId)
   const eventBlocks   = useEventBlocks()
-  const isRefreshing  = eventsQuery.isFetching || bookingsQuery.isFetching
+  const isRefreshing  = allDataQuery.isFetching || isDirectRefreshing
 
-  const allEvents = eventsQuery.data ?? []
+  const allEvents = allDataQuery.data?.events.events ?? []
 
   // Unique sorted categories from the already-loaded events
   const categories = useMemo(() => {
@@ -50,10 +53,35 @@ export function Dashboard() {
     return allEvents.filter((e) => e.grouping?.primaryEventGroup?.name === categoryFilter)
   }, [allEvents, categoryFilter])
 
-  const bookings    = bookingsQuery.data?.bookings ?? []
-  const kpi         = computeKPIs(events)
-  const bookingKpi  = computeBookingKPIs(bookings)
+  const bookings      = allDataQuery.data?.bookings.bookings ?? []
+  const bookingsTotal = allDataQuery.data?.bookings.search?.numRowsFound ?? bookings.length
+  const kpi           = computeKPIs(events)
+  const bookingKpi    = computeBookingKPIs(bookings)
   const { alerts, duplicateCount } = useAlerts()
+
+  async function handleDirectRefresh() {
+    if (!config.pw) return
+    setIsDirectRefreshing(true)
+    try {
+      const extra = eventBlockId ? { eventBlockId } : {}
+      const [bookingsRes, eventsRes, dupRes] = await Promise.all([
+        fetchBookings(config, extra),
+        fetchEvents(config, extra),
+        fetchBookings(config, { duplicatesOnly: 'true', maxRows: '50' }),
+      ])
+      queryClient.setQueryData(['allData', eventBlockId], {
+        bookings: bookingsRes,
+        events:   eventsRes,
+        duplicates: dupRes,
+        cachedAt: new Date().toISOString(),
+      })
+      queryClient.invalidateQueries({ queryKey: ['duplicates'] })
+    } catch (e) {
+      console.error('Direkt CogWork-refresh misslyckades:', e)
+    } finally {
+      setIsDirectRefreshing(false)
+    }
+  }
 
   const today = new Date().toISOString().slice(0, 10)
   const newToday = useMemo(
@@ -119,10 +147,10 @@ export function Dashboard() {
         </div>
       </div>
 
-      {eventsQuery.isError && (
+      {allDataQuery.isError && (
         <div className="bg-red-50 border border-red-100 rounded-2xl p-4 text-sm text-red-700">
-          Kunde inte hämta kursdata:{' '}
-          {eventsQuery.error instanceof Error ? eventsQuery.error.message : 'Okänt fel'}
+          Kunde inte hämta data:{' '}
+          {allDataQuery.error instanceof Error ? allDataQuery.error.message : 'Okänt fel'}
         </div>
       )}
 
@@ -130,7 +158,7 @@ export function Dashboard() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard
           title="Totalt anmälda"
-          value={bookingKpi.total > 0 ? bookingKpi.total.toLocaleString('sv-SE') : kpi.totalAccepted.toLocaleString('sv-SE')}
+          value={bookingsTotal > 0 ? bookingsTotal.toLocaleString('sv-SE') : kpi.totalAccepted.toLocaleString('sv-SE')}
           subtitle={`${events.length} kurser`}
           delta={newToday > 0 ? { count: newToday, label: 'nya idag' } : undefined}
           icon={<Users className="w-6 h-6" />}
@@ -197,18 +225,20 @@ export function Dashboard() {
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <BookingsChart bookings={bookings} loading={bookingsQuery.isLoading} />
-        <CategoryChart events={events} loading={eventsQuery.isLoading} />
+        <BookingsChart bookings={bookings} loading={allDataQuery.isLoading} />
+        <CategoryChart events={events} loading={allDataQuery.isLoading} />
       </div>
 
       <EventsTable
         events={events}
         bookings={bookings}
-        loading={eventsQuery.isLoading}
+        loading={allDataQuery.isLoading}
         search={search}
         onSelect={setSelectedEvent}
         onRefresh={() => queryClient.invalidateQueries()}
+        onDirectRefresh={config.pw ? handleDirectRefresh : undefined}
         isRefreshing={isRefreshing}
+        isDirectRefreshing={isDirectRefreshing}
       />
 
       {/* Course detail slide-in */}

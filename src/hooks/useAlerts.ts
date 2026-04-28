@@ -1,52 +1,56 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMemo } from 'react'
-import { fetchBookings } from '../api/cogwork'
-import { useApiConfig } from '../context/ApiContext'
-import { useEvents } from './useEvents'
+import { fetchProxyDuplicates, fetchProxyEvents } from '../services/proxyService'
 import { EXCLUDED_DUPLICATE_GROUP_IDS } from '../config/cogwork'
-import type { Booking } from '../types/cogwork'
+import type { Booking, Event } from '../types/cogwork'
 
 export type AlertType = 'duplicate'
 
 export interface Alert {
   booking: Booking
   type: AlertType
-  count: number // för dubbletter: antal gånger personen är bokad på exakt samma kurs
+  count: number // antal gånger personen är bokad på exakt samma kurs
 }
 
 export function useAlerts() {
-  const { config } = useApiConfig()
+  const queryClient = useQueryClient()
 
   const dupQuery = useQuery({
-    queryKey: ['bookings-duplicates', config.org, config.pw],
-    queryFn: () => fetchBookings(config, { duplicatesOnly: 'true', maxRows: '50' }),
-    enabled: Boolean(config.org && config.pw),
+    queryKey: ['duplicates'],
+    queryFn: () => fetchProxyDuplicates(),
+    staleTime: 5 * 60 * 1000,
     refetchInterval: 5 * 60 * 1000,
-    staleTime: 4 * 60 * 1000,
   })
 
-  // Alla events (ingen termin-filter) — bygg eventId → primaryEventGroup.id-tabell
-  const allEventsQuery = useEvents({})
+  // Återanvänd events från proxy-cachen om den finns — annars hämta separat
+  const eventsQuery = useQuery({
+    queryKey: ['events', undefined],
+    queryFn: () => fetchProxyEvents(),
+    staleTime: 5 * 60 * 1000,
+    initialData: () => {
+      // Försök återanvänd data från useAllData-cachen för att slippa extra anrop
+      const allData = queryClient.getQueryData<{ events: { events: Event[] } }>(['allData', ''])
+      return allData?.events
+    },
+  })
 
   const excludeEventIds = useMemo(() => {
     const ids = new Set<number>()
-    for (const e of allEventsQuery.data ?? []) {
-      const groupId = e.grouping?.primaryEventGroup?.id
+    for (const e of eventsQuery.data?.events ?? eventsQuery.data ?? []) {
+      const groupId = (e as Event).grouping?.primaryEventGroup?.id
       if (groupId !== undefined && EXCLUDED_DUPLICATE_GROUP_IDS.includes(groupId)) {
-        ids.add(e.id)
+        ids.add((e as Event).id)
       }
     }
     return ids
-  }, [allEventsQuery.data])
+  }, [eventsQuery.data])
 
   const alerts = useMemo<Alert[]>(() => {
     const dupBookings = dupQuery.data?.bookings ?? []
     const seen = new Set<string>()
     const result: Alert[] = []
 
-    // Gruppera per (deltagare + event-ID) — en person flaggas bara om de har
-    // 2+ bokningar på EXAKT SAMMA kurs, och kursen inte är en Föreställning.
-    // Detta undviker att studenter med flera olika kurser felaktigt flaggas.
+    // Gruppera per (deltagare + event-ID) — flagga bara om 2+ bokningar på samma kurs
     const byParticipantEvent = new Map<string, typeof dupBookings>()
     for (const b of dupBookings) {
       const pKey = b.participant?.key ?? String(b.participant?.id ?? '')

@@ -1,30 +1,18 @@
 import { useQuery } from '@tanstack/react-query'
-import { fetchBookings } from '../api/cogwork'
-import { useApiConfig } from '../context/ApiContext'
+import { fetchProxyBookings } from '../services/proxyService'
 
 export interface BookingFilters {
-  minDate?: string
-  maxDate?: string
   eventBlockId?: string
-  catId?: string
 }
 
 export function useBookings(filters: BookingFilters = {}) {
-  const { config } = useApiConfig()
-
   return useQuery({
-    queryKey: ['bookings', config.org, config.pw, filters],
-    queryFn: () =>
-      fetchBookings(config, {
-        ...(filters.minDate ? { minDate: filters.minDate } : {}),
-        ...(filters.maxDate ? { maxDate: filters.maxDate } : {}),
-        ...(filters.eventBlockId ? { eventBlockId: filters.eventBlockId } : {}),
-        ...(filters.catId ? { catId: filters.catId } : {}),
-      }),
+    queryKey: ['bookings', filters.eventBlockId],
+    queryFn: () => fetchProxyBookings(filters.eventBlockId),
     select: (data) => ({
       bookings: data.bookings,
       total: data.search?.numRowsFound ?? data.bookings.length,
     }),
-    enabled: Boolean(config.org && config.pw),
+    staleTime: 5 * 60 * 1000,
   })
 }

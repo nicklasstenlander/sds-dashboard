@@ -1,44 +1,31 @@
 import { useQuery } from '@tanstack/react-query'
-import { fetchEvents } from '../api/cogwork'
-import { useApiConfig } from '../context/ApiContext'
+import { fetchProxyEvents } from '../services/proxyService'
 import { blockNameToCode } from '../utils/periods'
 import type { Event } from '../types/cogwork'
 
 export interface EventFilters {
   eventBlockId?: string
-  eventGroupId?: string
-  minDate?: string
-  maxDate?: string
 }
 
 export function useEvents(filters: EventFilters = {}) {
-  const { config } = useApiConfig()
   return useQuery({
-    queryKey: ['events', config.org, config.pw, filters],
-    queryFn: () =>
-      fetchEvents(config, {
-        ...(filters.eventBlockId ? { eventBlockId: filters.eventBlockId } : {}),
-        ...(filters.eventGroupId ? { eventGroup1Id: filters.eventGroupId } : {}),
-        ...(filters.minDate ? { minDate: filters.minDate } : {}),
-        ...(filters.maxDate ? { maxDate: filters.maxDate } : {}),
-      }),
+    queryKey: ['events', filters.eventBlockId],
+    queryFn: () => fetchProxyEvents(filters.eventBlockId),
     select: (data) => data.events,
-    enabled: Boolean(config.org),
+    staleTime: 5 * 60 * 1000,
   })
 }
 
 export interface EventBlock {
   id: number
   name: string
-  /** Short display label, e.g. "HT 2025" or original name if no match */
   label: string
 }
 
 export function useEventBlocks() {
-  const { config } = useApiConfig()
   return useQuery({
-    queryKey: ['eventBlocks', config.org, config.pw],
-    queryFn: () => fetchEvents(config, { maxRows: '500' }),
+    queryKey: ['eventBlocks'],
+    queryFn: () => fetchProxyEvents(),
     select: (data): EventBlock[] => {
       const seen = new Map<number, string>()
       data.events.forEach((e: Event) => {
@@ -50,23 +37,21 @@ export function useEventBlocks() {
       return Array.from(seen.entries())
         .map(([id, name]) => {
           const code = blockNameToCode(name)
-          // Show as "HT 2025" if code matched, otherwise use the raw name
           const label = /^(HT|VT)\d{2}$/.test(code)
             ? `${code.slice(0, 2)} 20${code.slice(2)}`
             : name
           return { id, name, label }
         })
-        .sort((a, b) => b.id - a.id) // highest id = newest term
+        .sort((a, b) => b.id - a.id)
     },
-    enabled: Boolean(config.org),
+    staleTime: 5 * 60 * 1000,
   })
 }
 
 export function useCategories() {
-  const { config } = useApiConfig()
   return useQuery({
-    queryKey: ['categories', config.org, config.pw],
-    queryFn: () => fetchEvents(config, { maxRows: '500' }),
+    queryKey: ['categories'],
+    queryFn: () => fetchProxyEvents(),
     select: (data): { id: number; name: string }[] => {
       const seen = new Map<number, string>()
       data.events.forEach((e: Event) => {
@@ -77,6 +62,6 @@ export function useCategories() {
         .map(([id, name]) => ({ id, name }))
         .sort((a, b) => a.name.localeCompare(b.name, 'sv'))
     },
-    enabled: Boolean(config.org),
+    staleTime: 5 * 60 * 1000,
   })
 }
