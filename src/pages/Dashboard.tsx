@@ -73,6 +73,7 @@ export function Dashboard() {
     : (allDataQuery.data?.bookings.search?.numRowsFound ?? bookings.length)
   const kpi           = computeKPIs(events)
   const bookingKpi    = computeBookingKPIs(bookings)
+  const revenueKpi    = computeRevenueKPIs(bookings)
   const { alerts, duplicateCount, pendingCount } = useAlerts(bookings)
 
   function handleCacheRefresh() {
@@ -217,7 +218,7 @@ export function Dashboard() {
       </div>
 
       {/* KPI — kursstatus */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard
           title="Aktiva kurser"
           value={events.length}
@@ -233,9 +234,16 @@ export function Dashboard() {
           color="emerald"
         />
         <KPICard
-          title="Beräknad intäkt"
-          value={kpi.estimatedRevenue > 0 ? `${(kpi.estimatedRevenue / 1000).toFixed(0)} tkr` : '—'}
-          subtitle={kpi.estimatedRevenue > 0 ? `${kpi.estimatedRevenue.toLocaleString('sv-SE')} kr` : 'Behöver API-nyckel'}
+          title="Mottaget"
+          value={revenueKpi.mottaget > 0 ? `${(revenueKpi.mottaget / 1000).toFixed(0)} tkr` : '—'}
+          subtitle={revenueKpi.mottaget > 0 ? `${revenueKpi.mottaget.toLocaleString('sv-SE')} kr` : undefined}
+          icon={<Banknote className="w-6 h-6" />}
+          color="emerald"
+        />
+        <KPICard
+          title="Aviserat"
+          value={revenueKpi.aviserat > 0 ? `${(revenueKpi.aviserat / 1000).toFixed(0)} tkr` : '—'}
+          subtitle={revenueKpi.aviserat > 0 ? `${revenueKpi.aviserat.toLocaleString('sv-SE')} kr` : undefined}
           icon={<Banknote className="w-6 h-6" />}
           color="dark"
         />
@@ -354,6 +362,18 @@ function computeBookingKPIs(bookings: import('../types/cogwork').Booking[]) {
     if (code === 'AWAITING_RESPONSE' || code === 'WAITING') vantarAterkoppling++
   }
   return { total: bookings.length, antagna, ejBetalda, vantarAterkoppling }
+}
+
+function computeRevenueKPIs(bookings: import('../types/cogwork').Booking[]) {
+  let mottaget = 0
+  let aviserat = 0
+  for (const b of bookings) {
+    if (b.payment?.paid === true && b.payment.amountPaid)
+      mottaget += b.payment.amountPaid
+    if (b.payment?.priceAgreed && b.status?.code?.toUpperCase() === 'ACCEPTED')
+      aviserat += b.payment.priceAgreed
+  }
+  return { mottaget, aviserat }
 }
 
 function eventMatchesPeriod(event: Event, periodCode: string): boolean {
