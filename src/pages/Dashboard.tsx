@@ -234,16 +234,16 @@ export function Dashboard() {
           color="emerald"
         />
         <KPICard
-          title="Mottaget"
-          value={revenueKpi.mottaget > 0 ? `${(revenueKpi.mottaget / 1000).toFixed(0)} tkr` : '—'}
-          subtitle={revenueKpi.mottaget > 0 ? `${revenueKpi.mottaget.toLocaleString('sv-SE')} kr` : undefined}
+          title="Aviserat"
+          value={revenueKpi.aviserat > 0 ? `${(revenueKpi.aviserat / 1000).toFixed(0)} tkr` : '—'}
+          subtitle={revenueKpi.aviserat > 0 ? `${revenueKpi.aviserat.toLocaleString('sv-SE')} kr` : undefined}
           icon={<Banknote className="w-6 h-6" />}
           color="emerald"
         />
         <KPICard
-          title="Aviserat"
-          value={revenueKpi.aviserat > 0 ? `${(revenueKpi.aviserat / 1000).toFixed(0)} tkr` : '—'}
-          subtitle={revenueKpi.aviserat > 0 ? `${revenueKpi.aviserat.toLocaleString('sv-SE')} kr` : undefined}
+          title="Mottaget"
+          value={revenueKpi.mottaget > 0 ? `${(revenueKpi.mottaget / 1000).toFixed(0)} tkr` : '—'}
+          subtitle={revenueKpi.mottaget > 0 ? `${revenueKpi.mottaget.toLocaleString('sv-SE')} kr` : undefined}
           icon={<Banknote className="w-6 h-6" />}
           color="dark"
         />
