@@ -15,8 +15,10 @@ import { useEventBlocks } from '../hooks/useEvents'
 import { useAllData } from '../hooks/useAllData'
 import { useAlerts } from '../hooks/useAlerts'
 import { purgeProxyCache } from '../services/proxyService'
-import { blockNameToCode } from '../utils/periods'
-import type { Event } from '../types/cogwork'
+import type { AllDataResponse } from '../services/proxyService'
+import { cacheKey, readBootstrapCache } from '../utils/cache'
+import { blockNameToCode, isPeriodCode, matchesPeriodCode } from '../utils/periods'
+import type { Booking, Event } from '../types/cogwork'
 
 export function Dashboard() {
   const [eventBlockId, setEventBlockId] = useState('')
@@ -26,13 +28,22 @@ export function Dashboard() {
   const [activeFilter, setActiveFilter] = useState<'total' | 'antagna' | 'ejBetalda' | null>(null)
   const [alertsOpen, setAlertsOpen] = useState(false)
   const [isDirectRefreshing, setIsDirectRefreshing] = useState(false)
+  const clientPeriodCode = isPeriodCode(eventBlockId) ? eventBlockId : ''
+  const queryEventBlockId = clientPeriodCode ? '' : eventBlockId
 
   const queryClient   = useQueryClient()
-  const allDataQuery  = useAllData(eventBlockId)
+  const allDataQuery  = useAllData(queryEventBlockId)
   const eventBlocks   = useEventBlocks()
   const isRefreshing  = allDataQuery.isFetching || isDirectRefreshing
 
-  const allEvents = allDataQuery.data?.events.events ?? []
+  const rawEvents = allDataQuery.data?.events.events ?? []
+  const rawBookings = allDataQuery.data?.bookings.bookings ?? []
+  const allEvents = useMemo(
+    () => clientPeriodCode
+      ? buildEventsFromPeriod(rawEvents, rawBookings, clientPeriodCode)
+      : rawEvents,
+    [clientPeriodCode, rawEvents, rawBookings],
+  )
 
   // Unique sorted categories from the already-loaded events
   const categories = useMemo(() => {
@@ -51,11 +62,27 @@ export function Dashboard() {
     return allEvents.filter((e) => e.grouping?.primaryEventGroup?.name === categoryFilter)
   }, [allEvents, categoryFilter])
 
-  const bookings      = allDataQuery.data?.bookings.bookings ?? []
-  const bookingsTotal = allDataQuery.data?.bookings.search?.numRowsFound ?? bookings.length
+  const bookings      = useMemo(
+    () => clientPeriodCode
+      ? rawBookings.filter((booking) => bookingMatchesPeriod(booking, clientPeriodCode))
+      : rawBookings,
+    [clientPeriodCode, rawBookings],
+  )
+  const bookingsTotal = clientPeriodCode
+    ? bookings.length
+    : (allDataQuery.data?.bookings.search?.numRowsFound ?? bookings.length)
   const kpi           = computeKPIs(events)
   const bookingKpi    = computeBookingKPIs(bookings)
-  const { alerts, duplicateCount } = useAlerts()
+  const { alerts, duplicateCount } = useAlerts(bookings)
+
+  function handleCacheRefresh() {
+    const cached = readBootstrapCache<AllDataResponse>(cacheKey('allData', queryEventBlockId || 'all'))
+    if (!cached) return
+    queryClient.setQueryData(['allData', queryEventBlockId], cached)
+    queryClient.setQueryData(['events', queryEventBlockId], cached.events)
+    queryClient.setQueryData(['bookings', queryEventBlockId], cached.bookings)
+    queryClient.setQueryData(['duplicates'], cached.duplicates)
+  }
 
   async function handleDirectRefresh() {
     setIsDirectRefreshing(true)
@@ -77,11 +104,12 @@ export function Dashboard() {
 
   // Period label for greeting header (e.g. "HT26")
   const periodLabel = useMemo(() => {
+    if (clientPeriodCode) return clientPeriodCode
     if (!eventBlockId) return ''
     const block = eventBlocks.data?.find(b => String(b.id) === eventBlockId)
     if (!block) return ''
     return blockNameToCode(block.name)
-  }, [eventBlockId, eventBlocks.data])
+  }, [clientPeriodCode, eventBlockId, eventBlocks.data])
 
   const panelTitles = { total: 'Alla anmälda', antagna: 'Antagna', ejBetalda: 'Ej betalda' }
 
@@ -221,7 +249,7 @@ export function Dashboard() {
         loading={allDataQuery.isLoading}
         search={search}
         onSelect={setSelectedEvent}
-        onRefresh={() => queryClient.invalidateQueries()}
+        onRefresh={handleCacheRefresh}
         onDirectRefresh={handleDirectRefresh}
         isRefreshing={isRefreshing}
         isDirectRefreshing={isDirectRefreshing}
@@ -322,4 +350,82 @@ function computeBookingKPIs(bookings: import('../types/cogwork').Booking[]) {
     if (code === 'AWAITING_RESPONSE' || code === 'WAITING') vantarAterkoppling++
   }
   return { total: bookings.length, antagna, ejBetalda, vantarAterkoppling }
+}
+
+function eventMatchesPeriod(event: Event, periodCode: string): boolean {
+  return matchesPeriodCode(periodCode, [
+    event.code,
+    event.schedule?.start?.date,
+    event.schedule?.start?.date && `${event.schedule.start.date} ${event.schedule.start.time ?? ''}`,
+    event.grouping?.eventBlock?.name,
+  ])
+}
+
+function bookingMatchesPeriod(booking: Booking, periodCode: string): boolean {
+  return matchesPeriodCode(periodCode, [
+    booking.event?.code,
+    booking.event?.startDate,
+    booking.event?.startDateTime,
+    booking.event?.grouping?.eventBlock?.name,
+  ])
+}
+
+function buildEventsFromPeriod(events: Event[], bookings: Booking[], periodCode: string): Event[] {
+  const fromEvents = events.filter((event) => eventMatchesPeriod(event, periodCode))
+  const byId = new Map<number, Event>(fromEvents.map((event) => [event.id, event]))
+
+  for (const booking of bookings) {
+    if (!bookingMatchesPeriod(booking, periodCode)) continue
+    const bookingEvent = booking.event
+    if (!bookingEvent?.id || byId.has(bookingEvent.id)) continue
+
+    const eventBookings = bookings.filter((b) => b.event?.id === bookingEvent.id)
+    const accepted = eventBookings.filter((b) => b.status?.code?.toUpperCase() === 'ACCEPTED').length
+    byId.set(bookingEvent.id, {
+      id: bookingEvent.id,
+      key: bookingEvent.key,
+      name: bookingEvent.name,
+      created: '',
+      code: bookingEvent.code ?? periodCode,
+      category: bookingEvent.category ?? { id: 0, name: '' },
+      place: '',
+      pricing: {
+        currency: bookingEvent.pricing?.currency ?? 'SEK',
+        basePriceInclVat: bookingEvent.pricing?.basePriceInclVat ?? 0,
+      },
+      registration: {
+        status: '',
+        statusName: '',
+        statusText: '',
+        showing: false,
+        open: false,
+      },
+      schedule: {
+        dayAndTimeInfo: bookingEvent.startDateTime ?? bookingEvent.startDate ?? '',
+        start: {
+          date: bookingEvent.startDate ?? bookingEvent.startDateTime?.slice(0, 10) ?? '',
+          time: bookingEvent.startTime ?? bookingEvent.startDateTime?.slice(11, 16) ?? '',
+          dayOfWeek: '',
+        },
+        end: { date: '', time: '', dayOfWeek: '' },
+        numberOfPlannedOccasions: 0,
+        numberOfScheduledOccasions: 0,
+      },
+      statistics: { accepted: accepted || eventBookings.length },
+      grouping: {
+        eventBlock: bookingEvent.grouping?.eventBlock ?? { key: periodCode, id: 0, name: periodCode },
+        primaryEventGroup: bookingEvent.category
+          ? { key: String(bookingEvent.category.id), id: bookingEvent.category.id, name: bookingEvent.category.name }
+          : undefined,
+      },
+      requirements: {
+        minAge: 0,
+        maxAge: 0,
+        maxParticipants: 0,
+      },
+      instructorsName: '',
+    })
+  }
+
+  return Array.from(byId.values())
 }

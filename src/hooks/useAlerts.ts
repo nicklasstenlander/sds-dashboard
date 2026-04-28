@@ -1,37 +1,58 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { fetchProxyDuplicates, fetchProxyEvents } from '../services/proxyService'
+import type { AllDataResponse } from '../services/proxyService'
 import { EXCLUDED_DUPLICATE_GROUP_IDS } from '../config/cogwork'
-import type { Booking, Event } from '../types/cogwork'
+import { cacheKey, readBootstrapCache, readBootstrapTimestamp, writeBootstrapCache } from '../utils/cache'
+import type { Booking, BookingsResponse, Event, EventsResponse } from '../types/cogwork'
 
-export type AlertType = 'duplicate'
+export type AlertType = 'duplicate' | 'pending'
 
 export interface Alert {
   booking: Booking
   type: AlertType
-  count: number // antal gånger personen är bokad på exakt samma kurs
+  count: number
 }
 
-export function useAlerts() {
-  const queryClient = useQueryClient()
+// Status-koder för bokningar som väntar på handläggning
+const PENDING_STATUS_CODES = ['NEW']
 
-  const dupQuery = useQuery({
+export function useAlerts(allBookings: Booking[] = []) {
+  const queryClient = useQueryClient()
+  const duplicatesCacheKey = cacheKey('duplicates', 'all')
+  const eventsCacheKey = cacheKey('events', 'all')
+
+  const dupQuery = useQuery<BookingsResponse>({
     queryKey: ['duplicates'],
-    queryFn: () => fetchProxyDuplicates(),
-    staleTime: 5 * 60 * 1000,
-    refetchInterval: 5 * 60 * 1000,
+    queryFn: async () => {
+      const data = await fetchProxyDuplicates()
+      writeBootstrapCache(duplicatesCacheKey, data)
+      return data
+    },
+    initialData: () => readBootstrapCache<BookingsResponse>(duplicatesCacheKey),
+    initialDataUpdatedAt: () => readBootstrapTimestamp(duplicatesCacheKey),
+    staleTime: Infinity,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   })
 
-  // Återanvänd events från proxy-cachen om den finns — annars hämta separat
-  const eventsQuery = useQuery({
+  const eventsQuery = useQuery<EventsResponse>({
     queryKey: ['events', undefined],
-    queryFn: () => fetchProxyEvents(),
-    staleTime: 5 * 60 * 1000,
-    initialData: () => {
-      // Försök återanvänd data från useAllData-cachen för att slippa extra anrop
-      const allData = queryClient.getQueryData<{ events: { events: Event[] } }>(['allData', ''])
-      return allData?.events
+    queryFn: async () => {
+      const data = await fetchProxyEvents()
+      writeBootstrapCache(eventsCacheKey, data)
+      return data
     },
+    staleTime: Infinity,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    initialData: () => {
+      const allData = queryClient.getQueryData<AllDataResponse>(['allData', ''])
+      return allData?.events ?? readBootstrapCache<EventsResponse>(eventsCacheKey)
+    },
+    initialDataUpdatedAt: () => readBootstrapTimestamp(eventsCacheKey),
   })
 
   const excludeEventIds = useMemo(() => {
@@ -53,7 +74,7 @@ export function useAlerts() {
     const seen = new Set<string>()
     const result: Alert[] = []
 
-    // Gruppera per (deltagare + event-ID) — flagga bara om 2+ bokningar på samma kurs
+    // Dubbelanmälda — gruppera per (deltagare + event-ID)
     const byParticipantEvent = new Map<string, typeof dupBookings>()
     for (const b of dupBookings) {
       const pKey = b.participant?.key ?? String(b.participant?.id ?? '')
@@ -66,8 +87,7 @@ export function useAlerts() {
     const isForestallning = (b: Booking) => {
       const code = b.event?.code?.toLowerCase() ?? ''
       const eId  = b.event?.id
-      return code.includes('forestallning') ||
-        (eId !== undefined && excludeEventIds.has(eId))
+      return code.includes('forestallning') || (eId !== undefined && excludeEventIds.has(eId))
     }
 
     const seenParticipant = new Set<string>()
@@ -84,8 +104,20 @@ export function useAlerts() {
       }
     }
 
-    return result
-  }, [dupQuery.data, excludeEventIds])
+    // Väntar återkoppling — bokningar med status NEW som inte redan visas
+    for (const b of allBookings) {
+      const code = b.status?.code?.toUpperCase() ?? ''
+      if (PENDING_STATUS_CODES.includes(code) && !seen.has(b.key)) {
+        seen.add(b.key)
+        result.push({ booking: b, type: 'pending', count: 1 })
+      }
+    }
 
-  return { alerts, duplicateCount: alerts.length, isLoading: dupQuery.isLoading }
+    return result
+  }, [dupQuery.data, allBookings, excludeEventIds])
+
+  const duplicateCount = alerts.filter(a => a.type === 'duplicate').length
+  const pendingCount   = alerts.filter(a => a.type === 'pending').length
+
+  return { alerts, duplicateCount, pendingCount, isLoading: dupQuery.isLoading }
 }

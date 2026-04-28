@@ -1,18 +1,31 @@
 import { useQuery } from '@tanstack/react-query'
 import { fetchProxyEvents } from '../services/proxyService'
 import { blockNameToCode } from '../utils/periods'
+import { cacheKey, readBootstrapCache, readBootstrapTimestamp, writeBootstrapCache } from '../utils/cache'
 import type { Event } from '../types/cogwork'
+import type { EventsResponse } from '../types/cogwork'
 
 export interface EventFilters {
   eventBlockId?: string
 }
 
 export function useEvents(filters: EventFilters = {}) {
-  return useQuery({
+  const key = cacheKey('events', filters.eventBlockId ?? 'all')
+
+  return useQuery<EventsResponse, Error, Event[]>({
     queryKey: ['events', filters.eventBlockId],
-    queryFn: () => fetchProxyEvents(filters.eventBlockId),
+    queryFn: async () => {
+      const data = await fetchProxyEvents(filters.eventBlockId)
+      writeBootstrapCache(key, data)
+      return data
+    },
+    initialData: () => readBootstrapCache<EventsResponse>(key),
+    initialDataUpdatedAt: () => readBootstrapTimestamp(key),
     select: (data) => data.events,
-    staleTime: 5 * 60 * 1000,
+    staleTime: Infinity,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   })
 }
 
@@ -23,9 +36,17 @@ export interface EventBlock {
 }
 
 export function useEventBlocks() {
-  return useQuery({
+  const key = cacheKey('events', 'all')
+
+  return useQuery<EventsResponse, Error, EventBlock[]>({
     queryKey: ['eventBlocks'],
-    queryFn: () => fetchProxyEvents(),
+    queryFn: async () => {
+      const data = await fetchProxyEvents()
+      writeBootstrapCache(key, data)
+      return data
+    },
+    initialData: () => readBootstrapCache<EventsResponse>(key),
+    initialDataUpdatedAt: () => readBootstrapTimestamp(key),
     select: (data): EventBlock[] => {
       const seen = new Map<number, string>()
       data.events.forEach((e: Event) => {
@@ -44,14 +65,25 @@ export function useEventBlocks() {
         })
         .sort((a, b) => b.id - a.id)
     },
-    staleTime: 5 * 60 * 1000,
+    staleTime: Infinity,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   })
 }
 
 export function useCategories() {
-  return useQuery({
+  const key = cacheKey('events', 'all')
+
+  return useQuery<EventsResponse, Error, { id: number; name: string }[]>({
     queryKey: ['categories'],
-    queryFn: () => fetchProxyEvents(),
+    queryFn: async () => {
+      const data = await fetchProxyEvents()
+      writeBootstrapCache(key, data)
+      return data
+    },
+    initialData: () => readBootstrapCache<EventsResponse>(key),
+    initialDataUpdatedAt: () => readBootstrapTimestamp(key),
     select: (data): { id: number; name: string }[] => {
       const seen = new Map<number, string>()
       data.events.forEach((e: Event) => {
@@ -62,6 +94,9 @@ export function useCategories() {
         .map(([id, name]) => ({ id, name }))
         .sort((a, b) => a.name.localeCompare(b.name, 'sv'))
     },
-    staleTime: 5 * 60 * 1000,
+    staleTime: Infinity,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   })
 }

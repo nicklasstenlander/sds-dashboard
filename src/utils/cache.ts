@@ -1,5 +1,8 @@
-// TTL för sessionStorage-cachen — samma som TanStack Query staleTime
+// TTL för fetch-wrappern — samma som TanStack Query staleTime
 const CACHE_TTL_MS = 5 * 60 * 1000
+
+// Äldre bootstrap-data får gärna visas direkt, men inte hur länge som helst.
+const BOOTSTRAP_MAX_AGE_MS = 24 * 60 * 60 * 1000
 
 interface CacheEntry<T> {
   data: T
@@ -7,37 +10,54 @@ interface CacheEntry<T> {
 }
 
 /**
- * Stale-while-revalidate-wrapper för fetch-anrop.
+ * Cache-wrapper för fetch-anrop.
  * Returnerar cachat svar direkt om det finns och är färskt (< 5 min),
- * annars hämtas nytt svar och sparas i sessionStorage.
+ * annars hämtas nytt svar och sparas i localStorage.
  * Cachen överlever sidrefresh, till skillnad från TanStack Querys in-memory-cache.
  */
 export async function fetchWithCache<T>(
   cacheKey: string,
   fetcher: () => Promise<T>,
 ): Promise<T> {
-  try {
-    const raw = sessionStorage.getItem(cacheKey)
-    if (raw) {
-      const entry = JSON.parse(raw) as CacheEntry<T>
-      if (Date.now() - entry.timestamp < CACHE_TTL_MS) {
-        return entry.data
-      }
-    }
-  } catch {
-    // Om sessionStorage är otillgängligt eller JSON är korrupt — fortsätt med fetch
-  }
+  const entry = readCacheEntry<T>(cacheKey, CACHE_TTL_MS)
+  if (entry) return entry.data
 
   const data = await fetcher()
+  writeCacheEntry(cacheKey, data)
+  return data
+}
 
+export function readBootstrapCache<T>(cacheKey: string): T | undefined {
+  return readCacheEntry<T>(cacheKey, BOOTSTRAP_MAX_AGE_MS)?.data
+}
+
+export function readBootstrapTimestamp(cacheKey: string): number | undefined {
+  return readCacheEntry<unknown>(cacheKey, BOOTSTRAP_MAX_AGE_MS)?.timestamp
+}
+
+export function writeBootstrapCache<T>(cacheKey: string, data: T): void {
+  writeCacheEntry(cacheKey, data)
+}
+
+function readCacheEntry<T>(cacheKey: string, maxAgeMs: number): CacheEntry<T> | undefined {
+  try {
+    const raw = localStorage.getItem(cacheKey)
+    if (!raw) return undefined
+    const entry = JSON.parse(raw) as CacheEntry<T>
+    if (!entry?.timestamp || Date.now() - entry.timestamp > maxAgeMs) return undefined
+    return entry
+  } catch {
+    return undefined
+  }
+}
+
+function writeCacheEntry<T>(cacheKey: string, data: T): void {
   try {
     const entry: CacheEntry<T> = { data, timestamp: Date.now() }
-    sessionStorage.setItem(cacheKey, JSON.stringify(entry))
+    localStorage.setItem(cacheKey, JSON.stringify(entry))
   } catch {
-    // sessionStorage kan vara fullt — ignorera
+    // localStorage kan vara fullt eller otillgängligt — ignorera
   }
-
-  return data
 }
 
 /** Nyckelprefix för att undvika krockar med andra appar på samma origin */

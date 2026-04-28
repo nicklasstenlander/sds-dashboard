@@ -6,9 +6,13 @@ import { Search, RefreshCw, DatabaseZap } from 'lucide-react'
 import { useBookings } from '../hooks/useBookings'
 import { useApiConfig } from '../context/ApiContext'
 import { purgeProxyCache } from '../services/proxyService'
+import type { AllDataResponse } from '../services/proxyService'
+import { cacheKey, readBootstrapCache } from '../utils/cache'
+import { isPeriodCode, matchesPeriodCode } from '../utils/periods'
 import { PeriodFilter } from '../components/PeriodFilter'
 import { ParticipantPanel } from '../components/ParticipantPanel'
 import type { Booking, BookingPayment } from '../types/cogwork'
+import type { BookingsResponse } from '../types/cogwork'
 
 // ---------------------------------------------------------------------------
 // Payment helpers
@@ -87,9 +91,23 @@ export function RecentBookings() {
   const [search, setSearch] = useState('')
   const [selectedName, setSelectedName] = useState<string | null>(null)
   const [isDirectRefreshing, setIsDirectRefreshing] = useState(false)
+  const clientPeriodCode = isPeriodCode(eventBlockId) ? eventBlockId : ''
+  const queryEventBlockId = clientPeriodCode ? '' : eventBlockId
 
   // Server-side period filter; client-side for payment + search
-  const { data: bookingsData, isLoading, isError, error, isFetching } = useBookings({ eventBlockId })
+  const { data: bookingsData, isLoading, isError, error, isFetching } = useBookings({
+    eventBlockId: queryEventBlockId,
+  })
+
+  function handleCacheRefresh() {
+    const bookingsKey = cacheKey('bookings', queryEventBlockId || 'all')
+    const allDataKey = cacheKey('allData', queryEventBlockId || 'all')
+    const cachedBookings = readBootstrapCache<BookingsResponse>(bookingsKey)
+    const cachedAllData = readBootstrapCache<AllDataResponse>(allDataKey)
+    const nextBookings = cachedBookings ?? cachedAllData?.bookings
+    if (!nextBookings) return
+    queryClient.setQueryData(['bookings', queryEventBlockId], nextBookings)
+  }
 
   async function handleDirectRefresh() {
     setIsDirectRefreshing(true)
@@ -102,8 +120,11 @@ export function RecentBookings() {
       setIsDirectRefreshing(false)
     }
   }
-  const bookings = bookingsData?.bookings ?? []
-  const bookingsTotal = bookingsData?.total ?? bookings.length
+  const allBookings = bookingsData?.bookings ?? []
+  const bookings = clientPeriodCode
+    ? allBookings.filter((booking) => bookingMatchesPeriod(booking, clientPeriodCode))
+    : allBookings
+  const bookingsTotal = clientPeriodCode ? bookings.length : (bookingsData?.total ?? bookings.length)
 
   const filtered = useMemo(
     () =>
@@ -216,7 +237,7 @@ export function RecentBookings() {
           </div>
           <div className="flex items-center gap-1">
             <button
-              onClick={() => queryClient.invalidateQueries()}
+              onClick={handleCacheRefresh}
               disabled={isFetching}
               className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-brand-dark px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
             >
@@ -326,4 +347,13 @@ function formatDate(dt: string): string {
   } catch {
     return dt
   }
+}
+
+function bookingMatchesPeriod(booking: Booking, periodCode: string): boolean {
+  return matchesPeriodCode(periodCode, [
+    booking.event?.code,
+    booking.event?.startDate,
+    booking.event?.startDateTime,
+    booking.event?.grouping?.eventBlock?.name,
+  ])
 }
