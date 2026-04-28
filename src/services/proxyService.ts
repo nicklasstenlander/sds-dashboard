@@ -1,10 +1,8 @@
 import type { BookingsResponse, EventsResponse } from '../types/cogwork'
 
-const PROXY_URL = import.meta.env.VITE_PROXY_URL as string | undefined
-
-if (!PROXY_URL) {
-  throw new Error('VITE_PROXY_URL saknas i miljövariabler')
-}
+const PROXY_URL =
+  (import.meta.env.VITE_PROXY_URL as string | undefined) ??
+  'https://sds-cogwork-proxy.nicklas-stenlander.workers.dev'
 
 // ---------------------------------------------------------------------------
 // Typer
