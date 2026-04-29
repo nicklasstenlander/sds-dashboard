@@ -76,10 +76,7 @@ export function Dashboard() {
   const { alerts, duplicateCount, pendingCount } = useAlerts(bookings)
 
   async function handleCacheRefresh() {
-    await queryClient.refetchQueries({
-      queryKey: ['allData', queryEventBlockId],
-      type: 'active',
-    })
+    await allDataQuery.refetch()
   }
 
   async function handleDirectRefresh() {
