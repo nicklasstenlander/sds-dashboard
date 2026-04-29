@@ -37,8 +37,8 @@ export function useBookings(filters: BookingFilters = {}) {
       bookings: data.bookings,
       total: data.search?.numRowsFound ?? data.bookings.length,
     }),
-    staleTime: Infinity,
-    refetchOnMount: false,
+    staleTime: 0,
+    refetchOnMount: 'always',
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   })
