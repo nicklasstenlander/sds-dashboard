@@ -92,15 +92,12 @@ export function RecentBookings() {
   const queryEventBlockId = clientPeriodCode ? '' : eventBlockId
 
   // Server-side period filter; client-side for payment + search
-  const { data: bookingsData, isLoading, isError, error, isFetching } = useBookings({
+  const { data: bookingsData, isLoading, isError, error, isFetching, refetch } = useBookings({
     eventBlockId: queryEventBlockId,
   })
 
   async function handleCacheRefresh() {
-    await queryClient.refetchQueries({
-      queryKey: ['bookings', queryEventBlockId],
-      type: 'active',
-    })
+    await refetch()
   }
 
   async function handleDirectRefresh() {
