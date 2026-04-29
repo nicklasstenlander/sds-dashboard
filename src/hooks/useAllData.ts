@@ -25,8 +25,8 @@ export function useAllData(eventBlockId: string) {
     },
     initialData: () => readBootstrapCache<AllDataResponse>(key),
     initialDataUpdatedAt: () => readBootstrapTimestamp(key),
-    staleTime: Infinity,
-    refetchOnMount: false,
+    staleTime: 0,
+    refetchOnMount: 'always',
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   })
