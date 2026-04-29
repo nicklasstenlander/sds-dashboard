@@ -6,13 +6,10 @@ import { Search, RefreshCw, DatabaseZap } from 'lucide-react'
 import { useBookings } from '../hooks/useBookings'
 import { useApiConfig } from '../context/ApiContext'
 import { purgeProxyCache } from '../services/proxyService'
-import type { AllDataResponse } from '../services/proxyService'
-import { cacheKey, readBootstrapCache } from '../utils/cache'
 import { isPeriodCode, matchesPeriodCode } from '../utils/periods'
 import { PeriodFilter } from '../components/PeriodFilter'
 import { ParticipantPanel } from '../components/ParticipantPanel'
 import type { Booking, BookingPayment } from '../types/cogwork'
-import type { BookingsResponse } from '../types/cogwork'
 
 // ---------------------------------------------------------------------------
 // Payment helpers
@@ -99,14 +96,11 @@ export function RecentBookings() {
     eventBlockId: queryEventBlockId,
   })
 
-  function handleCacheRefresh() {
-    const bookingsKey = cacheKey('bookings', queryEventBlockId || 'all')
-    const allDataKey = cacheKey('allData', queryEventBlockId || 'all')
-    const cachedBookings = readBootstrapCache<BookingsResponse>(bookingsKey)
-    const cachedAllData = readBootstrapCache<AllDataResponse>(allDataKey)
-    const nextBookings = cachedBookings ?? cachedAllData?.bookings
-    if (!nextBookings) return
-    queryClient.setQueryData(['bookings', queryEventBlockId], nextBookings)
+  async function handleCacheRefresh() {
+    await queryClient.refetchQueries({
+      queryKey: ['bookings', queryEventBlockId],
+      type: 'active',
+    })
   }
 
   async function handleDirectRefresh() {
@@ -242,7 +236,7 @@ export function RecentBookings() {
               className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-brand-dark px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isFetching && !isDirectRefreshing ? 'animate-spin' : ''}`} />
-              <span className="hidden sm:inline">Uppdatera</span>
+              <span className="hidden sm:inline">{isFetching && !isDirectRefreshing ? 'Uppdaterar…' : 'Uppdatera'}</span>
             </button>
             <button
               onClick={handleDirectRefresh}

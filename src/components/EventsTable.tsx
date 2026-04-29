@@ -116,7 +116,7 @@ export function EventsTable({ events, bookings = [], loading, search, onSelect, 
               className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-brand-dark px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing && !isDirectRefreshing ? 'animate-spin' : ''}`} />
-              <span className="hidden sm:inline">Uppdatera</span>
+              <span className="hidden sm:inline">{isRefreshing && !isDirectRefreshing ? 'Uppdaterar…' : 'Uppdatera'}</span>
             </button>
           )}
           {onDirectRefresh && (
