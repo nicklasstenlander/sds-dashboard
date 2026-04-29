@@ -87,17 +87,23 @@ export function RecentBookings() {
   const [payFilter, setPayFilter] = useState<'' | 'paid' | 'unpaid' | 'partial'>('')
   const [search, setSearch] = useState('')
   const [selectedName, setSelectedName] = useState<string | null>(null)
+  const [isManualRefreshing, setIsManualRefreshing] = useState(false)
   const [isDirectRefreshing, setIsDirectRefreshing] = useState(false)
   const clientPeriodCode = isPeriodCode(eventBlockId) ? eventBlockId : ''
   const queryEventBlockId = clientPeriodCode ? '' : eventBlockId
 
   // Server-side period filter; client-side for payment + search
-  const { data: bookingsData, isLoading, isError, error, isFetching, refetch } = useBookings({
+  const { data: bookingsData, isLoading, isError, error, refetch } = useBookings({
     eventBlockId: queryEventBlockId,
   })
 
   async function handleCacheRefresh() {
-    await refetch()
+    setIsManualRefreshing(true)
+    try {
+      await refetch({ cancelRefetch: false })
+    } finally {
+      setIsManualRefreshing(false)
+    }
   }
 
   async function handleDirectRefresh() {
@@ -229,11 +235,11 @@ export function RecentBookings() {
           <div className="flex items-center gap-1">
             <button
               onClick={handleCacheRefresh}
-              disabled={isFetching}
+              disabled={isManualRefreshing}
               className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-brand-dark px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${isFetching && !isDirectRefreshing ? 'animate-spin' : ''}`} />
-              <span className="hidden sm:inline">{isFetching && !isDirectRefreshing ? 'Uppdaterar…' : 'Uppdatera'}</span>
+              <RefreshCw className={`w-3.5 h-3.5 ${isManualRefreshing && !isDirectRefreshing ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">{isManualRefreshing && !isDirectRefreshing ? 'Uppdaterar…' : 'Uppdatera'}</span>
             </button>
             <button
               onClick={handleDirectRefresh}
