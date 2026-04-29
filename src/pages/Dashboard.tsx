@@ -15,13 +15,12 @@ import { useEventBlocks } from '../hooks/useEvents'
 import { useAllData } from '../hooks/useAllData'
 import { useAlerts } from '../hooks/useAlerts'
 import { purgeProxyCache } from '../services/proxyService'
-import type { AllDataResponse } from '../services/proxyService'
-import { cacheKey, readBootstrapCache } from '../utils/cache'
 import { blockNameToCode, isPeriodCode, matchesPeriodCode } from '../utils/periods'
+import { getDefaultEventBlockId } from '../config/cogwork'
 import type { Booking, Event } from '../types/cogwork'
 
 export function Dashboard() {
-  const [eventBlockId, setEventBlockId] = useState('')
+  const [eventBlockId, setEventBlockId] = useState(() => getDefaultEventBlockId())
   const [categoryFilter, setCategoryFilter] = useState('')
   const [search, setSearch] = useState('')
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
@@ -76,13 +75,11 @@ export function Dashboard() {
   const revenueKpi    = computeRevenueKPIs(bookings)
   const { alerts, duplicateCount, pendingCount } = useAlerts(bookings)
 
-  function handleCacheRefresh() {
-    const cached = readBootstrapCache<AllDataResponse>(cacheKey('allData', queryEventBlockId || 'all'))
-    if (!cached) return
-    queryClient.setQueryData(['allData', queryEventBlockId], cached)
-    queryClient.setQueryData(['events', queryEventBlockId], cached.events)
-    queryClient.setQueryData(['bookings', queryEventBlockId], cached.bookings)
-    queryClient.setQueryData(['duplicates'], cached.duplicates)
+  async function handleCacheRefresh() {
+    await queryClient.refetchQueries({
+      queryKey: ['allData', queryEventBlockId],
+      type: 'active',
+    })
   }
 
   async function handleDirectRefresh() {

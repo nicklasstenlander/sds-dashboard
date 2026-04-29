@@ -1,8 +1,9 @@
 // TTL för fetch-wrappern — samma som TanStack Query staleTime
 const CACHE_TTL_MS = 5 * 60 * 1000
 
-// Äldre bootstrap-data får gärna visas direkt, men inte hur länge som helst.
-const BOOTSTRAP_MAX_AGE_MS = 24 * 60 * 60 * 1000
+// Äldre bootstrap-data får gärna visas direkt för att undvika kalla proxy-hämtningar
+// vid första sidöppningen efter några dagar.
+const BOOTSTRAP_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000
 
 interface CacheEntry<T> {
   data: T
