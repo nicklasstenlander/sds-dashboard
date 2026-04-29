@@ -26,6 +26,7 @@ export function Dashboard() {
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
   const [activeFilter, setActiveFilter] = useState<'total' | 'antagna' | 'ejBetalda' | null>(null)
   const [alertsOpen, setAlertsOpen] = useState(false)
+  const [isManualRefreshing, setIsManualRefreshing] = useState(false)
   const [isDirectRefreshing, setIsDirectRefreshing] = useState(false)
   const clientPeriodCode = isPeriodCode(eventBlockId) ? eventBlockId : ''
   const queryEventBlockId = clientPeriodCode ? '' : eventBlockId
@@ -33,7 +34,7 @@ export function Dashboard() {
   const queryClient   = useQueryClient()
   const allDataQuery  = useAllData(queryEventBlockId)
   const eventBlocks   = useEventBlocks()
-  const isRefreshing  = allDataQuery.isFetching || isDirectRefreshing
+  const isRefreshing  = isManualRefreshing || isDirectRefreshing
 
   const rawEvents = allDataQuery.data?.events.events ?? []
   const rawBookings = allDataQuery.data?.bookings.bookings ?? []
@@ -76,7 +77,12 @@ export function Dashboard() {
   const { alerts, duplicateCount, pendingCount } = useAlerts(bookings)
 
   async function handleCacheRefresh() {
-    await allDataQuery.refetch()
+    setIsManualRefreshing(true)
+    try {
+      await allDataQuery.refetch({ cancelRefetch: false })
+    } finally {
+      setIsManualRefreshing(false)
+    }
   }
 
   async function handleDirectRefresh() {
