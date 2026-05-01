@@ -1,20 +1,22 @@
 import { useState, useRef, useLayoutEffect } from 'react'
-import { LayoutDashboard, ClipboardList, Users, Settings, LogOut, ShoppingBag, PanelLeft } from 'lucide-react'
+import { LayoutDashboard, ClipboardList, Users, Settings, LogOut, ShoppingBag, PanelLeft, Phone } from 'lucide-react'
 import { ApiProvider, useApiConfig } from './context/ApiContext'
 import { Dashboard } from './pages/Dashboard'
 import { RecentBookings } from './pages/RecentBookings'
 import { Customers } from './pages/Customers'
 import { Shop } from './pages/Shop'
+import { Calls } from './pages/Calls'
 import { LoginPage } from './pages/LoginPage'
 import { SettingsModal } from './components/SettingsModal'
 
-type Tab = 'dashboard' | 'bookings' | 'customers' | 'shop'
+type Tab = 'dashboard' | 'bookings' | 'customers' | 'shop' | 'calls'
 
 const NAV = [
   { id: 'dashboard' as Tab, label: 'Översikt',    Icon: LayoutDashboard },
   { id: 'bookings'  as Tab, label: 'Anmälningar', Icon: ClipboardList   },
   { id: 'customers' as Tab, label: 'Kunder',       Icon: Users           },
   { id: 'shop'      as Tab, label: 'Shop',          Icon: ShoppingBag    },
+  { id: 'calls'     as Tab, label: 'Samtal',        Icon: Phone           },
 ]
 
 function AppShell() {
@@ -126,6 +128,7 @@ function AppShell() {
           {tab === 'bookings'  && <RecentBookings />}
           {tab === 'customers' && <Customers />}
           {tab === 'shop'      && <Shop />}
+          {tab === 'calls'     && <Calls />}
         </main>
       </div>
 
