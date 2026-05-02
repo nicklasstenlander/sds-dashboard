@@ -7,6 +7,7 @@ import { useBookings } from '../hooks/useBookings'
 import { useApiConfig } from '../context/ApiContext'
 import { purgeProxyCache } from '../services/proxyService'
 import { isPeriodCode, matchesPeriodCode } from '../utils/periods'
+import type { AllDataResponse } from '../services/proxyService'
 import { PeriodFilter } from '../components/PeriodFilter'
 import { ParticipantPanel } from '../components/ParticipantPanel'
 import type { Booking, BookingPayment } from '../types/cogwork'
@@ -117,6 +118,19 @@ export function RecentBookings() {
       setIsDirectRefreshing(false)
     }
   }
+  // Hämta alla bokningar (ofiltrerade) för "Ny elev"-beräkning
+  const cachedAllData = queryClient.getQueryData<AllDataResponse>(['allData', ''])
+  const allBookingsUnfiltered = cachedAllData?.bookings.bookings ?? bookingsData?.bookings ?? []
+
+  const bookingCountByParticipant = useMemo(() => {
+    const map = new Map<string, number>()
+    allBookingsUnfiltered.forEach(b => {
+      const key = b.participant?.key ?? ''
+      if (key) map.set(key, (map.get(key) ?? 0) + 1)
+    })
+    return map
+  }, [allBookingsUnfiltered])
+
   const allBookings = bookingsData?.bookings ?? []
   const bookings = clientPeriodCode
     ? allBookings.filter((booking) => bookingMatchesPeriod(booking, clientPeriodCode))
@@ -291,14 +305,21 @@ export function RecentBookings() {
                       {formatDate(b.created)}
                     </td>
                     <td className="py-3 px-5 text-sm font-medium whitespace-nowrap">
-                      {b.participant?.name ? (
-                        <button
-                          onClick={() => setSelectedName(b.participant!.name!)}
-                          className="text-brand-dark hover:text-brand-forest hover:underline text-left"
-                        >
-                          {b.participant.name}
-                        </button>
-                      ) : '—'}
+                      <div className="flex items-center gap-2">
+                        {b.participant?.name ? (
+                          <button
+                            onClick={() => setSelectedName(b.participant!.name!)}
+                            className="text-brand-dark hover:text-brand-forest hover:underline text-left"
+                          >
+                            {b.participant.name}
+                          </button>
+                        ) : '—'}
+                        {b.participant?.key && (bookingCountByParticipant.get(b.participant.key) ?? 0) === 1 && (
+                          <span className="text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap" style={{ background: '#CDDCD1', color: '#1e4025' }}>
+                            Ny elev
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="py-3 px-5 text-sm text-slate-700 max-w-[280px]">
                       <span className="line-clamp-1">{b.event?.name ?? '—'}</span>

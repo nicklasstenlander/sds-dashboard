@@ -11,6 +11,7 @@ import { EventsTable } from '../components/EventsTable'
 import { CourseDetailPanel } from '../components/CourseDetailPanel'
 import { BookingListPanel } from '../components/BookingListPanel'
 import { AlertsPanel } from '../components/AlertsPanel'
+import { GroupSmsModal } from '../components/GroupSmsModal'
 import { useEventBlocks } from '../hooks/useEvents'
 import { useAllData } from '../hooks/useAllData'
 import { useAlerts } from '../hooks/useAlerts'
@@ -26,6 +27,7 @@ export function Dashboard() {
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
   const [activeFilter, setActiveFilter] = useState<'total' | 'antagna' | 'ejBetalda' | null>(null)
   const [alertsOpen, setAlertsOpen] = useState(false)
+  const [groupSms, setGroupSms] = useState<{ courseName: string; bookings: Booking[] } | null>(null)
   const [isManualRefreshing, setIsManualRefreshing] = useState(false)
   const [isDirectRefreshing, setIsDirectRefreshing] = useState(false)
   const clientPeriodCode = isPeriodCode(eventBlockId) ? eventBlockId : ''
@@ -263,6 +265,7 @@ export function Dashboard() {
         onSelect={setSelectedEvent}
         onRefresh={handleCacheRefresh}
         onDirectRefresh={handleDirectRefresh}
+        onGroupSms={(event, courseBookings) => setGroupSms({ courseName: event.name, bookings: courseBookings })}
         isRefreshing={isRefreshing}
         isDirectRefreshing={isDirectRefreshing}
       />
@@ -275,6 +278,13 @@ export function Dashboard() {
         title={activeFilter ? panelTitles[activeFilter] : ''}
         bookings={filteredForPanel}
         onClose={() => setActiveFilter(null)}
+      />
+
+      <GroupSmsModal
+        isOpen={Boolean(groupSms)}
+        onClose={() => setGroupSms(null)}
+        courseName={groupSms?.courseName ?? ''}
+        bookings={groupSms?.bookings ?? []}
       />
 
       {/* Alerts slide-in for "Väntar återkoppling" */}

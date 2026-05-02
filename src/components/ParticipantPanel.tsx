@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { X, Mail, Phone, MapPin, Calendar, Hash, BookOpen, PhoneCall, MessageSquare } from 'lucide-react'
+import { X, Mail, Phone, MapPin, Calendar, Hash, BookOpen, MessageSquare } from 'lucide-react'
 import { useUser } from '../hooks/useUser'
 import { useUserBookings } from '../hooks/useUserBookings'
 import { blockNameToFullLabel } from '../utils/periods'
-import { dial } from '../services/telavoxService'
+import { AgentDial } from './AgentDial'
 import { SmsModal } from './SmsModal'
 
 interface ParticipantPanelProps {
@@ -20,14 +20,7 @@ export function ParticipantPanel({ name, onClose, elevated }: ParticipantPanelPr
   const backdropZ = elevated ? 'z-[60]' : 'z-40'
   const panelZ    = elevated ? 'z-[70]' : 'z-50'
 
-  const [dialingNumber, setDialingNumber] = useState<string | null>(null)
-  const [smsTarget, setSmsTarget]         = useState<{ number: string } | null>(null)
-
-  async function handleDial(number: string) {
-    setDialingNumber(number)
-    try { await dial(number) } catch { /* silent */ }
-    setTimeout(() => setDialingNumber(null), 3000)
-  }
+  const [smsTarget, setSmsTarget] = useState<{ number: string } | null>(null)
 
   return (
     <>
@@ -111,25 +104,15 @@ export function ParticipantPanel({ name, onClose, elevated }: ParticipantPanelPr
                       <a href={`tel:${t.telephoneNumber}`} className="text-brand-forest hover:underline">
                         {t.telephoneNumber}
                       </a>
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => handleDial(t.telephoneNumber)}
-                          disabled={dialingNumber === t.telephoneNumber}
-                          title={dialingNumber === t.telephoneNumber ? 'Ringer…' : 'Ring upp'}
-                          className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg text-slate-400 hover:text-brand-forest hover:bg-brand-mint transition-colors disabled:opacity-50"
-                        >
-                          <PhoneCall className="w-3.5 h-3.5" />
-                          <span>{dialingNumber === t.telephoneNumber ? 'Ringer…' : 'Ring'}</span>
-                        </button>
-                        <button
-                          onClick={() => setSmsTarget({ number: t.telephoneNumber })}
-                          title="Skicka SMS"
-                          className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg text-slate-400 hover:text-brand-dark hover:bg-slate-100 transition-colors"
-                        >
-                          <MessageSquare className="w-3.5 h-3.5" />
-                          <span>SMS</span>
-                        </button>
-                      </div>
+                      <AgentDial number={t.telephoneNumber} />
+                      <button
+                        onClick={() => setSmsTarget({ number: t.telephoneNumber })}
+                        title="Skicka SMS"
+                        className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg text-slate-400 hover:text-brand-dark hover:bg-slate-100 transition-colors border border-slate-200"
+                      >
+                        <MessageSquare className="w-3.5 h-3.5" />
+                        <span>SMS</span>
+                      </button>
                     </div>
                   </Row>
                 ))}

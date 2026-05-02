@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { ArrowUpDown, ChevronRight, RefreshCw, DatabaseZap } from 'lucide-react'
+import { ArrowUpDown, ChevronRight, RefreshCw, DatabaseZap, MessageSquare } from 'lucide-react'
 import type { Event, Booking } from '../types/cogwork'
 
 interface EventsTableProps {
@@ -10,6 +10,7 @@ interface EventsTableProps {
   onSelect?: (event: Event) => void
   onRefresh?: () => void
   onDirectRefresh?: () => void
+  onGroupSms?: (event: Event, courseBookings: Booking[]) => void
   isRefreshing?: boolean
   isDirectRefreshing?: boolean
 }
@@ -36,7 +37,7 @@ function fillBadgeClass(pct: number) {
   return 'bg-brand-mint text-brand-forest'
 }
 
-export function EventsTable({ events, bookings = [], loading, search, onSelect, onRefresh, onDirectRefresh, isRefreshing, isDirectRefreshing }: EventsTableProps) {
+export function EventsTable({ events, bookings = [], loading, search, onSelect, onRefresh, onDirectRefresh, onGroupSms, isRefreshing, isDirectRefreshing }: EventsTableProps) {
   const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: 'accepted', dir: 'desc' })
 
   // Count paid (antagna) bookings per event id
@@ -210,7 +211,22 @@ export function EventsTable({ events, bookings = [], loading, search, onSelect, 
                   {e._revenue > 0 ? e._revenue.toLocaleString('sv-SE') : '—'}
                 </td>
                 <td className="py-3 px-2">
-                  {onSelect && <ChevronRight className="w-4 h-4 text-slate-300" />}
+                  <div className="flex items-center gap-1">
+                    {onGroupSms && (() => {
+                      const courseBookings = bookings.filter(b => b.event?.id === e.id)
+                      const hasAccepted = courseBookings.some(b => b.status?.code?.toUpperCase() === 'ACCEPTED')
+                      return hasAccepted ? (
+                        <button
+                          onClick={ev => { ev.stopPropagation(); onGroupSms(e, courseBookings) }}
+                          title="Skicka SMS till gruppen"
+                          className="p-1 rounded text-slate-300 hover:text-brand-dark hover:bg-slate-100 transition-colors"
+                        >
+                          <MessageSquare className="w-4 h-4" />
+                        </button>
+                      ) : null
+                    })()}
+                    {onSelect && <ChevronRight className="w-4 h-4 text-slate-300" />}
+                  </div>
                 </td>
               </tr>
             ))}

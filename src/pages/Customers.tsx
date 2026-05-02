@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
-import { Search, Mail, Phone, MapPin, Calendar, Hash, User, BookOpen } from 'lucide-react'
+import { Search, Mail, Phone, MapPin, Calendar, Hash, User, BookOpen, MessageSquare } from 'lucide-react'
 import { useUsers } from '../hooks/useUsers'
 import { useUserBookings } from '../hooks/useUserBookings'
 import { useApiConfig } from '../context/ApiContext'
+import { AgentDial } from '../components/AgentDial'
+import { SmsModal } from '../components/SmsModal'
 import type { User as UserType } from '../types/cogwork'
 
 export function Customers() {
@@ -140,6 +142,7 @@ function Avatar({ user, size = 'md', active = false }: { user: UserType; size?: 
 
 function UserCard({ user }: { user: UserType }) {
   const { data: bookings = [], isLoading: bookingsLoading } = useUserBookings(user.id)
+  const [smsTarget, setSmsTarget] = useState<{ number: string } | null>(null)
 
   // Deduplicate by event name (a person can have multiple bookings for the same course)
   const courses = bookings.reduce<{ name: string; period: string; status: string }[]>((acc, b) => {
@@ -191,9 +194,19 @@ function UserCard({ user }: { user: UserType }) {
           ))}
           {user.telephoneNumbers?.map((t, i) => (
             <DetailRow key={i} icon={<Phone className="w-4 h-4" />} label={t.type ?? 'Telefon'}>
-              <a href={`tel:${t.telephoneNumber}`} className="text-brand-forest hover:underline">
-                {t.telephoneNumber}
-              </a>
+              <div className="flex items-center gap-2 flex-wrap">
+                <a href={`tel:${t.telephoneNumber}`} className="text-brand-forest hover:underline">
+                  {t.telephoneNumber}
+                </a>
+                <AgentDial number={t.telephoneNumber} />
+                <button
+                  onClick={() => setSmsTarget({ number: t.telephoneNumber })}
+                  className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg text-slate-400 hover:text-brand-dark hover:bg-slate-100 transition-colors border border-slate-200"
+                >
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  <span>SMS</span>
+                </button>
+              </div>
             </DetailRow>
           ))}
           {user.addresses?.map((a, i) => (
@@ -242,6 +255,13 @@ function UserCard({ user }: { user: UserType }) {
           </ul>
         )}
       </div>
+
+      <SmsModal
+        isOpen={Boolean(smsTarget)}
+        onClose={() => setSmsTarget(null)}
+        recipientName={user.name}
+        recipientNumber={smsTarget?.number ?? ''}
+      />
     </div>
   )
 }

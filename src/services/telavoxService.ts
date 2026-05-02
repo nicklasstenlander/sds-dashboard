@@ -27,9 +27,10 @@ export async function fetchCalls(
   return res.json()
 }
 
-export async function dial(number: string): Promise<void> {
+export async function dial(number: string, agent: string = 'madeleine'): Promise<void> {
   const url = new URL(`${PROXY_URL}/telavox/dial`)
   url.searchParams.set('number', number)
+  url.searchParams.set('agent',  agent)
   const res = await fetch(url.toString())
   if (!res.ok) throw new Error(`Dial misslyckades: ${res.status}`)
 }

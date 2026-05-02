@@ -1,9 +1,36 @@
 import { useState } from 'react'
-import { PhoneCall, PhoneIncoming, PhoneMissed, MessageSquare, Phone, RefreshCw } from 'lucide-react'
+import { PhoneCall, PhoneIncoming, PhoneMissed, MessageSquare, RefreshCw } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useCalls } from '../hooks/useCalls'
-import { dial } from '../services/telavoxService'
+import { AgentDial } from '../components/AgentDial'
 import { SmsModal } from '../components/SmsModal'
 import type { TelavoxCall } from '../services/telavoxService'
+import type { AllDataResponse } from '../services/proxyService'
+import type { Booking } from '../types/cogwork'
+
+// ---------------------------------------------------------------------------
+// Participant lookup
+// ---------------------------------------------------------------------------
+
+function normalize(n: string) {
+  return n.replace(/[\s.\-()+]/g, '').replace(/^46/, '0')
+}
+
+interface ParticipantInfo { name: string; courses: string[] }
+
+function lookupParticipant(phoneNumber: string, bookings: Booking[]): ParticipantInfo | null {
+  const norm = normalize(phoneNumber)
+  const match = bookings.find(b =>
+    (b.participant as { telephoneNumbers?: { telephoneNumber: string }[] })
+      .telephoneNumbers?.some(t => normalize(t.telephoneNumber) === norm)
+  )
+  if (!match) return null
+  const courses = bookings
+    .filter(b => b.participant?.key === match.participant?.key)
+    .map(b => b.event?.name ?? '')
+    .filter(Boolean)
+  return { name: match.participant?.name ?? '', courses: [...new Set(courses)] }
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -34,44 +61,39 @@ function yesterday() {
 // CallRow
 // ---------------------------------------------------------------------------
 
-function CallRow({ call, onSms }: { call: TelavoxCall; onSms: (number: string) => void }) {
-  const [dialing, setDialing] = useState(false)
-
-  async function handleDial() {
-    setDialing(true)
-    try {
-      await dial(call.number)
-    } finally {
-      setTimeout(() => setDialing(false), 3000)
-    }
-  }
-
+function CallRow({
+  call, participant, onSms,
+}: {
+  call: TelavoxCall
+  participant: ParticipantInfo | null
+  onSms: (number: string) => void
+}) {
   return (
     <li className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50/60 transition-colors">
       <div className="min-w-0 flex-1">
-        <div className="flex items-baseline gap-2">
+        <div className="flex items-baseline gap-2 flex-wrap">
           <span className="text-sm font-medium text-brand-dark tabular-nums">{formatTime(call.datetime)}</span>
-          <span className="text-sm text-slate-500">{call.number}</span>
+          {participant
+            ? <span className="text-sm font-semibold text-brand-dark">{participant.name}</span>
+            : <span className="text-sm text-slate-400">Okänt nummer</span>}
+          <span className="text-xs text-slate-400">{call.number}</span>
         </div>
+        {participant && participant.courses.length > 0 && (
+          <p className="text-xs text-slate-400 mt-0.5 line-clamp-1">
+            {participant.courses.join(', ')}
+          </p>
+        )}
         <p className={`text-xs mt-0.5 ${call.duration === 0 ? 'text-red-500 font-medium' : 'text-slate-400'}`}>
           {formatDuration(call.duration)}
         </p>
       </div>
 
       <div className="flex items-center gap-1 shrink-0">
-        <button
-          onClick={handleDial}
-          disabled={dialing}
-          title={dialing ? 'Ringer…' : 'Ring upp'}
-          className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg text-slate-500 hover:text-brand-forest hover:bg-brand-mint transition-colors disabled:opacity-50"
-        >
-          <Phone className="w-3.5 h-3.5" />
-          <span>{dialing ? 'Ringer…' : 'Ring'}</span>
-        </button>
+        <AgentDial number={call.number} />
         <button
           onClick={() => onSms(call.number)}
           title="Skicka SMS"
-          className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg text-slate-500 hover:text-brand-dark hover:bg-slate-100 transition-colors"
+          className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg text-slate-500 hover:text-brand-dark hover:bg-slate-100 transition-colors border border-slate-200"
         >
           <MessageSquare className="w-3.5 h-3.5" />
           <span>SMS</span>
@@ -86,12 +108,13 @@ function CallRow({ call, onSms }: { call: TelavoxCall; onSms: (number: string) =
 // ---------------------------------------------------------------------------
 
 function Section({
-  title, icon, accent, calls, onSms, emptyText,
+  title, icon, accent, calls, bookings, onSms, emptyText,
 }: {
   title: string
   icon: React.ReactNode
   accent: string
   calls: TelavoxCall[]
+  bookings: Booking[]
   onSms: (number: string) => void
   emptyText: string
 }) {
@@ -107,7 +130,12 @@ function Section({
       ) : (
         <ul className="divide-y divide-slate-50">
           {calls.map((c, i) => (
-            <CallRow key={`${c.datetime}-${i}`} call={c} onSms={onSms} />
+            <CallRow
+              key={`${c.datetime}-${i}`}
+              call={c}
+              participant={lookupParticipant(c.number, bookings)}
+              onSms={onSms}
+            />
           ))}
         </ul>
       )}
@@ -124,6 +152,11 @@ export function Calls() {
   const [smsNumber, setSmsNumber] = useState<string | null>(null)
 
   const { data, isLoading, isError, refetch, isFetching } = useCalls(date, date)
+
+  // Hämta bokningar från cachen för namnuppslag — ingen extra API-request
+  const queryClient = useQueryClient()
+  const cachedAllData = queryClient.getQueryData<AllDataResponse>(['allData', ''])
+  const bookings: Booking[] = cachedAllData?.bookings.bookings ?? []
 
   const missed   = data?.missed   ?? []
   const incoming = data?.incoming ?? []
@@ -200,30 +233,9 @@ export function Calls() {
         </div>
       ) : (
         <div className="space-y-4">
-          <Section
-            title="Missade"
-            icon={<PhoneMissed className="w-4 h-4" />}
-            accent="text-red-500"
-            calls={missed}
-            onSms={setSmsNumber}
-            emptyText="Inga missade samtal"
-          />
-          <Section
-            title="Inkommande"
-            icon={<PhoneIncoming className="w-4 h-4" />}
-            accent="text-brand-forest"
-            calls={incoming}
-            onSms={setSmsNumber}
-            emptyText="Inga inkommande samtal"
-          />
-          <Section
-            title="Utgående"
-            icon={<PhoneCall className="w-4 h-4" />}
-            accent="text-slate-400"
-            calls={outgoing}
-            onSms={setSmsNumber}
-            emptyText="Inga utgående samtal"
-          />
+          <Section title="Missade"    icon={<PhoneMissed className="w-4 h-4" />}   accent="text-red-500"       calls={missed}   bookings={bookings} onSms={setSmsNumber} emptyText="Inga missade samtal"    />
+          <Section title="Inkommande" icon={<PhoneIncoming className="w-4 h-4" />} accent="text-brand-forest" calls={incoming} bookings={bookings} onSms={setSmsNumber} emptyText="Inga inkommande samtal" />
+          <Section title="Utgående"   icon={<PhoneCall className="w-4 h-4" />}     accent="text-slate-400"    calls={outgoing} bookings={bookings} onSms={setSmsNumber} emptyText="Inga utgående samtal"   />
         </div>
       )}
 
