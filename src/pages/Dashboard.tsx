@@ -431,7 +431,7 @@ function buildEventsFromPeriod(events: Event[], bookings: Booking[], periodCode:
         status: '',
         statusName: '',
         statusText: '',
-        showing: false,
+        showing: true,
         open: false,
       },
       schedule: {

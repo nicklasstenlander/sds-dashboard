@@ -167,7 +167,14 @@ export function EventsTable({ events, bookings = [], loading, search, onSelect, 
                 className={`hover:bg-brand-mint transition-colors ${onSelect ? 'cursor-pointer' : ''}`}
               >
                 <td className="py-3 px-4 text-sm font-medium text-brand-dark max-w-[160px] sm:max-w-[220px]">
-                  <span className="line-clamp-2">{e.name}</span>
+                  <div className="flex items-start gap-1.5 flex-wrap">
+                    <span className="line-clamp-2">{e.name}</span>
+                    {e.registration?.showing === false && (
+                      <span className="shrink-0 text-xs font-medium px-1.5 py-0.5 rounded bg-slate-100 text-slate-400 whitespace-nowrap">
+                        Ej publik
+                      </span>
+                    )}
+                  </div>
                 </td>
                 <td className="hidden sm:table-cell py-3 px-4 text-sm text-slate-500 whitespace-nowrap">
                   {e.grouping?.primaryEventGroup?.name ?? '—'}
