@@ -36,7 +36,8 @@ interface ToastState {
 // Helpers
 // ---------------------------------------------------------------------------
 
-const PROXY = import.meta.env.VITE_PROXY_URL as string
+const NARVARO_URL = (import.meta.env.VITE_NARVARO_URL as string | undefined)
+  ?? 'https://script.google.com/macros/s/AKfycbx-euNjfAQaEfgA2xpkmhYUgpxUOI29cw0GF3-aLRkLowr4-U40HGdXyKgQPyFOCtyo/exec'
 
 function toDateStr(d: Date): string {
   return d.toISOString().slice(0, 10)
@@ -247,7 +248,7 @@ export function Narvaro() {
     setLoading(true)
     setError(null)
     try {
-      const res  = await fetch(`${PROXY}?action=events_by_date&date=${date}`)
+      const res  = await fetch(`${NARVARO_URL}?action=events_by_date&date=${date}`)
       const raw  = await res.json()
       const data: CourseEvent[] = Array.isArray(raw) ? raw : (raw.events ?? raw.data ?? [])
       setEvents(data)
@@ -296,7 +297,7 @@ export function Narvaro() {
     }
 
     try {
-      const url  = `${PROXY}?action=checkin&eventId=${encodeURIComponent(eventId)}&checkinString=${encodeURIComponent(participant.userKey)}`
+      const url  = `${NARVARO_URL}?action=checkin&eventId=${encodeURIComponent(eventId)}&checkinString=${encodeURIComponent(participant.userKey)}`
       const res  = await fetch(url)
       const data = await res.json()
 
