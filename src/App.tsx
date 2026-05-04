@@ -1,15 +1,16 @@
 import { useState, useRef, useLayoutEffect } from 'react'
-import { LayoutDashboard, ClipboardList, Users, Settings, LogOut, ShoppingBag, PanelLeft, Phone } from 'lucide-react'
+import { LayoutDashboard, ClipboardList, Users, Settings, LogOut, ShoppingBag, PanelLeft, Phone, ClipboardCheck } from 'lucide-react'
 import { ApiProvider, useApiConfig } from './context/ApiContext'
 import { Dashboard } from './pages/Dashboard'
 import { RecentBookings } from './pages/RecentBookings'
 import { Customers } from './pages/Customers'
 import { Shop } from './pages/Shop'
 import { Calls } from './pages/Calls'
+import { Narvaro } from './pages/Narvaro'
 import { LoginPage } from './pages/LoginPage'
 import { SettingsModal } from './components/SettingsModal'
 
-type Tab = 'dashboard' | 'bookings' | 'customers' | 'shop' | 'calls'
+type Tab = 'dashboard' | 'bookings' | 'customers' | 'shop' | 'calls' | 'narvaro'
 
 const NAV = [
   { id: 'dashboard' as Tab, label: 'Översikt',    Icon: LayoutDashboard },
@@ -17,6 +18,7 @@ const NAV = [
   { id: 'customers' as Tab, label: 'Kunder',       Icon: Users           },
   { id: 'shop'      as Tab, label: 'Shop',          Icon: ShoppingBag    },
   { id: 'calls'     as Tab, label: 'Samtal',        Icon: Phone           },
+  { id: 'narvaro'   as Tab, label: 'Närvaro',       Icon: ClipboardCheck  },
 ]
 
 function AppShell() {
@@ -129,6 +131,7 @@ function AppShell() {
           {tab === 'customers' && <Customers />}
           {tab === 'shop'      && <Shop />}
           {tab === 'calls'     && <Calls />}
+          {tab === 'narvaro'   && <Narvaro />}
         </main>
       </div>
 
