@@ -64,13 +64,18 @@ export function Dashboard() {
     return allEvents.filter((e) => e.grouping?.primaryEventGroup?.name === categoryFilter)
   }, [allEvents, categoryFilter])
 
-  const bookings      = useMemo(
-    () => clientPeriodCode
-      ? rawBookings.filter((booking) => bookingMatchesPeriod(booking, clientPeriodCode))
-      : rawBookings,
-    [clientPeriodCode, rawBookings],
-  )
-  const bookingsTotal = clientPeriodCode
+  const bookings = useMemo(() => {
+    let result = clientPeriodCode
+      ? rawBookings.filter(b => bookingMatchesPeriod(b, clientPeriodCode))
+      : rawBookings
+    if (categoryFilter) {
+      const eventIds = new Set(events.map(e => e.id))
+      result = result.filter(b => b.event?.id != null && eventIds.has(b.event.id))
+    }
+    return result
+  }, [clientPeriodCode, rawBookings, categoryFilter, events])
+
+  const bookingsTotal = (clientPeriodCode || categoryFilter)
     ? bookings.length
     : (allDataQuery.data?.bookings.search?.numRowsFound ?? bookings.length)
   const kpi           = computeKPIs(events)
