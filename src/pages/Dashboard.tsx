@@ -12,9 +12,12 @@ import { CourseDetailPanel } from '../components/CourseDetailPanel'
 import { BookingListPanel } from '../components/BookingListPanel'
 import { AlertsPanel } from '../components/AlertsPanel'
 import { GroupSmsModal } from '../components/GroupSmsModal'
+import { GoalCard } from '../components/GoalCard'
+import { GoalModal } from '../components/GoalModal'
 import { useEventBlocks } from '../hooks/useEvents'
 import { useAllData } from '../hooks/useAllData'
 import { useAlerts } from '../hooks/useAlerts'
+import { useGoals, computeCurrentValue } from '../hooks/useGoals'
 import { purgeProxyCache } from '../services/proxyService'
 import { blockNameToCode, isPeriodCode, matchesPeriodCode } from '../utils/periods'
 import { getDefaultEventBlockId } from '../config/cogwork'
@@ -28,6 +31,7 @@ export function Dashboard() {
   const [activeFilter, setActiveFilter] = useState<'total' | 'antagna' | 'ejBetalda' | null>(null)
   const [alertsOpen, setAlertsOpen] = useState(false)
   const [groupSms, setGroupSms] = useState<{ courseName: string; bookings: Booking[] } | null>(null)
+  const [goalModal, setGoalModal] = useState<{ open: boolean; goal?: import('../services/goalsService').Goal }>({ open: false })
   const [isManualRefreshing, setIsManualRefreshing] = useState(false)
   const [isDirectRefreshing, setIsDirectRefreshing] = useState(false)
   const clientPeriodCode = isPeriodCode(eventBlockId) ? eventBlockId : ''
@@ -81,6 +85,7 @@ export function Dashboard() {
   const kpi           = computeKPIs(events)
   const bookingKpi    = computeBookingKPIs(bookings)
   const revenueKpi    = computeRevenueKPIs(bookings)
+  const { data: goals = [] } = useGoals()
   const { alerts, duplicateCount, pendingCount } = useAlerts(bookings)
 
   async function handleCacheRefresh() {
@@ -131,12 +136,20 @@ export function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <DashboardGreeting
-        newToday={newToday}
-        ejBetalda={bookingKpi.ejBetalda}
-        avgFill={kpi.avgFill}
-        periodLabel={periodLabel}
-      />
+      <div className="flex items-start justify-between gap-4">
+        <DashboardGreeting
+          newToday={newToday}
+          ejBetalda={bookingKpi.ejBetalda}
+          avgFill={kpi.avgFill}
+          periodLabel={periodLabel}
+        />
+        <button
+          onClick={() => setGoalModal({ open: true })}
+          className="shrink-0 flex items-center gap-1.5 text-sm text-slate-500 hover:text-brand-dark px-3 py-1.5 rounded-lg border border-slate-200 hover:border-brand-dark transition-colors mt-1"
+        >
+          <span className="text-base leading-none">＋</span> Nytt mål
+        </button>
+      </div>
 
       {/* Filters */}
       <div className="space-y-4">
@@ -256,6 +269,23 @@ export function Dashboard() {
         />
       </div>
 
+      {/* Mål */}
+      {goals.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Mål</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {goals.map(goal => (
+              <GoalCard
+                key={goal.id}
+                goal={goal}
+                currentValue={computeCurrentValue(goal, rawBookings, allEvents)}
+                onClick={() => setGoalModal({ open: true, goal })}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <BookingsChart bookings={bookings} loading={allDataQuery.isLoading} />
@@ -297,6 +327,12 @@ export function Dashboard() {
         open={alertsOpen}
         alerts={alerts}
         onClose={() => setAlertsOpen(false)}
+      />
+
+      <GoalModal
+        isOpen={goalModal.open}
+        onClose={() => setGoalModal({ open: false })}
+        goal={goalModal.goal}
       />
     </div>
   )
