@@ -47,6 +47,8 @@ jobs:
         env:
           VITE_BASE_URL: ${{ steps.pages.outputs.base_path }}
           VITE_PROXY_URL: ${{ secrets.VITE_PROXY_URL }}
+          VITE_WORKER_URL: ${{ secrets.VITE_WORKER_URL }}
+          VITE_WORKER_SECRET: ${{ secrets.VITE_WORKER_SECRET }}
         
 
       - uses: actions/upload-pages-artifact@v3
