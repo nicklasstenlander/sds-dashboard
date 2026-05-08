@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><title>Omdirigerar…</title></head>
+<body>
+<script>
+const p = new URLSearchParams(location.search);
+const worker = p.get('worker');
+const screen = p.get('screen') ?? 'studio-b';
+const fallback = 'https://nicklasstenlander.github.io/sds-schema/';
+
+async function redirect() {
+  try {
+    const res = await fetch(`${worker}/api/url/${screen}`);
+    const data = await res.json();
+    location.replace(data.url || fallback);
+  } catch {
+    location.replace(fallback);
+  }
+}
+redirect();
+</script>
+</body>
+</html>

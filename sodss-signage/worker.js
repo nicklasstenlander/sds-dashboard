@@ -45,6 +45,23 @@ export default {
       return json({ error: msg }, status);
     }
 
+    // ── GET /api/url/:screen — hämta URL för skärm ──────────────────────────
+    if (path.startsWith('/api/url/') && request.method === 'GET') {
+      const screen = path.replace('/api/url/', '');
+      const obj = await env.BUCKET.get(`urls/${screen}.txt`);
+      const url2 = obj ? await obj.text() : 'https://nicklasstenlander.github.io/sds-schema/';
+      return json({ screen, url: url2 });
+    }
+
+    // ── PUT /api/url/:screen — spara URL för skärm ──────────────────────────
+    if (path.startsWith('/api/url/') && request.method === 'PUT') {
+      if (!isAuthorized()) return err('Ej behörig', 401);
+      const screen = path.replace('/api/url/', '');
+      const body = await request.json();
+      await env.BUCKET.put(`urls/${screen}.txt`, body.url);
+      return json({ ok: true, screen, url: body.url });
+    }
+
     // ── GET /api/files ───────────────────────────────────────────────────────
     if (path === "/api/files" && request.method === "GET") {
       const listed = await env.BUCKET.list();

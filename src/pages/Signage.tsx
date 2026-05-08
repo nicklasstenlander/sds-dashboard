@@ -85,6 +85,44 @@ export function Signage() {
   const [deleting, setDeleting]   = useState<string | null>(null);
   const fileInputRef              = useRef<HTMLInputElement>(null);
 
+  // ── Studio B URL state ───────────────────────────────────────────────────
+  const [studioBUrl,    setStudioBUrl]    = useState('');
+  const [studioBInput,  setStudioBInput]  = useState('');
+  const [studioBSaving, setStudioBSaving] = useState(false);
+  const [studioBMsg,    setStudioBMsg]    = useState<{ text: string; ok: boolean } | null>(null);
+
+  const studioBRedirectUrl =
+    `https://core.sollentunadansochscenskola.se/redirect.html?screen=studio-b&worker=${encodeURIComponent(WORKER_URL)}`;
+
+  useEffect(() => {
+    if (!WORKER_URL) return;
+    fetch(`${WORKER_URL}/api/url/studio-b`)
+      .then(r => r.json() as Promise<{ url: string }>)
+      .then(d => { setStudioBUrl(d.url); setStudioBInput(d.url); })
+      .catch(() => {});
+  }, []);
+
+  async function saveStudioBUrl() {
+    if (!studioBInput.trim()) return;
+    setStudioBSaving(true);
+    setStudioBMsg(null);
+    try {
+      const res = await fetch(`${WORKER_URL}/api/url/studio-b`, {
+        method: 'PUT',
+        headers: { ...authHeader, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: studioBInput.trim() }),
+      });
+      if (!res.ok) throw new Error();
+      setStudioBUrl(studioBInput.trim());
+      setStudioBMsg({ text: 'Sparad!', ok: true });
+    } catch {
+      setStudioBMsg({ text: 'Kunde inte spara', ok: false });
+    } finally {
+      setStudioBSaving(false);
+      setTimeout(() => setStudioBMsg(null), 3000);
+    }
+  }
+
   // ── Fetch file list ──────────────────────────────────────────────────────
   const fetchFiles = useCallback(async () => {
     if (!WORKER_URL) return;
@@ -272,6 +310,64 @@ export function Signage() {
               </div>
             </div>
           ))}
+        </div>
+
+        {/* ── Studio B — URL-styrning ── */}
+        <div style={{
+          background: "#fff", border: "1.5px solid #CDDCD1", borderRadius: 10,
+          padding: "14px 18px", marginTop: 12,
+        }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+            <span style={{ fontWeight: 700, color: "#1e4025", fontSize: 14 }}>📺 Studio B</span>
+            <span style={{ fontSize: 10, background: "#f0faf4", color: "#1e4025", border: "1px solid #CDDCD1", borderRadius: 4, padding: "2px 7px", fontWeight: 600 }}>
+              URL-STYRNING
+            </span>
+          </div>
+
+          <div style={{ fontSize: 11, color: "#a3c0b2", marginBottom: 6 }}>Aktuell URL</div>
+          <div style={{ fontFamily: "monospace", fontSize: 11, color: "#1e4025", background: "#f0faf4", borderRadius: 6, padding: "6px 10px", marginBottom: 10, wordBreak: "break-all" as const }}>
+            {studioBUrl || '—'}
+          </div>
+
+          <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+            <input
+              type="url"
+              value={studioBInput}
+              onChange={e => setStudioBInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && saveStudioBUrl()}
+              placeholder="https://..."
+              style={{
+                flex: 1, fontFamily: "monospace", fontSize: 12, padding: "6px 10px",
+                border: "1.5px solid #CDDCD1", borderRadius: 7, outline: "none", color: "#1e4025",
+              }}
+            />
+            <button
+              onClick={saveStudioBUrl}
+              disabled={studioBSaving}
+              style={{
+                padding: "6px 14px", borderRadius: 7, border: "none",
+                background: studioBSaving ? "#a3c0b2" : "#1e4025", color: "#fff",
+                fontSize: 12, fontWeight: 700, cursor: studioBSaving ? "default" : "pointer",
+                whiteSpace: "nowrap" as const,
+              }}
+            >
+              {studioBSaving ? 'Sparar…' : 'Spara URL'}
+            </button>
+          </div>
+
+          {studioBMsg && (
+            <div style={{ fontSize: 11, color: studioBMsg.ok ? "#1e4025" : "#dd5c86", marginBottom: 8 }}>
+              {studioBMsg.text}
+            </div>
+          )}
+
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" as const }}>
+            <CopyButton text={studioBRedirectUrl} />
+            <a href={studioBRedirectUrl} target="_blank" rel="noreferrer"
+              style={{ padding: "5px 12px", borderRadius: 7, border: "1.5px solid #CDDCD1", background: "transparent", color: "#1e4025", fontSize: 12, fontWeight: 600, textDecoration: "none" }}>
+              Förhandsgranska ↗
+            </a>
+          </div>
         </div>
       </section>
 
