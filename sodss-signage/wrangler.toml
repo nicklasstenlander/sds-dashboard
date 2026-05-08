@@ -1,0 +1,14 @@
+# wrangler.toml — SODSS Signage Worker
+# Driftsätt med: npx wrangler deploy
+
+name = "sodss-signage"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "sodss-signage"
+
+# Miljövariabler sätts i Cloudflare Dashboard eller via:
+# npx wrangler secret put ADMIN_SECRET
+# npx wrangler secret put CORS_ORIGIN
