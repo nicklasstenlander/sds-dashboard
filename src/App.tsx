@@ -1,5 +1,5 @@
 import { useState, useRef, useLayoutEffect } from 'react'
-import { LayoutDashboard, ClipboardList, Users, Settings, LogOut, ShoppingBag, PanelLeft, Phone, ClipboardCheck, Monitor } from 'lucide-react'
+import { LayoutDashboard, ClipboardList, Users, Settings, LogOut, ShoppingBag, PanelLeft, Phone, ClipboardCheck, Monitor, MoreHorizontal } from 'lucide-react'
 import { ApiProvider, useApiConfig } from './context/ApiContext'
 import { Dashboard } from './pages/Dashboard'
 import { RecentBookings } from './pages/RecentBookings'
@@ -27,6 +27,7 @@ function AppShell() {
   const [tab, setTab] = useState<Tab>('dashboard')
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
+  const [drawerOpen, setDrawerOpen] = useState(false)
   const { config, setConfig } = useApiConfig()
   const hasPw = Boolean(config.pw)
   const navRef = useRef<HTMLElement>(null)
@@ -139,31 +140,126 @@ function AppShell() {
       </div>
 
       {/* ── Bottom nav (mobile) ── */}
-      <nav className="md:hidden fixed bottom-0 inset-x-0 bg-white border-t border-slate-100 flex z-30 pb-safe">
-        {NAV.map(({ id, label, Icon }) => (
-          <button
-            key={id}
-            onClick={() => setTab(id)}
-            aria-label={label}
-            className={`flex-1 flex flex-col items-center gap-1 py-3 transition-colors ${
-              tab === id ? 'text-brand-dark' : 'text-slate-400'
-            }`}
-          >
-            <Icon className={`w-6 h-6 ${tab === id ? 'stroke-[2.5]' : ''}`} />
-            <span className="text-[10px] font-medium leading-none">{label}</span>
-          </button>
-        ))}
-        <button
-          onClick={() => setSettingsOpen(true)}
-          aria-label="Inställningar"
-          className={`flex-1 flex flex-col items-center gap-1 py-3 transition-colors ${
-            hasPw ? 'text-slate-400' : 'text-amber-500'
-          }`}
-        >
-          <Settings className="w-6 h-6" />
-          <span className="text-[10px] font-medium leading-none">Inställn.</span>
-        </button>
-      </nav>
+      {(() => {
+        const BOTTOM: { id: Tab; label: string; Icon: React.ElementType }[] = [
+          { id: 'dashboard', label: 'Översikt',    Icon: LayoutDashboard },
+          { id: 'bookings',  label: 'Anmälningar', Icon: ClipboardList   },
+          { id: 'customers', label: 'Kunder',      Icon: Users           },
+        ]
+        const MORE: { id: Tab; label: string; Icon: React.ElementType }[] = [
+          { id: 'calls',   label: 'Samtal',    Icon: Phone         },
+          { id: 'narvaro', label: 'Närvaro',   Icon: ClipboardCheck },
+          { id: 'shop',    label: 'Shop',      Icon: ShoppingBag   },
+          { id: 'signage', label: 'Skyltning', Icon: Monitor       },
+        ]
+        const isMoreActive = MORE.some(m => m.id === tab)
+
+        function pick(id: Tab) { setTab(id); setDrawerOpen(false) }
+
+        return (
+          <>
+            <nav
+              className="md:hidden fixed bottom-0 inset-x-0 bg-white border-t border-gray-100 z-30"
+              style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+            >
+              <div className="grid grid-cols-4 h-16">
+                {BOTTOM.map(({ id, label, Icon }) => (
+                  <button
+                    key={id}
+                    onClick={() => pick(id)}
+                    aria-label={label}
+                    aria-current={tab === id ? 'page' : undefined}
+                    className="flex flex-col items-center justify-center gap-0.5 transition-colors"
+                  >
+                    <Icon
+                      className="w-6 h-6"
+                      style={{ color: tab === id ? '#1e4025' : '#9ca3af', strokeWidth: tab === id ? 2.5 : 2 }}
+                    />
+                    <span className="text-[10px] font-medium" style={{ color: tab === id ? '#1e4025' : '#9ca3af' }}>
+                      {label}
+                    </span>
+                  </button>
+                ))}
+                <button
+                  onClick={() => setDrawerOpen(o => !o)}
+                  aria-label="Mer"
+                  className="flex flex-col items-center justify-center gap-0.5 transition-colors"
+                >
+                  <div className="relative">
+                    <MoreHorizontal
+                      className="w-6 h-6"
+                      style={{ color: isMoreActive || drawerOpen ? '#1e4025' : '#9ca3af', strokeWidth: isMoreActive || drawerOpen ? 2.5 : 2 }}
+                    />
+                    {isMoreActive && !drawerOpen && (
+                      <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-[#dd5c86]" />
+                    )}
+                  </div>
+                  <span className="text-[10px] font-medium" style={{ color: isMoreActive || drawerOpen ? '#1e4025' : '#9ca3af' }}>
+                    Mer
+                  </span>
+                </button>
+              </div>
+            </nav>
+
+            {/* Backdrop */}
+            {drawerOpen && (
+              <div
+                className="fixed inset-0 bg-black/30 z-40 md:hidden"
+                onClick={() => setDrawerOpen(false)}
+              />
+            )}
+
+            {/* Drawer */}
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label="Fler navigeringsalternativ"
+              className={`fixed inset-x-0 bottom-0 bg-white rounded-t-2xl z-50 md:hidden transform transition-transform duration-300 ease-out ${
+                drawerOpen ? 'translate-y-0' : 'translate-y-full'
+              }`}
+              style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+            >
+              <div className="flex justify-center pt-3 pb-2">
+                <div className="w-10 h-1 bg-gray-300 rounded-full" />
+              </div>
+              {MORE.map(({ id, label, Icon }) => (
+                <button
+                  key={id}
+                  onClick={() => pick(id)}
+                  aria-label={label}
+                  aria-current={tab === id ? 'page' : undefined}
+                  className="w-full flex items-center gap-4 px-6 hover:bg-slate-50 transition-colors"
+                  style={{ minHeight: 56, color: tab === id ? '#1e4025' : '#374151' }}
+                >
+                  <Icon className="w-5 h-5 shrink-0" style={{ strokeWidth: tab === id ? 2.5 : 2 }} />
+                  <span className="text-sm font-medium">{label}</span>
+                </button>
+              ))}
+              <div className="mx-6 my-1 h-px bg-gray-100" />
+              <button
+                onClick={() => { setSettingsOpen(true); setDrawerOpen(false) }}
+                aria-label="Inställningar"
+                className="w-full flex items-center gap-4 px-6 hover:bg-slate-50 transition-colors"
+                style={{ minHeight: 56, color: '#374151' }}
+              >
+                <Settings className="w-5 h-5 shrink-0" />
+                <span className="text-sm font-medium">Inställningar</span>
+              </button>
+              {hasPw && (
+                <button
+                  onClick={() => { setConfig({ org: 'sollentunadans', pw: '' }); setDrawerOpen(false) }}
+                  aria-label="Logga ut"
+                  className="w-full flex items-center gap-4 px-6 hover:bg-red-50 transition-colors mb-2"
+                  style={{ minHeight: 56, color: '#dd5c86' }}
+                >
+                  <LogOut className="w-5 h-5 shrink-0" />
+                  <span className="text-sm font-medium">Logga ut</span>
+                </button>
+              )}
+            </div>
+          </>
+        )
+      })()}
 
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
