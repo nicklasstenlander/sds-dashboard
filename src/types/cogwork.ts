@@ -59,6 +59,12 @@ export interface Event {
     end: { date: string; time: string; dayOfWeek: string }
     numberOfPlannedOccasions: number
     numberOfScheduledOccasions: number
+    occasions?: {
+      length: number
+      startDateTime: string
+      startDayOfWeek: string
+      endDateTime: string
+    }[]
   }
   statistics?: {
     instructors?: number
@@ -155,4 +161,3 @@ export interface BookingsResponse {
   search: SearchMeta
   bookings: Booking[]
 }
-

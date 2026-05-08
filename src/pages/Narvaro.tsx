@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { CheckCircle, Circle, Search } from 'lucide-react'
+import { CheckCircle, Circle, LogOut, RefreshCw, Search } from 'lucide-react'
+import { fetchProxyEvents } from '../services/proxyService'
+import type { Event as CogworkEvent } from '../types/cogwork'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -7,15 +9,19 @@ import { CheckCircle, Circle, Search } from 'lucide-react'
 
 interface Participant {
   userKey:       string
+  userId?:       string
+  attendanceId?: string
   firstName:     string
   lastName:      string
   phone:         string
   personnummer:  string
   age:           number | null
+  attending?:    'yes' | 'no' | 'unknown'
 }
 
 interface CourseEvent {
   eventId:      string
+  occasionId?:  string
   name:         string
   time:         string
   dayStr:       string
@@ -40,7 +46,10 @@ const NARVARO_URL = (import.meta.env.VITE_NARVARO_URL as string | undefined)
   ?? 'https://script.google.com/macros/s/AKfycbx-euNjfAQaEfgA2xpkmhYUgpxUOI29cw0GF3-aLRkLowr4-U40HGdXyKgQPyFOCtyo/exec'
 
 function toDateStr(d: Date): string {
-  return d.toISOString().slice(0, 10)
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
 function addDays(d: Date, n: number): Date {
@@ -60,6 +69,79 @@ function dayLabel(i: number): { short: string; date: string } {
 }
 
 const REFRESH_MS = 60 * 1000
+
+function parseEventsPayload(raw: unknown): CourseEvent[] {
+  if (Array.isArray(raw)) return raw as CourseEvent[]
+  if (raw && typeof raw === 'object') {
+    const obj = raw as { events?: unknown; data?: unknown }
+    if (Array.isArray(obj.events)) return obj.events as CourseEvent[]
+    if (Array.isArray(obj.data)) return obj.data as CourseEvent[]
+  }
+  return []
+}
+
+function normalizeAttending(value?: string): Participant['attending'] {
+  const normalized = value?.toLowerCase()
+  if (normalized === 'yes' || normalized === 'true' || normalized === '96') return 'yes'
+  if (normalized === 'no' || normalized === 'false' || normalized === '32') return 'no'
+  if (normalized === 'unknown' || normalized === '64') return 'unknown'
+  return undefined
+}
+
+function normalizeCourseEvents(events: CourseEvent[]): CourseEvent[] {
+  return events.map(evt => ({
+    ...evt,
+    participants: (evt.participants ?? []).map(participant => ({
+      ...participant,
+      attending: normalizeAttending(participant.attending),
+    })),
+  }))
+}
+
+function eventMatchesDate(evt: CourseEvent, date: string): boolean {
+  if (!evt.dayStr) return true
+  return evt.dayStr.slice(0, 10) === date
+}
+
+function eventMatchesKnownSchedule(evt: CourseEvent, date: string, eventMeta: Map<string, CogworkEvent>): boolean {
+  const meta = eventMeta.get(evt.eventId)
+  if (!meta) return true
+
+  const occasions = meta.schedule?.occasions
+  if (occasions?.length) {
+    return occasions.some(occasion => occasion.startDateTime?.slice(0, 10) === date)
+  }
+
+  const start = meta.schedule?.start?.date
+  const end = meta.schedule?.end?.date || start
+  if (!start || !end) return true
+
+  return date >= start && date <= end
+}
+
+function collectTeachers(events: CourseEvent[]): string[] {
+  const names = new Set<string>()
+  events.forEach(evt => {
+    evt.instructors?.split(',').forEach(n => {
+      const t = n.trim()
+      if (t) names.add(t)
+    })
+  })
+  return [...names].sort((a, b) => a.localeCompare(b, 'sv'))
+}
+
+function sortEvents(events: CourseEvent[]): CourseEvent[] {
+  return [...events].sort((a, b) => (a.time || '').localeCompare(b.time || '', 'sv'))
+}
+
+function initials(name: string): string {
+  const parts = name.split(/\s+/).filter(Boolean)
+  return (parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')
+}
+
+function buildEventMetaMap(events: CogworkEvent[]): Map<string, CogworkEvent> {
+  return new Map(events.map(evt => [evt.key, evt]))
+}
 
 // ---------------------------------------------------------------------------
 // Toast
@@ -224,13 +306,33 @@ export function Narvaro() {
   const [events, setEvents]               = useState<CourseEvent[]>([])
   const [checkins, setCheckins]           = useState<Checkins>({})
   const [teacherFilter, setTeacherFilter] = useState<string>('')
+  const [teacherChoice, setTeacherChoice] = useState<string>('')
   const [teachers, setTeachers]           = useState<string[]>([])
   const [loading, setLoading]             = useState(false)
   const [error, setError]                 = useState<string | null>(null)
+  const [loginError, setLoginError]       = useState<string | null>(null)
+  const [lastFetched, setLastFetched]     = useState<Date | null>(null)
   const [scanInputs, setScanInputs]       = useState<Record<string, string>>({})
   const [scanErrors, setScanErrors]       = useState<Record<string, boolean>>({})
   const [toast, setToast]                 = useState<ToastState | null>(null)
   const toastTimer                        = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    setCheckins(prev => {
+      let changed = false
+      const next: Checkins = { ...prev }
+
+      events.forEach(evt => {
+        evt.participants.forEach(participant => {
+          if (participant.attending !== 'yes' || next[evt.eventId]?.[participant.userKey]) return
+          changed = true
+          next[evt.eventId] = { ...(next[evt.eventId] ?? {}), [participant.userKey]: '✓' }
+        })
+      })
+
+      return changed ? next : prev
+    })
+  }, [events])
 
   // ---------------------------------------------------------------------------
   // Toast helper
@@ -248,19 +350,22 @@ export function Narvaro() {
     setLoading(true)
     setError(null)
     try {
-      const res  = await fetch(`${NARVARO_URL}?action=events_by_date&date=${date}`)
-      const raw  = await res.json()
-      const data: CourseEvent[] = Array.isArray(raw) ? raw : (raw.events ?? raw.data ?? [])
-      setEvents(data)
+      const [res, eventMetaResponse] = await Promise.all([
+        fetch(`${NARVARO_URL}?action=events_by_date&date=${date}`),
+        fetchProxyEvents(),
+      ])
+      const raw = await res.json()
+      const data = normalizeCourseEvents(parseEventsPayload(raw))
+      const eventMeta = buildEventMetaMap(eventMetaResponse.events)
 
-      const names = new Set<string>()
-      data.forEach(evt => {
-        evt.instructors?.split(',').forEach(n => {
-          const t = n.trim()
-          if (t) names.add(t)
-        })
-      })
-      setTeachers([...names].sort())
+      // Backend kan ibland skicka alla kurser för samma veckodag. Behåll bara
+      // poster där payloadens datum och CogWorks verkliga kursperiod matchar.
+      const dateEvents = data.filter(evt =>
+        eventMatchesDate(evt, date) && eventMatchesKnownSchedule(evt, date, eventMeta)
+      )
+      setEvents(sortEvents(dateEvents))
+      setTeachers(collectTeachers(dateEvents))
+      setLastFetched(new Date())
     } catch {
       setError('Kunde inte hämta klasser.')
     } finally {
@@ -350,11 +455,87 @@ export function Narvaro() {
     }
   }
 
+  function handleLogin() {
+    setLoginError(null)
+    if (!teacherChoice) {
+      setLoginError('Välj ditt namn i listan.')
+      return
+    }
+    setTeacherFilter(teacherChoice)
+  }
+
+  function handleLogout() {
+    setTeacherFilter('')
+    setTeacherChoice('')
+    setLoginError(null)
+    setSelectedDay(toDateStr(new Date()))
+  }
+
   const filteredEvents = teacherFilter && teacherFilter !== '__all__'
     ? events.filter(evt =>
         evt.instructors?.toLowerCase().includes(teacherFilter.toLowerCase())
       )
     : events
+
+  const teacherName = teacherFilter === '__all__' ? 'Alla dagens kurser' : teacherFilter
+
+  if (!teacherFilter) {
+    return (
+      <>
+        <style>{`@keyframes toast-in { from { opacity:0; transform: translate(-50%,1rem) } to { opacity:1; transform: translate(-50%,0) } }`}</style>
+        <div className="min-h-[70vh] flex items-center justify-center">
+          <div className="card w-full max-w-md p-8 text-center space-y-6">
+            <div>
+              <h1 className="text-2xl font-bold text-brand-dark">Närvaro</h1>
+              <p className="text-sm text-slate-400 mt-2">Välj lärare för att se dagens klasser.</p>
+            </div>
+
+            <div className="text-left space-y-2">
+              <label className="block text-xs uppercase tracking-wider font-semibold text-slate-500">
+                Vem är du?
+              </label>
+              <select
+                value={teacherChoice}
+                onChange={e => {
+                  setTeacherChoice(e.target.value)
+                  setLoginError(null)
+                }}
+                className="w-full text-sm border border-slate-200 rounded-xl px-4 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-brand-mint"
+                disabled={loading && teachers.length === 0}
+              >
+                <option value="">
+                  {loading && teachers.length === 0 ? 'Hämtar lärare...' : 'Välj ditt namn'}
+                </option>
+                {teachers.map(t => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+                <option value="__all__">Alla dagens kurser</option>
+              </select>
+              {loginError && <p className="text-sm text-red-600">{loginError}</p>}
+              {error && <p className="text-sm text-red-600">{error}</p>}
+            </div>
+
+            <button
+              onClick={handleLogin}
+              disabled={loading && teachers.length === 0}
+              className="w-full rounded-xl bg-brand-dark text-white text-sm font-semibold py-3 hover:bg-[#2a5735] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Fortsätt
+            </button>
+
+            <button
+              onClick={() => loadEvents(selectedDay)}
+              className="inline-flex items-center justify-center gap-2 text-sm text-slate-400 hover:text-brand-dark transition-colors"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Uppdatera lärarlistan
+            </button>
+          </div>
+        </div>
+        <Toast toast={toast} />
+      </>
+    )
+  }
 
   return (
     <>
@@ -364,20 +545,30 @@ export function Narvaro() {
       <div className="space-y-5">
         {/* Header */}
         <div className="flex items-center justify-between gap-4 flex-wrap">
-          <h1 className="text-2xl font-bold text-brand-dark">Närvaro</h1>
+          <div>
+            <h1 className="text-2xl font-bold text-brand-dark">Närvaro</h1>
+            <p className="text-sm text-slate-400 mt-1">
+              {lastFetched
+                ? `Uppdaterad ${lastFetched.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })}`
+                : 'Dagens checkin'}
+            </p>
+          </div>
 
-          {teachers.length > 0 && (
-            <select
-              value={teacherFilter}
-              onChange={e => setTeacherFilter(e.target.value)}
-              className="text-sm border border-slate-200 rounded-full px-4 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-brand-mint min-w-[180px]"
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 bg-brand-dark text-white rounded-full pl-1.5 pr-3 py-1.5">
+              <span className="w-7 h-7 rounded-full bg-[#dd5c86] flex items-center justify-center text-xs font-bold">
+                {teacherFilter === '__all__' ? 'A' : initials(teacherName).toUpperCase()}
+              </span>
+              <span className="text-sm font-medium">{teacherName}</span>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-2 text-sm text-slate-500 hover:text-brand-dark hover:border-brand-mint transition-colors"
             >
-              <option value="__all__">Visa alla klasser</option>
-              {teachers.map(t => (
-                <option key={t} value={t}>{t}</option>
-              ))}
-            </select>
-          )}
+              <LogOut className="w-4 h-4" />
+              <span className="hidden sm:inline">Byt lärare</span>
+            </button>
+          </div>
         </div>
 
         {/* Day navigation */}
@@ -422,12 +613,20 @@ export function Narvaro() {
             ))}
           </div>
         ) : filteredEvents.length === 0 ? (
-          <div className="card flex items-center justify-center py-20">
+          <div className="card flex flex-col items-center justify-center gap-4 py-20 px-6 text-center">
             <p className="text-sm text-slate-400">
               {events.length === 0
                 ? 'Inga klasser för detta datum.'
                 : 'Inga klasser för vald lärare.'}
             </p>
+            {teacherFilter !== '__all__' && events.length > 0 && (
+              <button
+                onClick={() => setTeacherFilter('__all__')}
+                className="rounded-full border border-slate-200 px-4 py-2 text-sm text-slate-500 hover:text-brand-dark hover:border-brand-mint transition-colors"
+              >
+                Visa alla dagens kurser
+              </button>
+            )}
           </div>
         ) : (
           <div className="space-y-4">
