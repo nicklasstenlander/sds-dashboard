@@ -182,31 +182,32 @@
 //    &counter=1              (visa bildräknare nere till vänster)
 //    &transition=0.7         (fade-tid i sekunder)
 
-const p          = new URLSearchParams(location.search);
-const WORKER_URL = p.get('worker') ?? '';
-const SCREEN_ID  = p.get('screen') ?? 'default';
-const RELOAD_MIN = parseInt(p.get('reload') ?? '30');
-const SHOW_CLOCK = p.get('clock') === '1';
-const SHOW_COUNT = p.get('counter') === '1';
+var p          = new URLSearchParams(location.search);
+var WORKER_URL = p.get('worker') || '';
+var SCREEN_ID  = p.get('screen') || 'default';
+var RELOAD_MIN = parseInt(p.get('reload') || '30');
+var SHOW_CLOCK = p.get('clock') === '1';
+var SHOW_COUNT = p.get('counter') === '1';
 
 // ─── DOM ─────────────────────────────────────────────────────────────────────
-const playerEl  = document.getElementById('player');
-const loaderEl  = document.getElementById('loader');
-const loaderMsg = document.getElementById('loader-msg');
-const errorEl   = document.getElementById('error');
-const errorMsg  = document.getElementById('error-msg');
-const errorDet  = document.getElementById('error-detail');
-const progressEl= document.getElementById('progress');
-const clockEl   = document.getElementById('clock');
-const counterEl = document.getElementById('counter');
+var playerEl  = document.getElementById('player');
+var loaderEl  = document.getElementById('loader');
+var loaderMsg = document.getElementById('loader-msg');
+var errorEl   = document.getElementById('error');
+var errorMsg  = document.getElementById('error-msg');
+var errorDet  = document.getElementById('error-detail');
+var progressEl= document.getElementById('progress');
+var clockEl   = document.getElementById('clock');
+var counterEl = document.getElementById('counter');
 
 // ─── State ───────────────────────────────────────────────────────────────────
-let playlist = [];
-let current  = -1;
-let advTimer = null;
+var playlist = [];
+var current  = -1;
+var advTimer = null;
 
 // ─── UI helpers ───────────────────────────────────────────────────────────────
-function showError(msg, detail = '') {
+function showError(msg, detail) {
+  detail = detail || '';
   loaderEl.classList.add('hidden');
   errorEl.classList.add('visible');
   errorMsg.textContent = msg;
@@ -243,9 +244,9 @@ async function fetchPlaylist() {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
 
-    const files = (data.files ?? []).filter(f =>
-      f.type === 'image' || f.type === 'video'
-    );
+    var files = (data.files || []).filter(function(f) {
+      return f.type === 'image' || f.type === 'video';
+    });
 
     if (files.length === 0) {
       showError('Spellistan är tom', 'Ladda upp filer via Core → Skyltning');
@@ -253,13 +254,15 @@ async function fetchPlaylist() {
     }
 
     // Bygg intern spellista
-    playlist = files.map(f => ({
-      key:      f.key,
-      name:     f.name,
-      type:     f.type,
-      url:      f.url,
-      duration: f.duration ?? 8,
-    }));
+    playlist = files.map(function(f) {
+      return {
+        key:      f.key,
+        name:     f.name,
+        type:     f.type,
+        url:      f.url,
+        duration: f.duration || 8,
+      };
+    });
 
     return true;
 
@@ -274,20 +277,20 @@ async function fetchPlaylist() {
 function buildSlides() {
   playerEl.innerHTML = '';
 
-  playlist.forEach((item, i) => {
-    const slide = document.createElement('div');
+  playlist.forEach(function(item, i) {
+    var slide = document.createElement('div');
     slide.className = 'slide';
     slide.dataset.index = i;
 
     if (item.type === 'image') {
-      const img = new Image();
+      var img = new Image();
       img.src = item.url;
       img.alt = item.name;
       slide.appendChild(img);
 
     } else {
       // Native <video> — fungerar perfekt med Cloudflare R2 direktlänkar
-      const vid = document.createElement('video');
+      var vid = document.createElement('video');
       vid.src          = item.url;
       vid.muted        = true;      // Autoplay kräver muted i moderna webbläsare
       vid.autoplay     = false;     // Styrs manuellt av spellistan
@@ -296,12 +299,12 @@ function buildSlides() {
       vid.loop         = false;
 
       // När videon är slut → nästa bild
-      vid.addEventListener('ended', () => {
+      vid.addEventListener('ended', function() {
         if (parseInt(slide.dataset.index) === current) nextSlide();
       });
 
-      // Fallback: om videon inte startar inom 3s → nästa ändå
-      vid.addEventListener('error', () => {
+      // Fallback: om videon inte startar → nästa ändå
+      vid.addEventListener('error', function() {
         console.warn('Video-fel för:', item.name);
         if (parseInt(slide.dataset.index) === current) nextSlide();
       });
@@ -318,21 +321,21 @@ function showSlide(idx) {
   clearTimeout(advTimer);
 
   // Stoppa alla videor
-  document.querySelectorAll('.slide video').forEach(v => {
+  document.querySelectorAll('.slide video').forEach(function(v) {
     v.pause();
     v.currentTime = 0;
   });
 
   // Aktivera rätt slide
-  document.querySelectorAll('.slide').forEach((s, i) => {
+  document.querySelectorAll('.slide').forEach(function(s, i) {
     s.classList.toggle('active', i === idx);
   });
 
   if (SHOW_COUNT) {
-    counterEl.textContent = `${idx + 1} / ${playlist.length}`;
+    counterEl.textContent = (idx + 1) + ' / ' + playlist.length;
   }
 
-  const item = playlist[idx];
+  var item = playlist[idx];
   if (!item) return;
 
   // Återställ progress bar
@@ -340,33 +343,36 @@ function showSlide(idx) {
   progressEl.style.width = '0%';
 
   if (item.type === 'image') {
-    const dur = (item.duration ?? 8) * 1000;
-    requestAnimationFrame(() => {
-      progressEl.style.transition = `width ${dur}ms linear`;
+    var dur = (item.duration || 8) * 1000;
+    requestAnimationFrame(function() {
+      progressEl.style.transition = 'width ' + dur + 'ms linear';
       progressEl.style.width = '100%';
     });
     advTimer = setTimeout(nextSlide, dur);
 
   } else {
     // Video — starta uppspelning
-    const slide = document.querySelector(`.slide[data-index="${idx}"]`);
-    const vid   = slide?.querySelector('video');
+    var slide = document.querySelector('.slide[data-index="' + idx + '"]');
+    var vid   = slide ? slide.querySelector('video') : null;
     if (vid) {
       vid.currentTime = 0;
-      vid.play().catch(err => {
-        console.warn('Autoplay blockerad:', err);
-        // Fallback: 60s timeout om autoplay inte fungerar
-        advTimer = setTimeout(nextSlide, 60000);
-      });
+      var playPromise = vid.play();
+      if (playPromise && playPromise.catch) {
+        playPromise.catch(function(err) {
+          console.warn('Autoplay blockerad:', err);
+          // Fallback: 60s timeout om autoplay inte fungerar
+          advTimer = setTimeout(nextSlide, 60000);
+        });
+      }
 
       // Visa progress baserat på videons längd (uppdateras i realtid)
-      vid.addEventListener('loadedmetadata', () => {
-        const dur = vid.duration * 1000;
-        progressEl.style.transition = `width ${dur}ms linear`;
-        requestAnimationFrame(() => { progressEl.style.width = '100%'; });
+      vid.addEventListener('loadedmetadata', function() {
+        var dur = vid.duration * 1000;
+        progressEl.style.transition = 'width ' + dur + 'ms linear';
+        requestAnimationFrame(function() { progressEl.style.width = '100%'; });
         // Säkerhetsfallback
         advTimer = setTimeout(nextSlide, dur + 3000);
-      }, { once: true });
+      });
     }
   }
 }
@@ -391,20 +397,23 @@ async function init() {
 
 // ─── Auto-reload spellista ────────────────────────────────────────────────────
 // Hämtar om fillistan var N:e minut utan att avbryta pågående uppspelning
-setInterval(async () => {
-  const ok = await fetchPlaylist();
-  if (ok) buildSlides(); // Slideshow fortsätter från current
+setInterval(function() {
+  fetchPlaylist().then(function(ok) {
+    if (ok) buildSlides(); // Slideshow fortsätter från current
+  });
 }, RELOAD_MIN * 60 * 1000);
 
 // ─── Tangentbordsgenvägar (testläge) ─────────────────────────────────────────
-document.addEventListener('keydown', e => {
+document.addEventListener('keydown', function(e) {
   if (e.key === 'ArrowRight') nextSlide();
   if (e.key === 'ArrowLeft') {
     current = (current - 2 + playlist.length) % playlist.length;
     nextSlide();
   }
   if (e.key === 'f' || e.key === 'F') {
-    document.documentElement.requestFullscreen?.().catch(() => {});
+    if (document.documentElement.requestFullscreen) {
+      document.documentElement.requestFullscreen();
+    }
   }
 });
 
