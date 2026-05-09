@@ -1,3 +1,153 @@
+const PLAYER_HTML = `<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SODSS Skyltning</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #000; overflow: hidden; width: 100vw; height: 100vh; }
+    #player { position: relative; width: 100vw; height: 100vh; background: #000; }
+    .slide { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.7s ease; pointer-events: none; }
+    .slide.active { opacity: 1; pointer-events: auto; }
+    .slide img, .slide video { width: 100%; height: 100%; object-fit: contain; background: #000; }
+    #progress { position: fixed; bottom: 0; left: 0; height: 3px; width: 0%; background: #dd5c86; opacity: 0.75; z-index: 50; transition: width linear; }
+    #loader { position: fixed; inset: 0; background: #1e4025; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; z-index: 100; transition: opacity 0.6s ease; }
+    #loader.hidden { opacity: 0; pointer-events: none; }
+    #loader .spinner { width: 42px; height: 42px; border: 3px solid rgba(205,220,209,0.3); border-top-color: #CDDCD1; border-radius: 50%; animation: spin 1.1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #loader p { color: #CDDCD1; font-size: 13px; font-family: monospace; letter-spacing: 0.1em; }
+    #loader .logo { font-family: monospace; font-size: 11px; letter-spacing: 0.2em; color: rgba(205,220,209,0.4); text-transform: uppercase; margin-bottom: 8px; }
+    #error { position: fixed; inset: 0; background: #1e4025; color: #CDDCD1; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 14px; font-family: monospace; text-align: center; padding: 48px; }
+    #error.visible { display: flex; }
+    #error .icon { font-size: 40px; }
+    #error strong { font-size: 16px; }
+    #error span { font-size: 13px; opacity: 0.6; }
+    #error small { font-size: 11px; opacity: 0.35; margin-top: 8px; }
+    #clock { position: fixed; bottom: 20px; right: 24px; color: rgba(255,255,255,0.25); font-family: monospace; font-size: 12px; letter-spacing: 0.06em; z-index: 40; }
+    #counter { position: fixed; bottom: 20px; left: 24px; color: rgba(255,255,255,0.2); font-family: monospace; font-size: 11px; letter-spacing: 0.08em; z-index: 40; }
+  </style>
+</head>
+<body>
+<div id="loader"><div class="logo">SODSS · Skyltning</div><div class="spinner"></div><p id="loader-msg">Hämtar spellista…</p></div>
+<div id="error"><div class="icon">⚠</div><strong>Kunde inte ladda spellista</strong><span id="error-msg"></span><small id="error-detail"></small></div>
+<div id="player"></div>
+<div id="progress"></div>
+<div id="clock"></div>
+<div id="counter"></div>
+<script>
+const p          = new URLSearchParams(location.search);
+const WORKER_URL = p.get('worker') ?? location.origin;
+const SCREEN_ID  = p.get('screen') ?? 'default';
+const RELOAD_MIN = parseInt(p.get('reload') ?? '30');
+const SHOW_CLOCK = p.get('clock') === '1';
+const SHOW_COUNT = p.get('counter') === '1';
+
+const playerEl  = document.getElementById('player');
+const loaderEl  = document.getElementById('loader');
+const loaderMsg = document.getElementById('loader-msg');
+const errorEl   = document.getElementById('error');
+const errorMsg  = document.getElementById('error-msg');
+const errorDet  = document.getElementById('error-detail');
+const progressEl= document.getElementById('progress');
+const clockEl   = document.getElementById('clock');
+const counterEl = document.getElementById('counter');
+
+let playlist = [];
+let current  = -1;
+let advTimer = null;
+
+function showError(msg, detail) { loaderEl.classList.add('hidden'); errorEl.classList.add('visible'); errorMsg.textContent = msg; errorDet.textContent = detail || ''; }
+function hideLoader() { loaderEl.classList.add('hidden'); }
+
+clockEl.style.display = SHOW_CLOCK ? 'block' : 'none';
+counterEl.style.display = SHOW_COUNT ? 'block' : 'none';
+function updateClock() { if (SHOW_CLOCK) clockEl.textContent = new Date().toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' }); }
+setInterval(updateClock, 15000);
+updateClock();
+
+async function fetchPlaylist() {
+  try {
+    loaderMsg.textContent = 'Hämtar spellista…';
+    const res  = await fetch(WORKER_URL + '/api/files');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    const files = (data.files ?? []).filter(f => f.type === 'image' || f.type === 'video');
+    if (files.length === 0) { showError('Spellistan är tom', 'Ladda upp filer via Core → Skyltning'); return false; }
+    playlist = files.map(f => ({ key: f.key, name: f.name, type: f.type, url: f.url, duration: f.duration ?? 8 }));
+    return true;
+  } catch (err) {
+    console.error('Fetch error:', err);
+    showError('Kunde inte nå Worker-API:t', err.message);
+    return false;
+  }
+}
+
+function buildSlides() {
+  playerEl.innerHTML = '';
+  playlist.forEach((item, i) => {
+    const slide = document.createElement('div');
+    slide.className = 'slide';
+    slide.dataset.index = i;
+    if (item.type === 'image') {
+      const img = new Image(); img.src = item.url; img.alt = item.name; slide.appendChild(img);
+    } else {
+      const vid = document.createElement('video');
+      vid.src = item.url; vid.muted = true; vid.autoplay = false; vid.playsInline = true; vid.preload = 'auto'; vid.loop = false;
+      vid.addEventListener('ended', () => { if (parseInt(slide.dataset.index) === current) nextSlide(); });
+      vid.addEventListener('error', () => { console.warn('Video-fel:', item.name); if (parseInt(slide.dataset.index) === current) nextSlide(); });
+      slide.appendChild(vid);
+    }
+    playerEl.appendChild(slide);
+  });
+}
+
+function showSlide(idx) {
+  clearTimeout(advTimer);
+  document.querySelectorAll('.slide video').forEach(v => { v.pause(); v.currentTime = 0; });
+  document.querySelectorAll('.slide').forEach((s, i) => s.classList.toggle('active', i === idx));
+  if (SHOW_COUNT) counterEl.textContent = (idx + 1) + ' / ' + playlist.length;
+  const item = playlist[idx];
+  if (!item) return;
+  progressEl.style.transition = 'none';
+  progressEl.style.width = '0%';
+  if (item.type === 'image') {
+    const dur = (item.duration ?? 8) * 1000;
+    requestAnimationFrame(() => { progressEl.style.transition = 'width ' + dur + 'ms linear'; progressEl.style.width = '100%'; });
+    advTimer = setTimeout(nextSlide, dur);
+  } else {
+    const slide = document.querySelector('.slide[data-index="' + idx + '"]');
+    const vid = slide?.querySelector('video');
+    if (vid) {
+      vid.currentTime = 0;
+      vid.play().catch(err => { console.warn('Autoplay blockerad:', err); advTimer = setTimeout(nextSlide, 60000); });
+      vid.addEventListener('loadedmetadata', () => {
+        const dur = vid.duration * 1000;
+        progressEl.style.transition = 'width ' + dur + 'ms linear';
+        requestAnimationFrame(() => { progressEl.style.width = '100%'; });
+        advTimer = setTimeout(nextSlide, dur + 3000);
+      }, { once: true });
+    }
+  }
+}
+
+function nextSlide() { if (playlist.length === 0) return; current = (current + 1) % playlist.length; showSlide(current); }
+
+async function init() { const ok = await fetchPlaylist(); if (!ok) return; buildSlides(); hideLoader(); current = 0; showSlide(0); }
+
+setInterval(async () => { const ok = await fetchPlaylist(); if (ok) buildSlides(); }, RELOAD_MIN * 60 * 1000);
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight') nextSlide();
+  if (e.key === 'ArrowLeft') { current = (current - 2 + playlist.length) % playlist.length; nextSlide(); }
+  if (e.key === 'f' || e.key === 'F') document.documentElement.requestFullscreen?.().catch(() => {});
+});
+
+init();
+</script>
+</body>
+</html>`;
+
 /**
  * SODSS Signage — Cloudflare Worker
  *
@@ -43,6 +193,17 @@ export default {
 
     function err(msg, status = 400) {
       return json({ error: msg }, status);
+    }
+
+    // ── GET / eller /player — serverar player.html direkt från Worker ────────
+    if ((path === '/' || path === '/player') && request.method === 'GET') {
+      return new Response(PLAYER_HTML, {
+        headers: {
+          'Content-Type': 'text/html; charset=utf-8',
+          'Cache-Control': 'public, max-age=300',
+          'X-Frame-Options': '',
+        },
+      });
     }
 
     // ── GET /api/url/:screen — hämta URL för skärm ──────────────────────────
