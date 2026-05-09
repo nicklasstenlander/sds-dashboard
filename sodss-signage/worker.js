@@ -206,6 +206,23 @@ export default {
       });
     }
 
+    // ── GET /debug — diagnostiksida ──────────────────────────────────────────
+    if (path === '/debug') {
+      return new Response(`<!DOCTYPE html>
+<html><body style="background:#1e4025;color:#CDDCD1;font-family:monospace;padding:40px">
+<h1>Debug</h1>
+<div id="out">Testar fetch...</div>
+<script>
+fetch('/api/files')
+  .then(r => r.json())
+  .then(d => document.getElementById('out').textContent = 'OK: ' + d.files.length + ' filer')
+  .catch(e => document.getElementById('out').textContent = 'FEL: ' + e.message)
+</script>
+</body></html>`, {
+        headers: { 'Content-Type': 'text/html' }
+      });
+    }
+
     // ── GET /api/url/:screen — hämta URL för skärm ──────────────────────────
     if (path.startsWith('/api/url/') && request.method === 'GET') {
       const screen = path.replace('/api/url/', '');
