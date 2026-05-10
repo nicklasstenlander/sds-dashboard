@@ -37,7 +37,7 @@ const PLAYER_HTML = `<!DOCTYPE html>
 <div id="counter"></div>
 <script>
 const p          = new URLSearchParams(location.search);
-const WORKER_URL = p.get('worker') ?? location.origin;
+const WORKER_URL = p.get('worker') ?? (location.protocol + '//' + location.host);
 const SCREEN_ID  = p.get('screen') ?? 'default';
 const RELOAD_MIN = parseInt(p.get('reload') ?? '30');
 const SHOW_CLOCK = p.get('clock') === '1';
@@ -206,6 +206,40 @@ export default {
     }
 
     // ── GET /debug — diagnostiksida ──────────────────────────────────────────
+    if (path === '/player-mini') {
+      return new Response(`<!DOCTYPE html>
+<html><body style="background:#000;color:#fff;font-family:monospace;padding:40px">
+<div id="s1" style="margin:8px 0">1: vantar...</div>
+<div id="s2" style="margin:8px 0">2: vantar...</div>
+<div id="s3" style="margin:8px 0">3: vantar...</div>
+<div id="s4" style="margin:8px 0">4: vantar...</div>
+<script>
+function set(id, txt) {
+  var el = document.getElementById(id);
+  if (el) { el.innerHTML = txt; }
+}
+
+set('s1', '1: JS kör, sätter WORKER');
+var WORKER = location.protocol + '//' + location.host;
+set('s2', '2: WORKER=' + WORKER + ' — hämtar...');
+
+fetch(WORKER + '/api/files')
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    set('s3', '3: ' + d.files.length + ' filer');
+    if (d.files.length > 0) {
+      set('s4', '4: url=' + d.files[0].url);
+    }
+  })
+  .catch(function(e) {
+    set('s3', 'FEL: ' + e.message);
+  });
+</script>
+</body></html>`, {
+        headers: { 'Content-Type': 'text/html' }
+      });
+    }
+
     if (path === '/debug') {
       return new Response(`<!DOCTYPE html>
 <html><body style="background:#1e4025;color:#CDDCD1;font-family:monospace;padding:40px">

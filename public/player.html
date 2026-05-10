@@ -183,7 +183,7 @@
 //    &transition=0.7         (fade-tid i sekunder)
 
 var p          = new URLSearchParams(location.search);
-var WORKER_URL = p.get('worker') || '';
+var WORKER_URL = p.get('worker') || (location.protocol + '//' + location.host);
 var SCREEN_ID  = p.get('screen') || 'default';
 var RELOAD_MIN = parseInt(p.get('reload') || '30');
 var SHOW_CLOCK = p.get('clock') === '1';
