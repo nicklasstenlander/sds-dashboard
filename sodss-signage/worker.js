@@ -8,17 +8,17 @@ const PLAYER_HTML = `<!DOCTYPE html>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { background: #000; overflow: hidden; width: 100vw; height: 100vh; }
     #player { position: relative; width: 100vw; height: 100vh; background: #000; }
-    .slide { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.7s ease; pointer-events: none; }
+    .slide { position: absolute; top: 0; right: 0; bottom: 0; left: 0;display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.7s ease; pointer-events: none; }
     .slide.active { opacity: 1; pointer-events: auto; }
     .slide img, .slide video { width: 100%; height: 100%; object-fit: contain; background: #000; }
     #progress { position: fixed; bottom: 0; left: 0; height: 3px; width: 0%; background: #dd5c86; opacity: 0.75; z-index: 50; transition: width linear; }
-    #loader { position: fixed; inset: 0; background: #1e4025; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; z-index: 100; transition: opacity 0.6s ease; }
+    #loader { position: fixed; top: 0; right: 0; bottom: 0; left: 0;background: #1e4025; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; z-index: 100; transition: opacity 0.6s ease; }
     #loader.hidden { opacity: 0; pointer-events: none; }
     #loader .spinner { width: 42px; height: 42px; border: 3px solid rgba(205,220,209,0.3); border-top-color: #CDDCD1; border-radius: 50%; animation: spin 1.1s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
     #loader p { color: #CDDCD1; font-size: 13px; font-family: monospace; letter-spacing: 0.1em; }
     #loader .logo { font-family: monospace; font-size: 11px; letter-spacing: 0.2em; color: rgba(205,220,209,0.4); text-transform: uppercase; margin-bottom: 8px; }
-    #error { position: fixed; inset: 0; background: #1e4025; color: #CDDCD1; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 14px; font-family: monospace; text-align: center; padding: 48px; }
+    #error { position: fixed; top: 0; right: 0; bottom: 0; left: 0;background: #1e4025; color: #CDDCD1; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 14px; font-family: monospace; text-align: center; padding: 48px; }
     #error.visible { display: flex; }
     #error .icon { font-size: 40px; }
     #error strong { font-size: 16px; }
