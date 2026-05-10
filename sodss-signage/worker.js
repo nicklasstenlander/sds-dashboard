@@ -8,9 +8,9 @@ const PLAYER_HTML = `<!DOCTYPE html>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { background: #000; overflow: hidden; width: 100vw; height: 100vh; }
     #player { position: relative; width: 100vw; height: 100vh; background: #000; }
-    .slide { position: absolute; top: 0; right: 0; bottom: 0; left: 0;display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.7s ease; pointer-events: none; }
-    .slide.active { opacity: 1; pointer-events: auto; }
-    .slide img, .slide video { width: 100%; height: 100%; object-fit: contain; background: #000; }
+    .slide { position: absolute; top: 0; right: 0; bottom: 0; left: 0; opacity: 0; pointer-events: none; }
+    .slide img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+    .slide video { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
     #progress { position: fixed; bottom: 0; left: 0; height: 3px; width: 0%; background: #dd5c86; opacity: 0.75; z-index: 50; transition: width linear; }
     #loader { position: fixed; top: 0; right: 0; bottom: 0; left: 0;background: #1e4025; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; z-index: 100; transition: opacity 0.6s ease; }
     #loader.hidden { opacity: 0; pointer-events: none; }
