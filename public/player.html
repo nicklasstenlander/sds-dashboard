@@ -224,40 +224,51 @@ function updateClock() {
 setInterval(updateClock, 15000);
 updateClock();
 
+// ─── Tidsstyrning ─────────────────────────────────────────────────────────────
+function isScheduledNow(schedule) {
+  if (!schedule) return true;
+  var now = new Date();
+  var today = now.getFullYear() + '-' +
+    ('0' + (now.getMonth() + 1)).slice(-2) + '-' +
+    ('0' + now.getDate()).slice(-2);
+  var timeNow = ('0' + now.getHours()).slice(-2) + ':' + ('0' + now.getMinutes()).slice(-2);
+  var dow = now.getDay();
+  var isoDay = dow === 0 ? 7 : dow; // 1=Mån … 7=Sön
+  if (schedule.dateFrom && today < schedule.dateFrom) return false;
+  if (schedule.dateTo   && today > schedule.dateTo)   return false;
+  if (schedule.timeFrom && timeNow < schedule.timeFrom) return false;
+  if (schedule.timeTo   && timeNow > schedule.timeTo)   return false;
+  if (schedule.weekdays && schedule.weekdays.length > 0 &&
+      schedule.weekdays.indexOf(isoDay) === -1) return false;
+  return true;
+}
+
+var schedules = {};
+
 // ─── Fetch spellista från Worker ─────────────────────────────────────────────
 function fetchPlaylist() {
-  loaderMsg.textContent = 'Hämtar spellista…';
-  return fetch(WORKER_URL + '/api/files')
-    .then(function(res) {
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      return res.json();
-    })
-    .then(function(data) {
-      var files = (data.files || []).filter(function(f) {
-        return f.type === 'image' || f.type === 'video';
-      });
-
-      if (files.length === 0) {
-        showError('Inga filer', 'Worker svarade men returnerade tom lista');
-        return false;
-      }
-
-      playlist = files.map(function(f) {
-        return {
-          key:      f.key,
-          name:     f.name,
-          type:     f.type,
-          url:      f.url,
-          duration: f.duration || 8,
-        };
-      });
-
-      return true;
-    })
-    .catch(function(err) {
-      showError('Fetch-fel: ' + err.message + ' | URL: ' + WORKER_URL);
-      return false;
+  loaderMsg.innerHTML = 'Hämtar spellista…';
+  return Promise.all([
+    fetch(WORKER_URL + '/api/files').then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }),
+    fetch(WORKER_URL + '/api/schedules').then(function(r) { return r.ok ? r.json() : {}; }).catch(function() { return {}; }),
+  ]).then(function(results) {
+    var data = results[0];
+    schedules = results[1];
+    var files = (data.files || []).filter(function(f) {
+      return (f.type === 'image' || f.type === 'video') && isScheduledNow(schedules[f.key]);
     });
+    if (files.length === 0) {
+      showError('Inga filer', 'Inga schemalagda inslag just nu');
+      return false;
+    }
+    playlist = files.map(function(f) {
+      return { key: f.key, name: f.name, type: f.type, url: f.url, duration: f.duration || 8 };
+    });
+    return true;
+  }).catch(function(err) {
+    showError('Fetch-fel: ' + err.message + ' | URL: ' + WORKER_URL);
+    return false;
+  });
 }
 
 // ─── Bygg slide-DOM ───────────────────────────────────────────────────────────

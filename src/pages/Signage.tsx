@@ -14,6 +14,22 @@ interface PlaylistItem {
   duration: number; // sekunder (bilder)
 }
 
+interface FileSchedule {
+  dateFrom?: string;   // YYYY-MM-DD
+  dateTo?:   string;
+  timeFrom?: string;   // HH:MM
+  timeTo?:   string;
+  weekdays?: number[]; // 1=Mån … 7=Sön
+}
+
+type Schedules = Record<string, FileSchedule>;
+
+const WEEKDAYS = [
+  { n: 1, label: "Mån" }, { n: 2, label: "Tis" }, { n: 3, label: "Ons" },
+  { n: 4, label: "Tor" }, { n: 5, label: "Fre" }, { n: 6, label: "Lör" },
+  { n: 7, label: "Sön" },
+];
+
 // ─── Config ───────────────────────────────────────────────────────────────────
 // .env:
 //   VITE_WORKER_URL=https://sodss-signage.ditt-konto.workers.dev
@@ -84,6 +100,59 @@ export function Signage() {
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [deleting, setDeleting]   = useState<string | null>(null);
   const fileInputRef              = useRef<HTMLInputElement>(null);
+
+  // ── Schedules ────────────────────────────────────────────────────────────
+  const [schedules,      setSchedules]      = useState<Schedules>({});
+  const [scheduleTarget, setScheduleTarget] = useState<string | null>(null); // key of file being edited
+  const [schedDraft,     setSchedDraft]     = useState<FileSchedule>({});
+  const [schedSaving,    setSchedSaving]    = useState(false);
+
+  useEffect(() => {
+    if (!WORKER_URL) return;
+    fetch(`${WORKER_URL}/api/schedules`)
+      .then(r => r.json() as Promise<Schedules>)
+      .then(setSchedules)
+      .catch(() => {});
+  }, []);
+
+  function openSchedule(key: string) {
+    setScheduleTarget(key);
+    setSchedDraft(schedules[key] ?? {});
+  }
+
+  async function saveSchedule() {
+    if (!scheduleTarget) return;
+    setSchedSaving(true);
+    const next = { ...schedules };
+    const draft = { ...schedDraft };
+    // Remove empty fields
+    if (!draft.dateFrom) delete draft.dateFrom;
+    if (!draft.dateTo)   delete draft.dateTo;
+    if (!draft.timeFrom) delete draft.timeFrom;
+    if (!draft.timeTo)   delete draft.timeTo;
+    if (!draft.weekdays?.length) delete draft.weekdays;
+    if (Object.keys(draft).length === 0) {
+      delete next[scheduleTarget];
+    } else {
+      next[scheduleTarget] = draft;
+    }
+    await fetch(`${WORKER_URL}/api/schedules`, {
+      method: 'PUT',
+      headers: { ...authHeader, 'Content-Type': 'application/json' },
+      body: JSON.stringify(next),
+    });
+    setSchedules(next);
+    setScheduleTarget(null);
+    setSchedSaving(false);
+  }
+
+  function toggleWeekday(n: number) {
+    const current = schedDraft.weekdays ?? [];
+    setSchedDraft(d => ({
+      ...d,
+      weekdays: current.includes(n) ? current.filter(x => x !== n) : [...current, n].sort(),
+    }));
+  }
 
   // ── Studio B URL state ───────────────────────────────────────────────────
   const [studioBUrl,    setStudioBUrl]    = useState('');
@@ -501,6 +570,21 @@ export function Signage() {
                   <span style={{ fontSize: 11, color: "#a3c0b2", minWidth: 55 }}>Hel film</span>
                 )}
 
+                {/* Schedule */}
+                <button
+                  onClick={() => openSchedule(item.key)}
+                  title="Tidsstyrning"
+                  style={{
+                    width: 28, height: 28, borderRadius: 7,
+                    border: `1.5px solid ${schedules[item.key] ? "#1e4025" : "#CDDCD1"}`,
+                    background: schedules[item.key] ? "#CDDCD1" : "transparent",
+                    color: schedules[item.key] ? "#1e4025" : "#a3c0b2",
+                    fontSize: 14, cursor: "pointer",
+                    display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                  }}>
+                  🕐
+                </button>
+
                 {/* Delete */}
                 <button onClick={() => deleteItem(item.key)} disabled={deleting === item.key}
                   style={{
@@ -515,6 +599,93 @@ export function Signage() {
           </div>
         )}
       </section>
+
+      {/* ── Schema-modal ── */}
+      {scheduleTarget && (
+        <>
+          <div onClick={() => setScheduleTarget(null)}
+            style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.4)", zIndex: 90 }} />
+          <div style={{
+            position: "fixed", top: "50%", left: "50%",
+            transform: "translate(-50%,-50%)",
+            background: "#fff", borderRadius: 14, padding: 24, zIndex: 91,
+            width: 380, maxWidth: "90vw", boxShadow: "0 8px 40px rgba(0,0,0,.18)",
+            fontFamily: "'DM Mono', monospace",
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+              <strong style={{ fontSize: 14, color: "#1e4025" }}>Tidsstyrning</strong>
+              <button onClick={() => setScheduleTarget(null)}
+                style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", color: "#a3c0b2" }}>×</button>
+            </div>
+            <div style={{ fontSize: 11, color: "#a3c0b2", marginBottom: 16, wordBreak: "break-all" as const }}>
+              {scheduleTarget}
+            </div>
+
+            {/* Datum */}
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#1e4025", textTransform: "uppercase" as const, letterSpacing: "0.08em", marginBottom: 6 }}>Datumintervall</div>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <input type="date" value={schedDraft.dateFrom ?? ''} onChange={e => setSchedDraft(d => ({ ...d, dateFrom: e.target.value || undefined }))}
+                  style={{ flex: 1, padding: "5px 8px", border: "1.5px solid #CDDCD1", borderRadius: 7, fontFamily: "inherit", fontSize: 12, color: "#1e4025" }} />
+                <span style={{ fontSize: 11, color: "#a3c0b2" }}>→</span>
+                <input type="date" value={schedDraft.dateTo ?? ''} onChange={e => setSchedDraft(d => ({ ...d, dateTo: e.target.value || undefined }))}
+                  style={{ flex: 1, padding: "5px 8px", border: "1.5px solid #CDDCD1", borderRadius: 7, fontFamily: "inherit", fontSize: 12, color: "#1e4025" }} />
+              </div>
+            </div>
+
+            {/* Tid */}
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#1e4025", textTransform: "uppercase" as const, letterSpacing: "0.08em", marginBottom: 6 }}>Tid på dygnet</div>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <input type="time" value={schedDraft.timeFrom ?? ''} onChange={e => setSchedDraft(d => ({ ...d, timeFrom: e.target.value || undefined }))}
+                  style={{ flex: 1, padding: "5px 8px", border: "1.5px solid #CDDCD1", borderRadius: 7, fontFamily: "inherit", fontSize: 12, color: "#1e4025" }} />
+                <span style={{ fontSize: 11, color: "#a3c0b2" }}>→</span>
+                <input type="time" value={schedDraft.timeTo ?? ''} onChange={e => setSchedDraft(d => ({ ...d, timeTo: e.target.value || undefined }))}
+                  style={{ flex: 1, padding: "5px 8px", border: "1.5px solid #CDDCD1", borderRadius: 7, fontFamily: "inherit", fontSize: 12, color: "#1e4025" }} />
+              </div>
+            </div>
+
+            {/* Veckodagar */}
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#1e4025", textTransform: "uppercase" as const, letterSpacing: "0.08em", marginBottom: 8 }}>Veckodagar</div>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" as const }}>
+                {WEEKDAYS.map(({ n, label }) => {
+                  const active = (schedDraft.weekdays ?? []).includes(n);
+                  return (
+                    <button key={n} onClick={() => toggleWeekday(n)} style={{
+                      padding: "4px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700,
+                      border: `1.5px solid ${active ? "#1e4025" : "#CDDCD1"}`,
+                      background: active ? "#1e4025" : "transparent",
+                      color: active ? "#CDDCD1" : "#a3c0b2", cursor: "pointer",
+                    }}>{label}</button>
+                  );
+                })}
+              </div>
+              <div style={{ fontSize: 10, color: "#a3c0b2", marginTop: 6 }}>
+                Tomt = alla dagar
+              </div>
+            </div>
+
+            {/* Knappar */}
+            <div style={{ display: "flex", gap: 8, justifyContent: "space-between" }}>
+              <button onClick={() => { setSchedDraft({}); }}
+                style={{ padding: "7px 14px", borderRadius: 7, border: "1.5px solid #f0d0d8", background: "transparent", color: "#dd5c86", fontSize: 12, cursor: "pointer" }}>
+                Rensa schema
+              </button>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={() => setScheduleTarget(null)}
+                  style={{ padding: "7px 14px", borderRadius: 7, border: "1.5px solid #CDDCD1", background: "transparent", color: "#a3c0b2", fontSize: 12, cursor: "pointer" }}>
+                  Avbryt
+                </button>
+                <button onClick={saveSchedule} disabled={schedSaving}
+                  style={{ padding: "7px 18px", borderRadius: 7, border: "none", background: "#1e4025", color: "#CDDCD1", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                  {schedSaving ? "Sparar…" : "Spara"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* ── Setup guide ── */}
       <section style={{

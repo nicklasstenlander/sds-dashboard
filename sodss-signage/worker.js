@@ -70,17 +70,41 @@ function updateClock() { if (SHOW_CLOCK) clockEl.innerHTML = new Date().toLocale
 setInterval(updateClock, 15000);
 updateClock();
 
+function isScheduledNow(schedule) {
+  if (!schedule) return true;
+  var now = new Date();
+  var today = now.getFullYear() + '-' +
+    ('0' + (now.getMonth() + 1)).slice(-2) + '-' +
+    ('0' + now.getDate()).slice(-2);
+  var timeNow = ('0' + now.getHours()).slice(-2) + ':' + ('0' + now.getMinutes()).slice(-2);
+  var dow = now.getDay(); // 0=Sun
+  var isoDay = dow === 0 ? 7 : dow; // 1=Mon … 7=Sun
+  if (schedule.dateFrom && today < schedule.dateFrom) return false;
+  if (schedule.dateTo   && today > schedule.dateTo)   return false;
+  if (schedule.timeFrom && timeNow < schedule.timeFrom) return false;
+  if (schedule.timeTo   && timeNow > schedule.timeTo)   return false;
+  if (schedule.weekdays && schedule.weekdays.length > 0 &&
+      schedule.weekdays.indexOf(isoDay) === -1) return false;
+  return true;
+}
+
+var schedules = {};
+
 function fetchPlaylist() {
   loaderMsg.innerHTML = 'Hämtar spellista…';
-  return fetch(WORKER_URL + '/api/files')
-    .then(function(res) { if (!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
-    .then(function(data) {
-      var files = (data.files || []).filter(function(f) { return f.type === 'image' || f.type === 'video'; });
-      if (files.length === 0) { showError('Inga filer', 'Worker svarade men returnerade tom lista'); return false; }
-      playlist = files.map(function(f) { return { key: f.key, name: f.name, type: f.type, url: f.url, duration: f.duration || 8 }; });
-      return true;
-    })
-    .catch(function(err) { showError('Fetch-fel: ' + err.message + ' | URL: ' + WORKER_URL); return false; });
+  return Promise.all([
+    fetch(WORKER_URL + '/api/files').then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }),
+    fetch(WORKER_URL + '/api/schedules').then(function(r) { return r.ok ? r.json() : {}; }).catch(function() { return {}; }),
+  ]).then(function(results) {
+    var data = results[0];
+    schedules = results[1];
+    var files = (data.files || []).filter(function(f) {
+      return (f.type === 'image' || f.type === 'video') && isScheduledNow(schedules[f.key]);
+    });
+    if (files.length === 0) { showError('Inga filer', 'Inga schemalagda inslag just nu'); return false; }
+    playlist = files.map(function(f) { return { key: f.key, name: f.name, type: f.type, url: f.url, duration: f.duration || 8 }; });
+    return true;
+  }).catch(function(err) { showError('Fetch-fel: ' + err.message + ' | URL: ' + WORKER_URL); return false; });
 }
 
 function buildSlides() {
@@ -330,6 +354,32 @@ fetch(W+'/api/files')
       });
     }
 
+    if (path === '/canplay') {
+      return new Response(`<!DOCTYPE html>
+<html><body style="background:#1e4025;color:#CDDCD1;font-family:monospace;padding:30px;font-size:14px">
+<h2 style="margin-bottom:16px">canPlayType</h2>
+<div id="out"></div>
+<script>
+var v = document.createElement('video');
+var types = [
+  'video/mp4',
+  'video/mp4; codecs="avc1.42E01E"',
+  'video/mp4; codecs="avc1.4D401E"',
+  'video/mp4; codecs="avc1.640028"',
+  'video/webm',
+  'video/webm; codecs="vp8"',
+  'video/ogg',
+  'video/ogg; codecs="theora"'
+];
+var html = '';
+for (var i = 0; i < types.length; i++) {
+  var r = v.canPlayType(types[i]);
+  html += '<div style="margin:4px 0"><b>' + (r || 'NEJ') + '</b> — ' + types[i] + '</div>';
+}
+document.getElementById('out').innerHTML = html;
+</script></body></html>`, { headers: { 'Content-Type': 'text/html' } });
+    }
+
     if (path === '/debug') {
       return new Response(`<!DOCTYPE html>
 <html><body style="background:#1e4025;color:#CDDCD1;font-family:monospace;padding:40px">
@@ -363,17 +413,36 @@ fetch('/api/files')
       return json({ ok: true, screen, url: body.url });
     }
 
+    // ── GET /api/schedules — hämta tidsscheman ──────────────────────────────
+    if (path === '/api/schedules' && request.method === 'GET') {
+      const obj = await env.BUCKET.get('_schedules.json');
+      const schedules = obj ? JSON.parse(await obj.text()) : {};
+      return json(schedules);
+    }
+
+    // ── PUT /api/schedules — spara tidsscheman ───────────────────────────────
+    if (path === '/api/schedules' && request.method === 'PUT') {
+      if (!isAuthorized()) return err('Ej behörig', 401);
+      const body = await request.json();
+      await env.BUCKET.put('_schedules.json', JSON.stringify(body), {
+        httpMetadata: { contentType: 'application/json' },
+      });
+      return json({ ok: true });
+    }
+
     // ── GET /api/files ───────────────────────────────────────────────────────
     if (path === "/api/files" && request.method === "GET") {
       const listed = await env.BUCKET.list();
-      const files = listed.objects.map((obj) => ({
-        key: obj.key,
-        name: obj.key,
-        size: obj.size,
-        uploaded: obj.uploaded,
-        type: guessType(obj.key),
-        url: `${url.origin}/media/${obj.key}`,
-      }));
+      const files = listed.objects
+        .filter(obj => !obj.key.startsWith('_') && !obj.key.startsWith('urls/'))
+        .map((obj) => ({
+          key: obj.key,
+          name: obj.key,
+          size: obj.size,
+          uploaded: obj.uploaded,
+          type: guessType(obj.key),
+          url: `${url.origin}/media/${obj.key}`,
+        }));
       // Sort by name
       files.sort((a, b) => a.name.localeCompare(b.name));
       return json({ files });
