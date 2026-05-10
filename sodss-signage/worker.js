@@ -66,20 +66,23 @@ function updateClock() { if (SHOW_CLOCK) clockEl.textContent = new Date().toLoca
 setInterval(updateClock, 15000);
 updateClock();
 
-async function fetchPlaylist() {
-  try {
-    loaderMsg.textContent = 'Hämtar spellista…';
-    const res  = await fetch(WORKER_URL + '/api/files');
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const data = await res.json();
-    const files = (data.files ?? []).filter(f => f.type === 'image' || f.type === 'video');
-    if (files.length === 0) { showError('Inga filer', 'Worker svarade men returnerade tom lista'); return false; }
-    playlist = files.map(f => ({ key: f.key, name: f.name, type: f.type, url: f.url, duration: f.duration ?? 8 }));
-    return true;
-  } catch (err) {
-    showError('Fetch-fel: ' + err.message + ' | URL: ' + WORKER_URL);
-    return false;
-  }
+function fetchPlaylist() {
+  loaderMsg.textContent = 'Hämtar spellista…';
+  return fetch(WORKER_URL + '/api/files')
+    .then(function(res) {
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return res.json();
+    })
+    .then(function(data) {
+      var files = (data.files || []).filter(function(f) { return f.type === 'image' || f.type === 'video'; });
+      if (files.length === 0) { showError('Inga filer', 'Worker svarade men returnerade tom lista'); return false; }
+      playlist = files.map(function(f) { return { key: f.key, name: f.name, type: f.type, url: f.url, duration: f.duration || 8 }; });
+      return true;
+    })
+    .catch(function(err) {
+      showError('Fetch-fel: ' + err.message + ' | URL: ' + WORKER_URL);
+      return false;
+    });
 }
 
 function buildSlides() {
@@ -132,14 +135,22 @@ function showSlide(idx) {
 
 function nextSlide() { if (playlist.length === 0) return; current = (current + 1) % playlist.length; showSlide(current); }
 
-async function init() { const ok = await fetchPlaylist(); if (!ok) return; buildSlides(); hideLoader(); current = 0; showSlide(0); }
+function init() {
+  fetchPlaylist().then(function(ok) {
+    if (!ok) return;
+    buildSlides();
+    hideLoader();
+    current = 0;
+    showSlide(0);
+  });
+}
 
-setInterval(async () => { const ok = await fetchPlaylist(); if (ok) buildSlides(); }, RELOAD_MIN * 60 * 1000);
+setInterval(function() { fetchPlaylist().then(function(ok) { if (ok) buildSlides(); }); }, RELOAD_MIN * 60 * 1000);
 
-document.addEventListener('keydown', e => {
+document.addEventListener('keydown', function(e) {
   if (e.key === 'ArrowRight') nextSlide();
   if (e.key === 'ArrowLeft') { current = (current - 2 + playlist.length) % playlist.length; nextSlide(); }
-  if (e.key === 'f' || e.key === 'F') document.documentElement.requestFullscreen?.().catch(() => {});
+  if (e.key === 'f' || e.key === 'F') { if (document.documentElement.requestFullscreen) { document.documentElement.requestFullscreen(); } }
 });
 
 init();

@@ -232,44 +232,39 @@ setInterval(updateClock, 15000);
 updateClock();
 
 // ─── Fetch spellista från Worker ─────────────────────────────────────────────
-async function fetchPlaylist() {
-  if (!WORKER_URL) {
-    showError('Saknas: ?worker=URL i adressfältet', 'Kontrollera URL-parametrarna');
-    return false;
-  }
+function fetchPlaylist() {
+  loaderMsg.textContent = 'Hämtar spellista…';
+  return fetch(WORKER_URL + '/api/files')
+    .then(function(res) {
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return res.json();
+    })
+    .then(function(data) {
+      var files = (data.files || []).filter(function(f) {
+        return f.type === 'image' || f.type === 'video';
+      });
 
-  try {
-    loaderMsg.textContent = 'Hämtar spellista…';
-    const res  = await fetch(`${WORKER_URL}/api/files`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
+      if (files.length === 0) {
+        showError('Inga filer', 'Worker svarade men returnerade tom lista');
+        return false;
+      }
 
-    var files = (data.files || []).filter(function(f) {
-      return f.type === 'image' || f.type === 'video';
-    });
+      playlist = files.map(function(f) {
+        return {
+          key:      f.key,
+          name:     f.name,
+          type:     f.type,
+          url:      f.url,
+          duration: f.duration || 8,
+        };
+      });
 
-    if (files.length === 0) {
-      showError('Inga filer', 'Worker svarade men returnerade tom lista');
+      return true;
+    })
+    .catch(function(err) {
+      showError('Fetch-fel: ' + err.message + ' | URL: ' + WORKER_URL);
       return false;
-    }
-
-    // Bygg intern spellista
-    playlist = files.map(function(f) {
-      return {
-        key:      f.key,
-        name:     f.name,
-        type:     f.type,
-        url:      f.url,
-        duration: f.duration || 8,
-      };
     });
-
-    return true;
-
-  } catch (err) {
-    showError('Fetch-fel: ' + err.message + ' | URL: ' + WORKER_URL);
-    return false;
-  }
 }
 
 // ─── Bygg slide-DOM ───────────────────────────────────────────────────────────
@@ -383,15 +378,14 @@ function nextSlide() {
 }
 
 // ─── Starta ───────────────────────────────────────────────────────────────────
-async function init() {
-  const ok = await fetchPlaylist();
-  if (!ok) return;
-
-  buildSlides();
-  hideLoader();
-
-  current = 0;
-  showSlide(0);
+function init() {
+  fetchPlaylist().then(function(ok) {
+    if (!ok) return;
+    buildSlides();
+    hideLoader();
+    current = 0;
+    showSlide(0);
+  });
 }
 
 // ─── Auto-reload spellista ────────────────────────────────────────────────────
