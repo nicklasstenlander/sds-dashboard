@@ -94,7 +94,16 @@ function buildSlides() {
       var img = new Image(); img.src = item.url; img.alt = item.name; slide.appendChild(img);
     } else {
       var vid = document.createElement('video');
-      vid.src = item.url; vid.muted = true; vid.autoplay = false; vid.preload = 'auto'; vid.loop = false;
+      vid.muted = true;
+      vid.defaultMuted = true;
+      vid.setAttribute('muted', '');
+      vid.setAttribute('playsinline', '');
+      vid.preload = 'auto';
+      vid.loop = false;
+      var src = document.createElement('source');
+      src.src = item.url;
+      src.type = 'video/mp4';
+      vid.appendChild(src);
       vid.addEventListener('ended', function() { if (parseInt(slide.getAttribute('data-index')) === current) nextSlide(); });
       vid.addEventListener('error', function() { if (parseInt(slide.getAttribute('data-index')) === current) nextSlide(); });
       slide.appendChild(vid);
@@ -127,9 +136,14 @@ function showSlide(idx) {
     var activeSlide = allSlides[idx];
     var vid = activeSlide ? activeSlide.getElementsByTagName('video')[0] : null;
     if (vid) {
+      vid.muted = true;
+      vid.defaultMuted = true;
       vid.currentTime = 0;
-      var pp = vid.play();
-      if (pp && pp.catch) { pp.catch(function() { advTimer = setTimeout(nextSlide, 60000); }); }
+      vid.load();
+      vid.addEventListener('loadeddata', function() {
+        var pp = vid.play();
+        if (pp && pp.catch) { pp.catch(function() { advTimer = setTimeout(nextSlide, 60000); }); }
+      });
       vid.addEventListener('loadedmetadata', function() {
         var dur = vid.duration * 1000;
         progressEl.style.transition = 'width ' + dur + 'ms linear';
@@ -224,6 +238,56 @@ export default {
     }
 
     // ── GET /debug — diagnostiksida ──────────────────────────────────────────
+    // ── GET /player-test — videotest med debug ───────────────────────────────
+    if (path === '/player-test') {
+      const listed = await env.BUCKET.list();
+      const videos = listed.objects.filter(o => o.key.toLowerCase().endsWith('.mp4'));
+      const src = videos.length > 0 ? `${url.origin}/media/${encodeURIComponent(videos[0].key)}` : '';
+      return new Response(`<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<style>
+  html,body{margin:0;background:#000;overflow:hidden;}
+  #info{position:fixed;top:0;left:0;right:0;color:#0f0;font-family:monospace;font-size:13px;z-index:99;background:rgba(0,0,0,.85);padding:10px;max-height:50vh;overflow-y:auto;}
+  video{position:fixed;bottom:0;left:0;width:100%;height:50vh;}
+</style>
+</head><body>
+<div id="info">src: ${src || 'INGEN VIDEO'}<br></div>
+<video id="v" muted loop playsinline preload="auto" controls>
+  <source src="${src}" type="video/mp4">
+</video>
+<script>
+var v = document.getElementById('v');
+var info = document.getElementById('info');
+function log(t){ info.innerHTML += t+'<br>'; }
+
+v.muted = true;
+v.defaultMuted = true;
+
+function showState(){
+  log('readyState='+v.readyState+' networkState='+v.networkState);
+}
+
+v.addEventListener('loadstart',    function(){ log('loadstart'); showState(); });
+v.addEventListener('progress',     function(){ log('progress'); });
+v.addEventListener('loadedmetadata',function(){ log('loadedmetadata dur='+v.duration); showState(); });
+v.addEventListener('loadeddata',   function(){ log('loadeddata'); showState();
+  v.play().then(function(){ log('play() resolve'); }).catch(function(e){ log('play() FEL: '+e.message); });
+});
+v.addEventListener('canplay',      function(){ log('canplay'); });
+v.addEventListener('playing',      function(){ log('SPELAR'); });
+v.addEventListener('stalled',      function(){ log('stalled'); showState(); });
+v.addEventListener('waiting',      function(){ log('waiting'); showState(); });
+v.addEventListener('error',        function(){
+  var e = v.error;
+  log('ERROR kod='+(e?e.code:'?')+' msg='+(e?e.message:'?'));
+  showState();
+});
+
+setTimeout(function(){ showState(); log('--- 3s timeout ---'); }, 3000);
+</script>
+</body></html>`, { headers: { 'Content-Type': 'text/html' } });
+    }
+
     if (path === '/player-mini') {
       return new Response(`<!DOCTYPE html>
 <html><body style="background:#111;color:#fff;font-family:monospace;padding:20px">
