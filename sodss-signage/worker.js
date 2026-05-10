@@ -73,12 +73,11 @@ async function fetchPlaylist() {
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
     const files = (data.files ?? []).filter(f => f.type === 'image' || f.type === 'video');
-    if (files.length === 0) { showError('Spellistan är tom', 'Ladda upp filer via Core → Skyltning'); return false; }
+    if (files.length === 0) { showError('Inga filer', 'Worker svarade men returnerade tom lista'); return false; }
     playlist = files.map(f => ({ key: f.key, name: f.name, type: f.type, url: f.url, duration: f.duration ?? 8 }));
     return true;
   } catch (err) {
-    console.error('Fetch error:', err);
-    showError('Kunde inte nå Worker-API:t', err.message);
+    showError('Fetch-fel: ' + err.message + ' | URL: ' + WORKER_URL);
     return false;
   }
 }

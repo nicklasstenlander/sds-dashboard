@@ -249,7 +249,7 @@ async function fetchPlaylist() {
     });
 
     if (files.length === 0) {
-      showError('Spellistan är tom', 'Ladda upp filer via Core → Skyltning');
+      showError('Inga filer', 'Worker svarade men returnerade tom lista');
       return false;
     }
 
@@ -267,8 +267,7 @@ async function fetchPlaylist() {
     return true;
 
   } catch (err) {
-    console.error('Fetch error:', err);
-    showError('Kunde inte nå Worker-API:t', err.message);
+    showError('Fetch-fel: ' + err.message + ' | URL: ' + WORKER_URL);
     return false;
   }
 }
