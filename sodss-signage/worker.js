@@ -226,32 +226,44 @@ export default {
     // ── GET /debug — diagnostiksida ──────────────────────────────────────────
     if (path === '/player-mini') {
       return new Response(`<!DOCTYPE html>
-<html><body style="background:#000;color:#fff;font-family:monospace;padding:40px">
-<div id="s1" style="margin:8px 0">1: vantar...</div>
-<div id="s2" style="margin:8px 0">2: vantar...</div>
-<div id="s3" style="margin:8px 0">3: vantar...</div>
-<div id="s4" style="margin:8px 0">4: vantar...</div>
+<html><body style="background:#111;color:#fff;font-family:monospace;padding:20px">
+<div id="s1">1: startar...</div>
+<div id="s2">2: ...</div>
+<div id="s3">3: ...</div>
+<div id="s4">4: ...</div>
+<div id="s5">5: ...</div>
+<div id="vid-wrap" style="position:relative;width:320px;height:180px;background:#333;margin-top:12px"></div>
 <script>
-function set(id, txt) {
-  var el = document.getElementById(id);
-  if (el) { el.innerHTML = txt; }
-}
-
-set('s1', '1: JS kör, sätter WORKER');
-var WORKER = location.protocol + '//' + location.host;
-set('s2', '2: WORKER=' + WORKER + ' — hämtar...');
-
-fetch(WORKER + '/api/files')
-  .then(function(r) { return r.json(); })
-  .then(function(d) {
-    set('s3', '3: ' + d.files.length + ' filer');
-    if (d.files.length > 0) {
-      set('s4', '4: url=' + d.files[0].url);
+function s(id,t){var e=document.getElementById(id);if(e)e.innerHTML=t;}
+var W=location.protocol+'//'+location.host;
+s('s1','1: JS ok, W='+W);
+fetch(W+'/api/files')
+  .then(function(r){return r.json();})
+  .then(function(d){
+    s('s2','2: '+d.files.length+' filer');
+    var f=d.files[0];
+    if(!f){s('s3','ingen fil');return;}
+    s('s3','3: '+f.type+' — '+f.name);
+    var wrap=document.getElementById('vid-wrap');
+    if(f.type==='video'){
+      var v=document.createElement('video');
+      v.src=f.url; v.muted=true; v.setAttribute('muted',''); v.setAttribute('autoplay','');
+      v.style.cssText='width:100%;height:100%;';
+      wrap.appendChild(v);
+      s('s4','4: video tillagd, spelar...');
+      var pp=v.play();
+      if(pp&&pp.then){
+        pp.then(function(){s('s5','5: play() OK');})
+          .catch(function(e){s('s5','5: play() FEL: '+e.message);});
+      } else {
+        s('s5','5: play() returnerade: '+pp);
+      }
+    } else {
+      var img=new Image(); img.src=f.url; img.style.cssText='width:100%;';
+      wrap.appendChild(img); s('s4','4: bild tillagd');
     }
   })
-  .catch(function(e) {
-    set('s3', 'FEL: ' + e.message);
-  });
+  .catch(function(e){s('s2','FEL: '+e.message);});
 </script>
 </body></html>`, {
         headers: { 'Content-Type': 'text/html' }
