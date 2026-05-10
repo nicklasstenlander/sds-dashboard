@@ -53,82 +53,89 @@ const progressEl= document.getElementById('progress');
 const clockEl   = document.getElementById('clock');
 const counterEl = document.getElementById('counter');
 
-let playlist = [];
-let current  = -1;
-let advTimer = null;
+var playlist = [];
+var current  = -1;
+var advTimer = null;
 
-function showError(msg, detail) { loaderEl.classList.add('hidden'); errorEl.classList.add('visible'); errorMsg.textContent = msg; errorDet.textContent = detail || ''; }
-function hideLoader() { loaderEl.classList.add('hidden'); }
+function showError(msg, detail) {
+  loaderEl.style.opacity = '0'; loaderEl.style.pointerEvents = 'none';
+  errorEl.style.display = 'flex';
+  errorMsg.innerHTML = msg; errorDet.innerHTML = detail || '';
+}
+function hideLoader() { loaderEl.style.opacity = '0'; loaderEl.style.pointerEvents = 'none'; }
 
 clockEl.style.display = SHOW_CLOCK ? 'block' : 'none';
 counterEl.style.display = SHOW_COUNT ? 'block' : 'none';
-function updateClock() { if (SHOW_CLOCK) clockEl.textContent = new Date().toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' }); }
+function updateClock() { if (SHOW_CLOCK) clockEl.innerHTML = new Date().toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' }); }
 setInterval(updateClock, 15000);
 updateClock();
 
 function fetchPlaylist() {
-  loaderMsg.textContent = 'Hämtar spellista…';
+  loaderMsg.innerHTML = 'Hämtar spellista…';
   return fetch(WORKER_URL + '/api/files')
-    .then(function(res) {
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      return res.json();
-    })
+    .then(function(res) { if (!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
     .then(function(data) {
       var files = (data.files || []).filter(function(f) { return f.type === 'image' || f.type === 'video'; });
       if (files.length === 0) { showError('Inga filer', 'Worker svarade men returnerade tom lista'); return false; }
       playlist = files.map(function(f) { return { key: f.key, name: f.name, type: f.type, url: f.url, duration: f.duration || 8 }; });
       return true;
     })
-    .catch(function(err) {
-      showError('Fetch-fel: ' + err.message + ' | URL: ' + WORKER_URL);
-      return false;
-    });
+    .catch(function(err) { showError('Fetch-fel: ' + err.message + ' | URL: ' + WORKER_URL); return false; });
 }
 
 function buildSlides() {
   playerEl.innerHTML = '';
-  playlist.forEach((item, i) => {
-    const slide = document.createElement('div');
+  for (var i = 0; i < playlist.length; i++) {
+    var item = playlist[i];
+    var slide = document.createElement('div');
     slide.className = 'slide';
-    slide.dataset.index = i;
+    slide.setAttribute('data-index', i);
     if (item.type === 'image') {
-      const img = new Image(); img.src = item.url; img.alt = item.name; slide.appendChild(img);
+      var img = new Image(); img.src = item.url; img.alt = item.name; slide.appendChild(img);
     } else {
-      const vid = document.createElement('video');
-      vid.src = item.url; vid.muted = true; vid.autoplay = false; vid.playsInline = true; vid.preload = 'auto'; vid.loop = false;
-      vid.addEventListener('ended', () => { if (parseInt(slide.dataset.index) === current) nextSlide(); });
-      vid.addEventListener('error', () => { console.warn('Video-fel:', item.name); if (parseInt(slide.dataset.index) === current) nextSlide(); });
+      var vid = document.createElement('video');
+      vid.src = item.url; vid.muted = true; vid.autoplay = false; vid.preload = 'auto'; vid.loop = false;
+      vid.addEventListener('ended', function() { if (parseInt(slide.getAttribute('data-index')) === current) nextSlide(); });
+      vid.addEventListener('error', function() { if (parseInt(slide.getAttribute('data-index')) === current) nextSlide(); });
       slide.appendChild(vid);
     }
     playerEl.appendChild(slide);
-  });
+  }
 }
 
 function showSlide(idx) {
   clearTimeout(advTimer);
-  document.querySelectorAll('.slide video').forEach(v => { v.pause(); v.currentTime = 0; });
-  document.querySelectorAll('.slide').forEach((s, i) => s.classList.toggle('active', i === idx));
-  if (SHOW_COUNT) counterEl.textContent = (idx + 1) + ' / ' + playlist.length;
-  const item = playlist[idx];
+  var allSlides = playerEl.getElementsByClassName('slide');
+  for (var si = 0; si < allSlides.length; si++) {
+    var s = allSlides[si];
+    var isActive = si === idx;
+    s.style.opacity = isActive ? '1' : '0';
+    s.style.pointerEvents = isActive ? 'auto' : 'none';
+    var svid = s.getElementsByTagName('video')[0];
+    if (svid && !isActive) { svid.pause(); svid.currentTime = 0; }
+  }
+  if (SHOW_COUNT) counterEl.innerHTML = (idx + 1) + ' / ' + playlist.length;
+  var item = playlist[idx];
   if (!item) return;
   progressEl.style.transition = 'none';
   progressEl.style.width = '0%';
   if (item.type === 'image') {
-    const dur = (item.duration ?? 8) * 1000;
-    requestAnimationFrame(() => { progressEl.style.transition = 'width ' + dur + 'ms linear'; progressEl.style.width = '100%'; });
+    var dur = (item.duration || 8) * 1000;
+    requestAnimationFrame(function() { progressEl.style.transition = 'width ' + dur + 'ms linear'; progressEl.style.width = '100%'; });
     advTimer = setTimeout(nextSlide, dur);
   } else {
-    const slide = document.querySelector('.slide[data-index="' + idx + '"]');
-    const vid = slide?.querySelector('video');
+    var activeSlide = allSlides[idx];
+    var vid = activeSlide ? activeSlide.getElementsByTagName('video')[0] : null;
     if (vid) {
       vid.currentTime = 0;
-      vid.play().catch(err => { console.warn('Autoplay blockerad:', err); advTimer = setTimeout(nextSlide, 60000); });
-      vid.addEventListener('loadedmetadata', () => {
-        const dur = vid.duration * 1000;
+      var pp = vid.play();
+      if (pp && pp.catch) { pp.catch(function() { advTimer = setTimeout(nextSlide, 60000); }); }
+      vid.addEventListener('loadedmetadata', function() {
+        var dur = vid.duration * 1000;
         progressEl.style.transition = 'width ' + dur + 'ms linear';
-        requestAnimationFrame(() => { progressEl.style.width = '100%'; });
+        requestAnimationFrame(function() { progressEl.style.width = '100%'; });
         advTimer = setTimeout(nextSlide, dur + 3000);
-      }, { once: true });
+      });
     }
   }
 }

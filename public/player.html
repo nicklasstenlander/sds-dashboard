@@ -207,15 +207,16 @@ var advTimer = null;
 
 // ─── UI helpers ───────────────────────────────────────────────────────────────
 function showError(msg, detail) {
-  detail = detail || '';
-  loaderEl.classList.add('hidden');
-  errorEl.classList.add('visible');
-  errorMsg.textContent = msg;
-  errorDet.textContent = detail;
+  loaderEl.style.opacity = '0';
+  loaderEl.style.pointerEvents = 'none';
+  errorEl.style.display = 'flex';
+  errorMsg.innerHTML = msg;
+  errorDet.innerHTML = detail || '';
 }
 
 function hideLoader() {
-  loaderEl.classList.add('hidden');
+  loaderEl.style.opacity = '0';
+  loaderEl.style.pointerEvents = 'none';
 }
 
 // ─── Clock ───────────────────────────────────────────────────────────────────
@@ -271,10 +272,11 @@ function fetchPlaylist() {
 function buildSlides() {
   playerEl.innerHTML = '';
 
-  playlist.forEach(function(item, i) {
+  for (var i = 0; i < playlist.length; i++) {
+    var item = playlist[i];
     var slide = document.createElement('div');
     slide.className = 'slide';
-    slide.dataset.index = i;
+    slide.setAttribute('data-index', i);
 
     if (item.type === 'image') {
       var img = new Image();
@@ -283,56 +285,49 @@ function buildSlides() {
       slide.appendChild(img);
 
     } else {
-      // Native <video> — fungerar perfekt med Cloudflare R2 direktlänkar
       var vid = document.createElement('video');
-      vid.src          = item.url;
-      vid.muted        = true;      // Autoplay kräver muted i moderna webbläsare
-      vid.autoplay     = false;     // Styrs manuellt av spellistan
-      vid.playsInline  = true;
-      vid.preload      = 'auto';
-      vid.loop         = false;
+      vid.src      = item.url;
+      vid.muted    = true;
+      vid.autoplay = false;
+      vid.preload  = 'auto';
+      vid.loop     = false;
 
-      // När videon är slut → nästa bild
       vid.addEventListener('ended', function() {
-        if (parseInt(slide.dataset.index) === current) nextSlide();
+        if (parseInt(slide.getAttribute('data-index')) === current) nextSlide();
       });
-
-      // Fallback: om videon inte startar → nästa ändå
       vid.addEventListener('error', function() {
-        console.warn('Video-fel för:', item.name);
-        if (parseInt(slide.dataset.index) === current) nextSlide();
+        if (parseInt(slide.getAttribute('data-index')) === current) nextSlide();
       });
 
       slide.appendChild(vid);
     }
 
     playerEl.appendChild(slide);
-  });
+  }
 }
 
 // ─── Visa bild/video ─────────────────────────────────────────────────────────
 function showSlide(idx) {
   clearTimeout(advTimer);
 
-  // Stoppa alla videor
-  document.querySelectorAll('.slide video').forEach(function(v) {
-    v.pause();
-    v.currentTime = 0;
-  });
-
-  // Aktivera rätt slide
-  document.querySelectorAll('.slide').forEach(function(s, i) {
-    s.classList.toggle('active', i === idx);
-  });
+  // Stoppa alla videor och sätt rätt synlighet med for-loop
+  var allSlides = playerEl.getElementsByClassName('slide');
+  for (var si = 0; si < allSlides.length; si++) {
+    var s = allSlides[si];
+    var isActive = si === idx;
+    s.style.opacity = isActive ? '1' : '0';
+    s.style.pointerEvents = isActive ? 'auto' : 'none';
+    var svid = s.getElementsByTagName('video')[0];
+    if (svid && !isActive) { svid.pause(); svid.currentTime = 0; }
+  }
 
   if (SHOW_COUNT) {
-    counterEl.textContent = (idx + 1) + ' / ' + playlist.length;
+    counterEl.innerHTML = (idx + 1) + ' / ' + playlist.length;
   }
 
   var item = playlist[idx];
   if (!item) return;
 
-  // Återställ progress bar
   progressEl.style.transition = 'none';
   progressEl.style.width = '0%';
 
@@ -345,26 +340,20 @@ function showSlide(idx) {
     advTimer = setTimeout(nextSlide, dur);
 
   } else {
-    // Video — starta uppspelning
-    var slide = document.querySelector('.slide[data-index="' + idx + '"]');
-    var vid   = slide ? slide.querySelector('video') : null;
+    var activeSlide = allSlides[idx];
+    var vid = activeSlide ? activeSlide.getElementsByTagName('video')[0] : null;
     if (vid) {
       vid.currentTime = 0;
       var playPromise = vid.play();
       if (playPromise && playPromise.catch) {
-        playPromise.catch(function(err) {
-          console.warn('Autoplay blockerad:', err);
-          // Fallback: 60s timeout om autoplay inte fungerar
+        playPromise.catch(function() {
           advTimer = setTimeout(nextSlide, 60000);
         });
       }
-
-      // Visa progress baserat på videons längd (uppdateras i realtid)
       vid.addEventListener('loadedmetadata', function() {
         var dur = vid.duration * 1000;
         progressEl.style.transition = 'width ' + dur + 'ms linear';
         requestAnimationFrame(function() { progressEl.style.width = '100%'; });
-        // Säkerhetsfallback
         advTimer = setTimeout(nextSlide, dur + 3000);
       });
     }
