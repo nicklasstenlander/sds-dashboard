@@ -100,10 +100,7 @@ function buildSlides() {
       vid.setAttribute('playsinline', '');
       vid.preload = 'auto';
       vid.loop = false;
-      var src = document.createElement('source');
-      src.src = item.url;
-      src.type = 'video/mp4';
-      vid.appendChild(src);
+      vid.src = item.url;
       vid.addEventListener('ended', function() { if (parseInt(slide.getAttribute('data-index')) === current) nextSlide(); });
       vid.addEventListener('error', function() { if (parseInt(slide.getAttribute('data-index')) === current) nextSlide(); });
       slide.appendChild(vid);
@@ -252,8 +249,7 @@ export default {
 </style>
 </head><body>
 <div id="info">src: ${src || 'INGEN VIDEO'}<br></div>
-<video id="v" muted loop playsinline preload="auto" controls>
-  <source src="${src}" type="video/mp4">
+<video id="v" muted loop playsinline preload="auto" controls src="${src}">
 </video>
 <script>
 var v = document.getElementById('v');
