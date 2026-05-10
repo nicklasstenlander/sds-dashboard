@@ -36,22 +36,22 @@ const PLAYER_HTML = `<!DOCTYPE html>
 <div id="clock"></div>
 <div id="counter"></div>
 <script>
-const p          = new URLSearchParams(location.search);
-const WORKER_URL = p.get('worker') ?? (location.protocol + '//' + location.host);
-const SCREEN_ID  = p.get('screen') ?? 'default';
-const RELOAD_MIN = parseInt(p.get('reload') ?? '30');
-const SHOW_CLOCK = p.get('clock') === '1';
-const SHOW_COUNT = p.get('counter') === '1';
+var p          = new URLSearchParams(location.search);
+var WORKER_URL = p.get('worker') || (location.protocol + '//' + location.host);
+var SCREEN_ID  = p.get('screen') || 'default';
+var RELOAD_MIN = parseInt(p.get('reload') || '30');
+var SHOW_CLOCK = p.get('clock') === '1';
+var SHOW_COUNT = p.get('counter') === '1';
 
-const playerEl  = document.getElementById('player');
-const loaderEl  = document.getElementById('loader');
-const loaderMsg = document.getElementById('loader-msg');
-const errorEl   = document.getElementById('error');
-const errorMsg  = document.getElementById('error-msg');
-const errorDet  = document.getElementById('error-detail');
-const progressEl= document.getElementById('progress');
-const clockEl   = document.getElementById('clock');
-const counterEl = document.getElementById('counter');
+var playerEl  = document.getElementById('player');
+var loaderEl  = document.getElementById('loader');
+var loaderMsg = document.getElementById('loader-msg');
+var errorEl   = document.getElementById('error');
+var errorMsg  = document.getElementById('error-msg');
+var errorDet  = document.getElementById('error-detail');
+var progressEl= document.getElementById('progress');
+var clockEl   = document.getElementById('clock');
+var counterEl = document.getElementById('counter');
 
 var playlist = [];
 var current  = -1;
