@@ -259,7 +259,7 @@ export function EventsTable({ events, bookings = [], loading, search, onSelect, 
                 <td className="py-3 px-2">
                   <div className="flex items-center gap-1">
                     {onGroupSms && (() => {
-                      const courseBookings = bookings.filter(b => b.event?.id === e.id)
+                      const courseBookings = bookings.filter(b => bookingEventId(b) === String(e.id))
                       const hasAccepted = courseBookings.some(b => b.status?.code?.toUpperCase() === 'ACCEPTED')
                       return hasAccepted ? (
                         <button
