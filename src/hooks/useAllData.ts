@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { fetchAllData } from '../services/proxyService'
+import { fetchAllEvents } from '../api/cogwork'
 import { cacheKey, readBootstrapCache, readBootstrapTimestamp, writeBootstrapCache } from '../utils/cache'
 import type { AllDataResponse } from '../services/proxyService'
 
@@ -16,12 +17,19 @@ export function useAllData(eventBlockId: string) {
   return useQuery<AllDataResponse>({
     queryKey: ['allData', eventBlockId],
     queryFn: async () => {
-      const data = await fetchAllData(eventBlockId || undefined)
-      writeBootstrapCache(key, data)
-      writeBootstrapCache(eventsKey, data.events)
-      writeBootstrapCache(bookingsKey, data.bookings)
-      writeBootstrapCache(duplicatesKey, data.duplicates)
-      return data
+      const [data, allEventsResult] = await Promise.all([
+        fetchAllData(eventBlockId || undefined),
+        fetchAllEvents(eventBlockId || undefined).catch(() => null),
+      ])
+      // Om all_events-endpointen svarar, ersätt proxy-events med fullständig lista
+      const mergedData: AllDataResponse = allEventsResult
+        ? { ...data, events: { ...data.events, events: allEventsResult.events } }
+        : data
+      writeBootstrapCache(key, mergedData)
+      writeBootstrapCache(eventsKey, mergedData.events)
+      writeBootstrapCache(bookingsKey, mergedData.bookings)
+      writeBootstrapCache(duplicatesKey, mergedData.duplicates)
+      return mergedData
     },
     initialData: () => readBootstrapCache<AllDataResponse>(key),
     initialDataUpdatedAt: () => readBootstrapTimestamp(key),

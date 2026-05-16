@@ -1,4 +1,4 @@
-import type { ApiConfig, EventsResponse, BookingsResponse, UsersResponse } from '../types/cogwork'
+import type { ApiConfig, Event, EventsResponse, BookingsResponse, UsersResponse } from '../types/cogwork'
 
 // In dev, Vite proxies /api/public → https://dans.se to avoid CORS.
 // In production (GitHub Pages) we call the API directly.
@@ -66,4 +66,19 @@ export async function fetchBookings(
     throw new Error(typeof e === 'string' ? e : (e?.msg ?? 'API-fel'))
   }
   return data as BookingsResponse
+}
+
+// Hämtar ALLA kurser inkl dolda (showing: false) via proxyn med type=all_events.
+// Returnerar kurser som inte syns i det publika /events/-svaret.
+export async function fetchAllEvents(eventBlockId?: string): Promise<{ events: Event[] }> {
+  const proxyUrl = import.meta.env.VITE_PROXY_URL as string | undefined
+  if (!proxyUrl) throw new Error('VITE_PROXY_URL saknas')
+  const url = eventBlockId
+    ? `${proxyUrl}?type=all_events&eventBlockId=${eventBlockId}`
+    : `${proxyUrl}?type=all_events`
+  const res = await fetch(url)
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  const data = await res.json()
+  const events = Array.isArray(data) ? data : (data.events || [])
+  return { events: events as Event[] }
 }
