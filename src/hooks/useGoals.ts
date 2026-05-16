@@ -3,6 +3,8 @@ import {
   fetchGoals, createGoal, updateGoal, deleteGoal,
   type Goal, type CreateGoalInput,
 } from '../services/goalsService'
+import { EVENT_BLOCK_IDS_BY_CODE } from '../config/cogwork'
+import { matchesPeriodCode } from '../utils/periods'
 import type { Booking, Event } from '../types/cogwork'
 
 // ---------------------------------------------------------------------------
@@ -11,7 +13,7 @@ import type { Booking, Event } from '../types/cogwork'
 
 export function computeCurrentValue(goal: Goal, bookings: Booking[], events: Event[]): number {
   const filteredBookings = goal.event_block_id
-    ? bookings.filter(b => b.event?.grouping?.eventBlock?.id === Number(goal.event_block_id))
+    ? bookings.filter(b => bookingMatchesEventBlock(b, goal.event_block_id))
     : bookings
 
   const scopedBookings = goal.event_key
@@ -32,7 +34,7 @@ export function computeCurrentValue(goal: Goal, bookings: Booking[], events: Eve
 
     case 'occupancy': {
       const filteredEvents = goal.event_block_id
-        ? events.filter(e => e.grouping?.eventBlock?.id === Number(goal.event_block_id))
+        ? events.filter(e => eventMatchesEventBlock(e, goal.event_block_id))
         : events
       if (filteredEvents.length === 0) return 0
       const total = filteredEvents.reduce((sum, e) => {
@@ -57,6 +59,38 @@ export function computeCurrentValue(goal: Goal, bookings: Booking[], events: Eve
     default:
       return 0
   }
+}
+
+function eventBlockCode(eventBlockId: string | null): string {
+  if (!eventBlockId) return ''
+  return Object.entries(EVENT_BLOCK_IDS_BY_CODE)
+    .find(([, id]) => id === eventBlockId)?.[0] ?? ''
+}
+
+function bookingMatchesEventBlock(booking: Booking, eventBlockId: string | null): boolean {
+  if (!eventBlockId) return true
+  if (String(booking.event?.grouping?.eventBlock?.id ?? '') === eventBlockId) return true
+
+  const code = eventBlockCode(eventBlockId)
+  return Boolean(code && matchesPeriodCode(code, [
+    booking.event?.code,
+    booking.event?.startDate,
+    booking.event?.startDateTime,
+    booking.event?.grouping?.eventBlock?.name,
+  ]))
+}
+
+function eventMatchesEventBlock(event: Event, eventBlockId: string | null): boolean {
+  if (!eventBlockId) return true
+  if (String(event.grouping?.eventBlock?.id ?? '') === eventBlockId) return true
+
+  const code = eventBlockCode(eventBlockId)
+  return Boolean(code && matchesPeriodCode(code, [
+    event.code,
+    event.schedule?.start?.date,
+    event.schedule?.start?.date && `${event.schedule.start.date} ${event.schedule.start.time ?? ''}`,
+    event.grouping?.eventBlock?.name,
+  ]))
 }
 
 // ---------------------------------------------------------------------------

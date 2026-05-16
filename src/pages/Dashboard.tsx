@@ -39,11 +39,14 @@ export function Dashboard() {
 
   const queryClient   = useQueryClient()
   const allDataQuery  = useAllData(queryEventBlockId)
+  const goalsDataQuery = useAllData('')
   const eventBlocks   = useEventBlocks()
   const isRefreshing  = isManualRefreshing || isDirectRefreshing
 
   const rawEvents = allDataQuery.data?.events.events ?? []
   const rawBookings = allDataQuery.data?.bookings.bookings ?? []
+  const goalEvents = goalsDataQuery.data?.events.events ?? rawEvents
+  const goalBookings = goalsDataQuery.data?.bookings.bookings ?? rawBookings
   const allEvents = useMemo(
     () => clientPeriodCode
       ? buildEventsFromPeriod(rawEvents, rawBookings, clientPeriodCode)
@@ -278,7 +281,7 @@ export function Dashboard() {
               <GoalCard
                 key={goal.id}
                 goal={goal}
-                currentValue={computeCurrentValue(goal, rawBookings, allEvents)}
+                currentValue={computeCurrentValue(goal, goalBookings, goalEvents)}
                 onClick={() => setGoalModal({ open: true, goal })}
               />
             ))}
