@@ -28,9 +28,10 @@ interface GoalCardProps {
   goal:         Goal
   currentValue: number
   onClick:      () => void
+  loading?:     boolean
 }
 
-export function GoalCard({ goal, currentValue, onClick }: GoalCardProps) {
+export function GoalCard({ goal, currentValue, onClick, loading = false }: GoalCardProps) {
   const pct        = goal.target > 0 ? Math.min(Math.round((currentValue / goal.target) * 100), 100) : 0
   const achieved   = pct >= 100
   const days       = daysLeft(goal.deadline)
@@ -70,32 +71,40 @@ export function GoalCard({ goal, currentValue, onClick }: GoalCardProps) {
             <p className="text-xs text-slate-400 mt-0.5 line-clamp-1 pl-6">{goal.description}</p>
           )}
         </div>
-        <span className={`text-lg font-bold tabular-nums shrink-0 ${achieved ? 'text-[#1e4025]' : overdue ? 'text-[#dd5c86]' : 'text-brand-dark'}`}>
-          {pct}%
-        </span>
+        {loading ? (
+          <span className="h-6 w-10 rounded bg-slate-100 animate-pulse shrink-0" />
+        ) : (
+          <span className={`text-lg font-bold tabular-nums shrink-0 ${achieved ? 'text-[#1e4025]' : overdue ? 'text-[#dd5c86]' : 'text-brand-dark'}`}>
+            {pct}%
+          </span>
+        )}
       </div>
 
       {/* Progress bar */}
       <div className="h-2 bg-slate-100 rounded-full overflow-hidden mb-3">
         <div
-          className="h-full rounded-full transition-all duration-700 ease-out"
-          style={{ width: `${barWidth}%`, background: barColor }}
+          className={`h-full rounded-full transition-all duration-700 ease-out ${loading ? 'animate-pulse' : ''}`}
+          style={{ width: loading ? '35%' : `${barWidth}%`, background: loading ? '#e2e8f0' : barColor }}
         />
       </div>
 
       {/* Values + deadline */}
       <div className="flex items-center justify-between text-xs text-slate-500">
-        <span>
-          <span className="font-semibold text-brand-dark">{formatValue(goal.metric, currentValue)}</span>
-          {' / '}{formatValue(goal.metric, goal.target)}{' '}{metricLabel(goal.metric)}
-        </span>
-        {achieved ? (
-          <span className="font-semibold text-[#1e4025]">Uppnått! ✓</span>
+        {loading ? (
+          <span className="font-semibold text-slate-400">Hämtar måldata…</span>
         ) : (
+          <span>
+            <span className="font-semibold text-brand-dark">{formatValue(goal.metric, currentValue)}</span>
+            {' / '}{formatValue(goal.metric, goal.target)}{' '}{metricLabel(goal.metric)}
+          </span>
+        )}
+        {!loading && achieved ? (
+          <span className="font-semibold text-[#1e4025]">Uppnått! ✓</span>
+        ) : !loading ? (
           <span className={`font-medium ${daysColor}`}>
             {days < 0 ? `${Math.abs(days)} dagar sedan` : days === 0 ? 'Idag' : `${days} dagar kvar`}
           </span>
-        )}
+        ) : null}
       </div>
     </div>
   )
