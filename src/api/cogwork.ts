@@ -68,15 +68,16 @@ export async function fetchBookings(
   return data as BookingsResponse
 }
 
+const PROXY_URL = import.meta.env.VITE_PROXY_URL ?? 'https://sds-cogwork-proxy.nicklas-stenlander.workers.dev'
+
 // Hämtar ALLA kurser inkl dolda (showing: false) via proxyn med type=all_events.
 // Returnerar kurser som inte syns i det publika /events/-svaret.
 export async function fetchAllEvents(eventBlockId?: string): Promise<{ events: Event[] }> {
-  const proxyUrl = import.meta.env.VITE_PROXY_URL as string | undefined
-  if (!proxyUrl) throw new Error('VITE_PROXY_URL saknas')
-  const url = eventBlockId
-    ? `${proxyUrl}?type=all_events&eventBlockId=${eventBlockId}`
-    : `${proxyUrl}?type=all_events`
-  const res = await fetch(url)
+  const url = new URL(PROXY_URL)
+  url.searchParams.set('type', 'all_events')
+  if (eventBlockId) url.searchParams.set('eventBlockId', eventBlockId)
+
+  const res = await fetch(url.toString())
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   const data = await res.json()
   const events = Array.isArray(data) ? data : (data.events || [])
