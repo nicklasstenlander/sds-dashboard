@@ -3,6 +3,7 @@ import { fetchAllData } from '../services/proxyService'
 import { fetchAllEvents } from '../api/cogwork'
 import { cacheKey, readBootstrapCache, readBootstrapTimestamp, writeBootstrapCache } from '../utils/cache'
 import type { AllDataResponse } from '../services/proxyService'
+import type { Event } from '../types/cogwork'
 
 /**
  * Hämtar bookings + events + duplicates i ett enda proxy-anrop.
@@ -21,9 +22,10 @@ export function useAllData(eventBlockId: string) {
         fetchAllData(eventBlockId || undefined),
         fetchAllEvents(eventBlockId || undefined).catch(() => null),
       ])
-      // Om all_events-endpointen svarar, ersätt proxy-events med fullständig lista
+      // Om all_events-endpointen svarar, använd den fullständiga listan men behåll
+      // fält som Apps Script saknar (t.ex. pricing) från den ordinarie proxyn.
       const mergedData: AllDataResponse = allEventsResult
-        ? { ...data, events: { ...data.events, events: allEventsResult.events } }
+        ? { ...data, events: { ...data.events, events: mergeEvents(data.events.events, allEventsResult.events) } }
         : data
       writeBootstrapCache(key, mergedData)
       writeBootstrapCache(eventsKey, mergedData.events)
@@ -37,5 +39,13 @@ export function useAllData(eventBlockId: string) {
     refetchOnMount: 'always',
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
+  })
+}
+
+function mergeEvents(proxyEvents: Event[], allEvents: Event[]): Event[] {
+  const proxyById = new Map(proxyEvents.map((event) => [String(event.id), event]))
+  return allEvents.map((event) => {
+    const proxyEvent = proxyById.get(String(event.id))
+    return proxyEvent ? { ...proxyEvent, ...event, pricing: event.pricing ?? proxyEvent.pricing } : event
   })
 }
