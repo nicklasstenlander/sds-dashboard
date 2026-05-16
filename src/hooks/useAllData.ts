@@ -5,13 +5,15 @@ import { cacheKey, readBootstrapCache, readBootstrapTimestamp, writeBootstrapCac
 import type { AllDataResponse } from '../services/proxyService'
 import type { Event } from '../types/cogwork'
 
+const FULL_EVENTS_CACHE_VERSION = 'fullEventsV2'
+
 /**
  * Hämtar bookings + events + duplicates i ett enda proxy-anrop.
  * Används av Dashboard för att minimera nätverksanrop (3+ → 1).
  */
 export function useAllData(eventBlockId: string) {
-  const key = cacheKey('allData', eventBlockId || 'all')
-  const eventsKey = cacheKey('events', eventBlockId || 'all')
+  const key = cacheKey(FULL_EVENTS_CACHE_VERSION, 'allData', eventBlockId || 'all')
+  const eventsKey = cacheKey(FULL_EVENTS_CACHE_VERSION, 'events', eventBlockId || 'all')
   const bookingsKey = cacheKey('bookings', eventBlockId || 'all')
   const duplicatesKey = cacheKey('duplicates', 'all')
 

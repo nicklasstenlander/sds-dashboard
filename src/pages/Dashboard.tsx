@@ -76,8 +76,8 @@ export function Dashboard() {
       ? rawBookings.filter(b => bookingMatchesPeriod(b, clientPeriodCode))
       : rawBookings
     if (categoryFilter) {
-      const eventIds = new Set(events.map(e => e.id))
-      result = result.filter(b => b.event?.id != null && eventIds.has(b.event.id))
+      const eventIds = new Set(events.map(e => String(e.id)))
+      result = result.filter(b => b.event?.id != null && eventIds.has(String(b.event.id)))
     }
     return result
   }, [clientPeriodCode, rawBookings, categoryFilter, events])
