@@ -37,35 +37,74 @@ function fillBadgeClass(pct: number) {
   return 'bg-brand-mint text-brand-forest'
 }
 
+function bookingEventId(booking: Booking): string {
+  return booking.event?.id != null ? String(booking.event.id) : ''
+}
+
 export function EventsTable({ events, bookings = [], loading, search, onSelect, onRefresh, onDirectRefresh, onGroupSms, isRefreshing, isDirectRefreshing }: EventsTableProps) {
   const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: 'accepted', dir: 'desc' })
 
   // Count paid (antagna) bookings per event id
   const antagnaPer = useMemo(() => {
-    const map: Record<number, number> = {}
+    const map: Record<string, number> = {}
     for (const b of bookings) {
-      if (b.payment?.paid === true && b.event?.id) {
-        map[b.event.id] = (map[b.event.id] ?? 0) + 1
+      const eventId = bookingEventId(b)
+      if (b.payment?.paid === true && eventId) {
+        map[eventId] = (map[eventId] ?? 0) + 1
       }
     }
     return map
   }, [bookings])
 
+  const paymentPer = useMemo(() => {
+    const map: Record<string, { price?: number; revenue: number }> = {}
+    const priceCounts: Record<string, Record<number, number>> = {}
+
+    for (const b of bookings) {
+      const eventId = bookingEventId(b)
+      const price = b.payment?.priceAgreed
+      if (!eventId || !price) continue
+
+      priceCounts[eventId] ??= {}
+      priceCounts[eventId][price] = (priceCounts[eventId][price] ?? 0) + 1
+
+      if (b.status?.code?.toUpperCase() === 'ACCEPTED') {
+        map[eventId] ??= { revenue: 0 }
+        map[eventId].revenue += price
+      }
+    }
+
+    for (const [eventId, counts] of Object.entries(priceCounts)) {
+      map[eventId] ??= { revenue: 0 }
+      map[eventId].price = Number(
+        Object.entries(counts).sort((a, b) => b[1] - a[1] || Number(b[0]) - Number(a[0]))[0][0],
+      )
+    }
+
+    return map
+  }, [bookings])
+
   const filtered = events
     .filter((e) => !search || e.name.toLowerCase().includes(search.toLowerCase()))
-    .map((e) => ({
-      ...e,
-      _fill: fillRate(e),
-      _revenue: (e.statistics?.accepted ?? 0) * (e.pricing?.basePriceInclVat ?? 0),
-    }))
+    .map((e) => {
+      const payments = paymentPer[String(e.id)]
+      const price = e.pricing?.basePriceInclVat ?? payments?.price ?? 0
+      const revenue = payments?.revenue ?? ((e.statistics?.accepted ?? 0) * price)
+      return {
+        ...e,
+        _fill: fillRate(e),
+        _price: price,
+        _revenue: revenue,
+      }
+    })
     .sort((a, b) => {
       let diff = 0
       switch (sort.key) {
         case 'name':     diff = a.name.localeCompare(b.name, 'sv'); break
         case 'accepted': diff = (a.statistics?.accepted ?? 0) - (b.statistics?.accepted ?? 0); break
-        case 'antagna':  diff = (antagnaPer[a.id] ?? 0) - (antagnaPer[b.id] ?? 0); break
+        case 'antagna':  diff = (antagnaPer[String(a.id)] ?? 0) - (antagnaPer[String(b.id)] ?? 0); break
         case 'fill':     diff = a._fill - b._fill; break
-        case 'price':    diff = (a.pricing?.basePriceInclVat ?? 0) - (b.pricing?.basePriceInclVat ?? 0); break
+        case 'price':    diff = a._price - b._price; break
         case 'revenue':  diff = a._revenue - b._revenue; break
         case 'category': diff = (a.grouping?.primaryEventGroup?.name ?? '').localeCompare(b.grouping?.primaryEventGroup?.name ?? '', 'sv'); break
       }
@@ -189,7 +228,7 @@ export function EventsTable({ events, bookings = [], loading, search, onSelect, 
                   {e.statistics?.accepted ?? '—'}
                 </td>
                 <td className="hidden sm:table-cell py-3 px-4 text-sm font-semibold text-brand-forest tabular-nums">
-                  {antagnaPer[e.id] ?? 0}
+                  {antagnaPer[String(e.id)] ?? 0}
                 </td>
                 <td className="hidden sm:table-cell py-3 px-4 text-sm text-slate-500 tabular-nums">
                   {e.requirements?.maxParticipants ?? '—'}
@@ -212,7 +251,7 @@ export function EventsTable({ events, bookings = [], loading, search, onSelect, 
                   )}
                 </td>
                 <td className="hidden lg:table-cell py-3 px-4 text-sm text-slate-600 tabular-nums whitespace-nowrap">
-                  {e.pricing?.basePriceInclVat ? e.pricing.basePriceInclVat.toLocaleString('sv-SE') : '—'}
+                  {e._price > 0 ? e._price.toLocaleString('sv-SE') : '—'}
                 </td>
                 <td className="hidden lg:table-cell py-3 px-4 text-sm font-medium text-slate-700 tabular-nums whitespace-nowrap">
                   {e._revenue > 0 ? e._revenue.toLocaleString('sv-SE') : '—'}
