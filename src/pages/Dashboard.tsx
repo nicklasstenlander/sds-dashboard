@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { format } from 'date-fns'
 import { sv } from 'date-fns/locale'
-import { Users, UserCheck, CreditCard, Clock, BookOpen, TrendingUp, Banknote, Search } from 'lucide-react'
+import { Users, UserCheck, CreditCard, Clock, BookOpen, TrendingUp, Banknote, Search, Moon, Sun } from 'lucide-react'
 import { KPICard } from '../components/KPICard'
 import { PeriodFilter } from '../components/PeriodFilter'
 import { BookingsChart } from '../components/BookingsChart'
@@ -24,7 +24,12 @@ import { buildCourseMetrics, isAcceptedBooking, metricsForEvent } from '../utils
 import { getDefaultEventBlockId } from '../config/cogwork'
 import type { Booking, Event } from '../types/cogwork'
 
-export function Dashboard() {
+interface DashboardProps {
+  darkMode: boolean
+  onToggleDarkMode: () => void
+}
+
+export function Dashboard({ darkMode, onToggleDarkMode }: DashboardProps) {
   const [eventBlockId, setEventBlockId] = useState(() => getDefaultEventBlockId())
   const [categoryFilter, setCategoryFilter] = useState('')
   const [search, setSearch] = useState('')
@@ -148,12 +153,22 @@ export function Dashboard() {
           avgFill={kpi.avgFill}
           periodLabel={periodLabel}
         />
-        <button
-          onClick={() => setGoalModal({ open: true })}
-          className="shrink-0 flex items-center gap-1.5 text-sm text-slate-500 hover:text-brand-dark px-3 py-1.5 rounded-lg border border-slate-200 hover:border-brand-dark transition-colors mt-1"
-        >
-          <span className="text-base leading-none">＋</span> Nytt mål
-        </button>
+        <div className="shrink-0 flex items-center gap-2 mt-1">
+          <button
+            onClick={onToggleDarkMode}
+            title={darkMode ? 'Byt till ljust läge' : 'Byt till mörkt läge'}
+            className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-300 hover:text-brand-dark dark:hover:text-white px-3 py-1.5 rounded-lg border border-slate-200 dark:border-white/15 hover:border-brand-dark dark:hover:border-brand-sage transition-colors"
+          >
+            {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            <span className="hidden sm:inline">{darkMode ? 'Ljust läge' : 'Dark mode'}</span>
+          </button>
+          <button
+            onClick={() => setGoalModal({ open: true })}
+            className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-300 hover:text-brand-dark dark:hover:text-white px-3 py-1.5 rounded-lg border border-slate-200 dark:border-white/15 hover:border-brand-dark dark:hover:border-brand-sage transition-colors"
+          >
+            <span className="text-base leading-none">＋</span> Nytt mål
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -164,7 +179,7 @@ export function Dashboard() {
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
-            className="text-sm border border-slate-200 rounded-full px-4 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-brand-mint min-w-[180px]"
+          className="text-sm border border-slate-200 dark:border-white/15 rounded-full px-4 py-2 bg-white dark:bg-[#102525] text-slate-700 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-mint min-w-[180px]"
           >
             <option value="">Alla kategorier</option>
             {categories.map((c) => (
@@ -181,7 +196,7 @@ export function Dashboard() {
               placeholder="Sök kurs…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full text-sm border border-slate-200 rounded-full pl-9 pr-4 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-brand-mint"
+              className="w-full text-sm border border-slate-200 dark:border-white/15 rounded-full pl-9 pr-4 py-2 bg-white dark:bg-[#102525] text-slate-700 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-mint"
             />
           </div>
         </div>
@@ -277,7 +292,7 @@ export function Dashboard() {
       {/* Mål */}
       {goals.length > 0 && (
         <div>
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Mål</p>
+          <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">Mål</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {goals.map(goal => (
               <GoalCard

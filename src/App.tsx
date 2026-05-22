@@ -1,4 +1,4 @@
-import { useState, useRef, useLayoutEffect } from 'react'
+import { useEffect, useState, useRef, useLayoutEffect } from 'react'
 import { LayoutDashboard, ClipboardList, Users, Settings, LogOut, ShoppingBag, PanelLeft, Phone, ClipboardCheck, Monitor, MoreHorizontal } from 'lucide-react'
 import { ApiProvider, useApiConfig } from './context/ApiContext'
 import { Dashboard } from './pages/Dashboard'
@@ -28,6 +28,11 @@ function AppShell() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [darkMode, setDarkMode] = useState(() => {
+    const stored = localStorage.getItem('sds-theme')
+    if (stored) return stored === 'dark'
+    return window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false
+  })
   const { config, setConfig } = useApiConfig()
   const hasPw = Boolean(config.pw)
   const navRef = useRef<HTMLElement>(null)
@@ -39,13 +44,18 @@ function AppShell() {
     if (btn) setPill({ top: btn.offsetTop, height: btn.offsetHeight })
   }, [tab, hasPw, collapsed])
 
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', darkMode)
+    localStorage.setItem('sds-theme', darkMode ? 'dark' : 'light')
+  }, [darkMode])
+
   if (!hasPw) return <LoginPage />
 
   return (
-    <div className="flex h-screen bg-white overflow-hidden">
+    <div className="flex h-screen bg-white dark:bg-[#071414] overflow-hidden">
       {/* ── Sidebar (desktop) ── */}
       <aside
-        className="hidden md:flex shrink-0 flex-col bg-slate-50 border-r border-slate-200 transition-all duration-250 ease-out"
+        className="hidden md:flex shrink-0 flex-col bg-slate-50 dark:bg-[#0b1b1b] border-r border-slate-200 dark:border-white/10 transition-all duration-250 ease-out"
         style={{ width: collapsed ? 68 : 224 }}
       >
         {/* Logo */}
@@ -64,7 +74,7 @@ function AppShell() {
           {/* Sliding pill */}
           {pill.height > 0 && (
             <div
-              className="absolute left-3 right-3 bg-brand-mint rounded-xl transition-all duration-200 ease-out pointer-events-none"
+              className="absolute left-3 right-3 bg-brand-mint dark:bg-brand-forest/25 rounded-xl transition-all duration-200 ease-out pointer-events-none"
               style={{ top: pill.top, height: pill.height }}
             />
           )}
@@ -129,7 +139,7 @@ function AppShell() {
         )}
         {/* extra bottom padding on mobile so content isn't hidden behind bottom nav */}
         <main className="flex-1 overflow-y-auto px-4 py-4 md:px-6 md:py-6 pb-24 md:pb-6">
-          {tab === 'dashboard' && <Dashboard />}
+          {tab === 'dashboard' && <Dashboard darkMode={darkMode} onToggleDarkMode={() => setDarkMode((value) => !value)} />}
           {tab === 'bookings'  && <RecentBookings />}
           {tab === 'customers' && <Customers />}
           {tab === 'shop'      && <Shop />}
