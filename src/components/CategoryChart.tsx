@@ -46,8 +46,14 @@ export function CategoryChart({ events, bookings = [], loading }: CategoryChartP
       ) : (
         <div className="flex items-center gap-8">
           {/* Donut — larger now that legend is compact */}
-          <svg viewBox="0 0 42 42" width="180" height="180" style={{ flexShrink: 0 }}>
-            <circle cx="21" cy="21" r="15.915" fill="white" stroke="#f1f5f9" strokeWidth="0.5" />
+          <svg
+            className="[--donut-bg:#ffffff] [--donut-border:#f1f5f9] [--donut-text:#1a2e2e] dark:[--donut-bg:#102525] dark:[--donut-border:#1a3b39] dark:[--donut-text:#e7f1ee]"
+            viewBox="0 0 42 42"
+            width="180"
+            height="180"
+            style={{ flexShrink: 0 }}
+          >
+            <circle cx="21" cy="21" r="15.915" fill="var(--donut-bg)" stroke="var(--donut-border)" strokeWidth="0.5" />
             {segments.map((seg, i) => (
               <circle
                 key={i}
@@ -68,7 +74,7 @@ export function CategoryChart({ events, bookings = [], loading }: CategoryChartP
             ))}
             {hoveredSeg ? (
               <>
-                <text x="21" y="19" textAnchor="middle" fontSize="5.5" fontWeight="700" fill="#1a2e2e">
+                <text x="21" y="19" textAnchor="middle" fontSize="5.5" fontWeight="700" fill="var(--donut-text)">
                   {hoveredSeg.value}
                 </text>
                 <text x="21" y="24.5" textAnchor="middle" fontSize="2.4" fill="#94a3b8">
@@ -77,7 +83,7 @@ export function CategoryChart({ events, bookings = [], loading }: CategoryChartP
               </>
             ) : (
               <>
-                <text x="21" y="19.5" textAnchor="middle" fontSize="5.5" fontWeight="700" fill="#1a2e2e">
+                <text x="21" y="19.5" textAnchor="middle" fontSize="5.5" fontWeight="700" fill="var(--donut-text)">
                   {total}
                 </text>
                 <text x="21" y="25" textAnchor="middle" fontSize="2.8" fill="#94a3b8">

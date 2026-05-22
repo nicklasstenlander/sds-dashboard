@@ -45,7 +45,7 @@ export function BookingsChart({ bookings, loading }: BookingsChartProps) {
               onClick={() => setGranularity(g)}
               className={`px-2.5 py-1 text-xs rounded-full font-medium transition-colors ${
                 granularity === g
-                  ? 'bg-brand-mint text-brand-dark'
+                  ? 'bg-brand-mint text-brand-dark dark:text-brand-dark'
                   : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
               }`}
             >
