@@ -300,7 +300,7 @@ export function RecentBookings() {
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {filtered.map((b) => (
-                  <tr key={b.key} className="hover:bg-slate-50/60 transition-colors">
+                  <tr key={b.key} className="hover:bg-slate-50/60 dark:hover:bg-[var(--dark-green-secondary)] transition-colors">
                     <td className="py-3 px-5 text-sm text-slate-400 whitespace-nowrap">
                       {formatDate(b.created)}
                     </td>
