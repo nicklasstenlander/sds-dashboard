@@ -64,8 +64,8 @@ function Pill({
       onClick={onClick}
       className={`text-sm px-4 py-1.5 rounded-full border transition-colors font-medium ${
         active
-          ? 'bg-brand-dark text-white border-brand-dark'
-          : 'border-slate-200 text-slate-500 hover:border-brand-dark hover:text-brand-dark'
+          ? 'bg-brand-dark text-white border-brand-dark dark:bg-[var(--dark-green-secondary)] dark:border-[var(--dark-positive)] dark:text-[var(--dark-text-primary)]'
+          : 'border-slate-200 text-slate-500 hover:border-brand-dark hover:text-brand-dark dark:bg-transparent dark:border-white/10 dark:text-[var(--dark-text-secondary)] dark:hover:border-white/20 dark:hover:text-[var(--dark-text-primary)]'
       }`}
     >
       {children}

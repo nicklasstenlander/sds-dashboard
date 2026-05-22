@@ -52,10 +52,10 @@ function AppShell() {
   if (!hasPw) return <LoginPage />
 
   return (
-    <div className="flex h-screen bg-white dark:bg-[#071414] overflow-hidden">
+    <div className="flex h-screen bg-white dark:bg-[var(--dark-page)] overflow-hidden">
       {/* ── Sidebar (desktop) ── */}
       <aside
-        className="hidden md:flex shrink-0 flex-col bg-slate-50 dark:bg-[#0b1b1b] border-r border-slate-200 dark:border-white/10 transition-all duration-250 ease-out"
+        className="sds-sidebar hidden md:flex shrink-0 flex-col bg-slate-50 border-r border-slate-200 transition-all duration-250 ease-out"
         style={{ width: collapsed ? 68 : 224 }}
       >
         {/* Logo */}
@@ -74,7 +74,7 @@ function AppShell() {
           {/* Sliding pill */}
           {pill.height > 0 && (
             <div
-              className="absolute left-3 right-3 bg-brand-mint dark:bg-brand-forest/25 rounded-xl transition-all duration-200 ease-out pointer-events-none"
+              className="sds-sidebar-pill absolute left-3 right-3 bg-brand-mint rounded-xl transition-all duration-200 ease-out pointer-events-none"
               style={{ top: pill.top, height: pill.height }}
             />
           )}
@@ -84,9 +84,9 @@ function AppShell() {
               data-active={String(tab === id)}
               onClick={() => setTab(id)}
               title={collapsed ? label : undefined}
-              className={`relative z-10 w-full flex items-center gap-3 rounded-xl text-sm font-medium transition-colors ${
+              className={`sds-nav-item relative z-10 w-full flex items-center gap-3 rounded-xl text-sm font-medium transition-colors ${
                 collapsed ? 'justify-center px-0 py-2.5' : 'px-3 py-2.5'
-              } ${tab === id ? 'text-brand-dark' : 'text-slate-500 hover:text-brand-dark'}`}
+              } ${tab === id ? 'sds-nav-item-active text-brand-dark' : 'text-slate-500 hover:text-brand-dark'}`}
             >
               <Icon className="w-4 h-4 shrink-0" />
               {!collapsed && label}
@@ -163,17 +163,12 @@ function AppShell() {
           { id: 'signage', label: 'Skyltning', Icon: Monitor       },
         ]
         const isMoreActive = MORE.some(m => m.id === tab)
-        const mobileActiveColor = darkMode ? '#7bd4cf' : '#1e4025'
-        const mobileInactiveColor = darkMode ? '#78908c' : '#9ca3af'
-        const drawerActiveColor = darkMode ? '#7bd4cf' : '#1e4025'
-        const drawerInactiveColor = darkMode ? '#d1d5db' : '#374151'
-
         function pick(id: Tab) { setTab(id); setDrawerOpen(false) }
 
         return (
           <>
             <nav
-              className="md:hidden fixed bottom-0 inset-x-0 bg-white border-t border-gray-100 z-30"
+              className="sds-bottom-nav md:hidden fixed bottom-0 inset-x-0 bg-white border-t border-gray-100 z-30"
               style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
             >
               <div className="grid grid-cols-4 h-16">
@@ -183,13 +178,15 @@ function AppShell() {
                     onClick={() => pick(id)}
                     aria-label={label}
                     aria-current={tab === id ? 'page' : undefined}
-                    className="flex flex-col items-center justify-center gap-0.5 transition-colors"
+                    className={`flex flex-col items-center justify-center gap-0.5 transition-colors ${
+                      tab === id ? 'text-[#1e4025] dark:text-[var(--dark-positive)]' : 'text-[#9ca3af] dark:text-[var(--dark-text-muted)]'
+                    }`}
                   >
                     <Icon
                       className="w-6 h-6"
-                      style={{ color: tab === id ? mobileActiveColor : mobileInactiveColor, strokeWidth: tab === id ? 2.5 : 2 }}
+                      style={{ strokeWidth: tab === id ? 2.5 : 2 }}
                     />
-                    <span className="text-[10px] font-medium" style={{ color: tab === id ? mobileActiveColor : mobileInactiveColor }}>
+                    <span className="text-[10px] font-medium">
                       {label}
                     </span>
                   </button>
@@ -197,18 +194,20 @@ function AppShell() {
                 <button
                   onClick={() => setDrawerOpen(o => !o)}
                   aria-label="Mer"
-                  className="flex flex-col items-center justify-center gap-0.5 transition-colors"
+                  className={`flex flex-col items-center justify-center gap-0.5 transition-colors ${
+                    isMoreActive || drawerOpen ? 'text-[#1e4025] dark:text-[var(--dark-positive)]' : 'text-[#9ca3af] dark:text-[var(--dark-text-muted)]'
+                  }`}
                 >
                   <div className="relative">
                     <MoreHorizontal
                       className="w-6 h-6"
-                      style={{ color: isMoreActive || drawerOpen ? mobileActiveColor : mobileInactiveColor, strokeWidth: isMoreActive || drawerOpen ? 2.5 : 2 }}
+                      style={{ strokeWidth: isMoreActive || drawerOpen ? 2.5 : 2 }}
                     />
                     {isMoreActive && !drawerOpen && (
-                      <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-[#dd5c86]" />
+                      <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-[#dd5c86] dark:bg-[var(--dark-warning)]" />
                     )}
                   </div>
-                  <span className="text-[10px] font-medium" style={{ color: isMoreActive || drawerOpen ? mobileActiveColor : mobileInactiveColor }}>
+                  <span className="text-[10px] font-medium">
                     Mer
                   </span>
                 </button>
@@ -228,7 +227,7 @@ function AppShell() {
               role="dialog"
               aria-modal="true"
               aria-label="Fler navigeringsalternativ"
-              className={`fixed inset-x-0 bottom-0 bg-white rounded-t-2xl z-50 md:hidden transform transition-transform duration-300 ease-out ${
+              className={`sds-drawer fixed inset-x-0 bottom-0 bg-white rounded-t-2xl z-50 md:hidden transform transition-transform duration-300 ease-out ${
                 drawerOpen ? 'translate-y-0' : 'translate-y-full'
               }`}
               style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
@@ -242,8 +241,10 @@ function AppShell() {
                   onClick={() => pick(id)}
                   aria-label={label}
                   aria-current={tab === id ? 'page' : undefined}
-                  className="w-full flex items-center gap-4 px-6 hover:bg-slate-50 transition-colors"
-                  style={{ minHeight: 56, color: tab === id ? drawerActiveColor : drawerInactiveColor }}
+                  className={`w-full flex items-center gap-4 px-6 hover:bg-slate-50 transition-colors ${
+                    tab === id ? 'text-[#1e4025] dark:text-[var(--dark-positive)]' : 'text-[#374151] dark:text-[var(--dark-text-primary)]'
+                  }`}
+                  style={{ minHeight: 56 }}
                 >
                   <Icon className="w-5 h-5 shrink-0" style={{ strokeWidth: tab === id ? 2.5 : 2 }} />
                   <span className="text-sm font-medium">{label}</span>
@@ -253,8 +254,8 @@ function AppShell() {
               <button
                 onClick={() => { setSettingsOpen(true); setDrawerOpen(false) }}
                 aria-label="Inställningar"
-                className="w-full flex items-center gap-4 px-6 hover:bg-slate-50 transition-colors"
-                style={{ minHeight: 56, color: drawerInactiveColor }}
+                className="w-full flex items-center gap-4 px-6 hover:bg-slate-50 transition-colors text-[#374151] dark:text-[var(--dark-text-primary)]"
+                style={{ minHeight: 56 }}
               >
                 <Settings className="w-5 h-5 shrink-0" />
                 <span className="text-sm font-medium">Inställningar</span>
@@ -263,8 +264,8 @@ function AppShell() {
                 <button
                   onClick={() => { setConfig({ org: 'sollentunadans', pw: '' }); setDrawerOpen(false) }}
                   aria-label="Logga ut"
-                  className="w-full flex items-center gap-4 px-6 hover:bg-red-50 transition-colors mb-2"
-                  style={{ minHeight: 56, color: '#dd5c86' }}
+                  className="w-full flex items-center gap-4 px-6 hover:bg-red-50 transition-colors mb-2 text-brand-pinkDark dark:text-[var(--dark-warning)]"
+                  style={{ minHeight: 56 }}
                 >
                   <LogOut className="w-5 h-5 shrink-0" />
                   <span className="text-sm font-medium">Logga ut</span>

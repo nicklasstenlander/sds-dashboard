@@ -118,7 +118,7 @@ export function AlertsPanel({ open, alerts, onClose }: AlertsPanelProps) {
           {alerts.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-48 gap-2">
               <span className="text-3xl">🎉</span>
-              <p className="text-sm font-medium" style={{ color: '#009399' }}>Inga ärenden just nu</p>
+              <p className="text-sm font-medium text-brand-forest dark:text-[var(--dark-positive)]">Inga ärenden just nu</p>
             </div>
           ) : (
             <ul className="divide-y divide-slate-50">
