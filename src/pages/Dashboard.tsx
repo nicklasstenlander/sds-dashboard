@@ -157,14 +157,14 @@ export function Dashboard({ darkMode, onToggleDarkMode }: DashboardProps) {
           <button
             onClick={onToggleDarkMode}
             title={darkMode ? 'Byt till ljust läge' : 'Byt till mörkt läge'}
-            className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-300 hover:text-brand-dark dark:hover:text-white px-3 py-1.5 rounded-lg border border-slate-200 dark:border-white/15 hover:border-brand-dark dark:hover:border-brand-sage transition-colors"
+            className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-[var(--dark-text-secondary)] hover:text-brand-dark dark:hover:text-[var(--dark-text-primary)] px-3 py-1.5 rounded-lg border border-slate-200 dark:border-white/10 hover:border-brand-dark dark:hover:border-white/20 transition-colors"
           >
             {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             <span className="hidden sm:inline">{darkMode ? 'Ljust läge' : 'Dark mode'}</span>
           </button>
           <button
             onClick={() => setGoalModal({ open: true })}
-            className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-300 hover:text-brand-dark dark:hover:text-white px-3 py-1.5 rounded-lg border border-slate-200 dark:border-white/15 hover:border-brand-dark dark:hover:border-brand-sage transition-colors"
+            className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-[var(--dark-text-secondary)] hover:text-brand-dark dark:hover:text-[var(--dark-text-primary)] px-3 py-1.5 rounded-lg border border-slate-200 dark:border-white/10 hover:border-brand-dark dark:hover:border-white/20 transition-colors"
           >
             <span className="text-base leading-none">＋</span> Nytt mål
           </button>
@@ -179,7 +179,7 @@ export function Dashboard({ darkMode, onToggleDarkMode }: DashboardProps) {
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
-          className="text-sm border border-slate-200 dark:border-white/15 rounded-full px-4 py-2 bg-white dark:bg-[#102525] text-slate-700 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-mint min-w-[180px]"
+            className="text-sm border border-slate-200 dark:border-white/10 rounded-full px-4 py-2 bg-white dark:bg-[var(--dark-card)] text-slate-700 dark:text-[var(--dark-text-primary)] focus:outline-none focus:ring-2 focus:ring-brand-mint dark:focus:ring-[var(--dark-positive)] dark:focus:border-[var(--dark-positive)] min-w-[180px]"
           >
             <option value="">Alla kategorier</option>
             {categories.map((c) => (
@@ -196,7 +196,7 @@ export function Dashboard({ darkMode, onToggleDarkMode }: DashboardProps) {
               placeholder="Sök kurs…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full text-sm border border-slate-200 dark:border-white/15 rounded-full pl-9 pr-4 py-2 bg-white dark:bg-[#102525] text-slate-700 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-mint"
+              className="w-full text-sm border border-slate-200 dark:border-white/10 rounded-full pl-9 pr-4 py-2 bg-white dark:bg-[var(--dark-card)] text-slate-700 dark:text-[var(--dark-text-primary)] placeholder:text-slate-400 dark:placeholder:text-[var(--dark-text-muted)] focus:outline-none focus:ring-2 focus:ring-brand-mint dark:focus:ring-[var(--dark-positive)] dark:focus:border-[var(--dark-positive)]"
             />
           </div>
         </div>

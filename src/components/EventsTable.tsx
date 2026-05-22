@@ -26,15 +26,15 @@ function fillRate(e: Event, accepted: number): number {
 }
 
 function fillBarColor(pct: number) {
-  if (pct >= 90) return '#c53030'
-  if (pct >= 70) return '#d4a942'
-  return '#009399'
+  if (pct >= 90) return 'var(--fill-danger)'
+  if (pct >= 70) return 'var(--fill-warn)'
+  return 'var(--fill-ok)'
 }
 
 function fillBadgeClass(pct: number) {
-  if (pct >= 90) return 'bg-red-50 text-red-700'
-  if (pct >= 70) return 'bg-amber-50 text-amber-700'
-  return 'bg-brand-mint text-brand-forest'
+  if (pct >= 90) return 'bg-red-50 text-red-700 dark:bg-[rgba(232,98,127,0.14)] dark:text-[var(--dark-warning)]'
+  if (pct >= 70) return 'bg-amber-50 text-amber-700 dark:bg-[rgba(234,179,8,0.14)] dark:text-[var(--dark-attention)]'
+  return 'bg-brand-mint text-brand-forest dark:bg-[rgba(93,184,138,0.14)] dark:text-[var(--dark-positive)]'
 }
 
 export function EventsTable({ events, bookings = [], loading, search, onSelect, onRefresh, onDirectRefresh, onGroupSms, isRefreshing, isDirectRefreshing }: EventsTableProps) {
@@ -148,7 +148,7 @@ export function EventsTable({ events, bookings = [], loading, search, onSelect, 
             <col className="w-[8rem]" />
             <col className="w-[3rem]" />
           </colgroup>
-          <thead className="border-y border-slate-100 bg-slate-50/60">
+          <thead className="border-y border-slate-100 bg-slate-50/60 dark:bg-transparent">
             <tr>
               <Th label="Kurs"        sortKey="name"     />
               <Th label="Kategori"    sortKey="category" hide="hidden sm:table-cell" />
@@ -175,7 +175,7 @@ export function EventsTable({ events, bookings = [], loading, search, onSelect, 
               <tr
                 key={e.key}
                 onClick={() => onSelect?.(e)}
-                className={`hover:bg-brand-mint transition-colors ${onSelect ? 'cursor-pointer' : ''}`}
+                className={`hover:bg-brand-mint dark:hover:bg-[rgba(255,255,255,0.03)] transition-colors ${onSelect ? 'cursor-pointer' : ''}`}
               >
                 <td className="py-3 px-4 text-sm font-medium text-brand-dark">
                   <div className="flex items-start gap-1.5 flex-wrap">
@@ -214,7 +214,7 @@ export function EventsTable({ events, bookings = [], loading, search, onSelect, 
                 <td className="py-3 px-4">
                   {e.requirements?.maxParticipants ? (
                     <div className="flex items-center gap-2">
-                      <div className="w-14 h-1.5 bg-slate-100 rounded-full overflow-hidden shrink-0">
+                      <div className="w-14 h-1.5 bg-slate-100 dark:bg-[var(--fill-track)] rounded-full overflow-hidden shrink-0">
                         <div
                           className="h-full rounded-full"
                           style={{ width: `${Math.min(e._fill, 100)}%`, background: fillBarColor(e._fill) }}

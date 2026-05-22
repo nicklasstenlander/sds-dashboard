@@ -32,7 +32,7 @@ export function BookingsChart({ bookings, loading }: BookingsChartProps) {
   }
 
   const CHART_H = 160
-  const BAR_COLOR = '#dd5c86'
+  const BAR_COLOR = 'var(--chart-positive)'
 
   return (
     <div className="card p-5">
@@ -45,8 +45,8 @@ export function BookingsChart({ bookings, loading }: BookingsChartProps) {
               onClick={() => setGranularity(g)}
               className={`px-2.5 py-1 text-xs rounded-full font-medium transition-colors ${
                 granularity === g
-                  ? 'bg-brand-mint text-brand-dark dark:text-brand-dark'
-                  : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
+                  ? 'bg-brand-mint text-brand-dark dark:bg-[var(--dark-green-secondary)] dark:text-[var(--dark-text-primary)]'
+                  : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:text-[var(--dark-text-secondary)] dark:hover:text-[var(--dark-text-primary)]'
               }`}
             >
               {g === 'month' ? 'Månad' : g === 'week' ? 'Vecka' : 'Dag'}
@@ -72,7 +72,7 @@ export function BookingsChart({ bookings, loading }: BookingsChartProps) {
                 key={t}
                 x1="0" x2="100"
                 y1={t * 100} y2={t * 100}
-                stroke="#f1f5f9" strokeWidth="0.3" strokeDasharray="0.8 0.8"
+                stroke="var(--chart-grid)" strokeWidth="0.3" strokeDasharray="0.8 0.8"
               />
             ))}
             {/* Bars */}
@@ -106,7 +106,7 @@ export function BookingsChart({ bookings, loading }: BookingsChartProps) {
           </svg>
 
           {/* X-axis labels */}
-          <div className="flex mt-1" style={{ fontSize: 10, color: '#94a3b8' }}>
+          <div className="flex mt-1 text-[var(--chart-axis)]" style={{ fontSize: 10 }}>
             {data.map((d, i) => (
               <div
                 key={i}
@@ -125,8 +125,8 @@ export function BookingsChart({ bookings, loading }: BookingsChartProps) {
                 left: `${((hovered + 0.5) / data.length) * 100}%`,
                 top: 0,
                 transform: 'translateX(-50%) translateY(-28px)',
-                background: '#1a2e2e',
-                color: 'white',
+                background: 'var(--chart-tooltip-bg)',
+                color: 'var(--chart-tooltip-text)',
                 padding: '3px 10px',
                 borderRadius: 8,
                 fontSize: 11,

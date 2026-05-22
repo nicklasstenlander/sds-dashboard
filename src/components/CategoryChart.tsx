@@ -2,7 +2,19 @@ import { useState } from 'react'
 import { buildCourseMetrics, metricsForEvent } from '../utils/courseMetrics'
 import type { Booking, Event } from '../types/cogwork'
 
-const COLORS = ['#009399','#dd5c86','#45aba5','#ee7a9f','#a0c4b9','#f192ac','#cfded2','#f4d1ce','#7bbfbb','#f7b8cb']
+const COLORS = [
+  'var(--category-1)',
+  'var(--category-2)',
+  'var(--category-3)',
+  'var(--category-4)',
+  'var(--category-5)',
+  'var(--category-6)',
+  'var(--category-7)',
+  'var(--category-8)',
+  'var(--category-9)',
+  'var(--category-10)',
+  'var(--category-11)',
+]
 const TOP_N = 7
 
 interface CategoryChartProps {
@@ -47,7 +59,7 @@ export function CategoryChart({ events, bookings = [], loading }: CategoryChartP
         <div className="flex items-center gap-8">
           {/* Donut — larger now that legend is compact */}
           <svg
-            className="[--donut-bg:#ffffff] [--donut-border:#f1f5f9] [--donut-text:#1a2e2e] dark:[--donut-bg:#102525] dark:[--donut-border:#1a3b39] dark:[--donut-text:#e7f1ee]"
+            className="[--donut-bg:#ffffff] [--donut-border:#f1f5f9] [--donut-text:#1a2e2e] [--donut-muted:#94a3b8] dark:[--donut-bg:var(--dark-icon-bg)] dark:[--donut-border:var(--dark-border-active)] dark:[--donut-text:var(--dark-text-primary)] dark:[--donut-muted:var(--dark-text-tertiary)]"
             viewBox="0 0 42 42"
             width="180"
             height="180"
@@ -77,7 +89,7 @@ export function CategoryChart({ events, bookings = [], loading }: CategoryChartP
                 <text x="21" y="19" textAnchor="middle" fontSize="5.5" fontWeight="700" fill="var(--donut-text)">
                   {hoveredSeg.value}
                 </text>
-                <text x="21" y="24.5" textAnchor="middle" fontSize="2.4" fill="#94a3b8">
+                <text x="21" y="24.5" textAnchor="middle" fontSize="2.4" fill="var(--donut-muted)">
                   {hoveredSeg.name.length > 14 ? hoveredSeg.name.slice(0, 14) + '…' : hoveredSeg.name}
                 </text>
               </>
@@ -86,7 +98,7 @@ export function CategoryChart({ events, bookings = [], loading }: CategoryChartP
                 <text x="21" y="19.5" textAnchor="middle" fontSize="5.5" fontWeight="700" fill="var(--donut-text)">
                   {total}
                 </text>
-                <text x="21" y="25" textAnchor="middle" fontSize="2.8" fill="#94a3b8">
+                <text x="21" y="25" textAnchor="middle" fontSize="2.8" fill="var(--donut-muted)">
                   anmälda
                 </text>
               </>

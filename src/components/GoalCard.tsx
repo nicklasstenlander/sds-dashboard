@@ -44,7 +44,7 @@ export function GoalCard({ goal, currentValue, onClick, loading = false }: GoalC
     return () => cancelAnimationFrame(t)
   }, [pct])
 
-  const barColor = achieved ? '#1e4025' : overdue ? '#dd5c86' : '#CDDCD1'
+  const barColor = achieved ? 'var(--goal-achieved)' : overdue ? 'var(--goal-overdue)' : 'var(--goal-progress)'
 
   const daysColor = days > 14
     ? 'text-brand-forest'
@@ -55,15 +55,15 @@ export function GoalCard({ goal, currentValue, onClick, loading = false }: GoalC
   return (
     <div
       onClick={onClick}
-      className={`card p-5 cursor-pointer hover:shadow-md transition-shadow border ${
+      className={`card p-5 cursor-pointer hover:shadow-md transition-shadow border [--goal-achieved:#1e4025] [--goal-overdue:#dd5c86] [--goal-progress:#CDDCD1] [--goal-loading:#e2e8f0] dark:[--goal-achieved:var(--dark-positive)] dark:[--goal-overdue:var(--dark-warning)] dark:[--goal-progress:var(--dark-positive)] dark:[--goal-loading:rgba(255,255,255,0.10)] ${
         achieved ? 'border-[#1e4025]' : overdue ? 'border-[#dd5c86]' : 'border-slate-100'
-      }`}
+      } dark:border-[var(--dark-border-card)]`}
     >
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             {achieved
-              ? <CheckCircle className="w-4 h-4 text-[#1e4025] shrink-0" />
+              ? <CheckCircle className="w-4 h-4 text-[#1e4025] dark:text-[var(--dark-positive)] shrink-0" />
               : <Target className="w-4 h-4 text-slate-400 shrink-0" />}
             <p className="text-sm font-semibold text-brand-dark truncate">{goal.title}</p>
           </div>
@@ -74,7 +74,7 @@ export function GoalCard({ goal, currentValue, onClick, loading = false }: GoalC
         {loading ? (
           <span className="h-6 w-10 rounded bg-slate-100 animate-pulse shrink-0" />
         ) : (
-          <span className={`text-lg font-bold tabular-nums shrink-0 ${achieved ? 'text-[#1e4025]' : overdue ? 'text-[#dd5c86]' : 'text-brand-dark'}`}>
+          <span className={`text-lg font-bold tabular-nums shrink-0 ${achieved ? 'text-[#1e4025] dark:text-[var(--dark-positive)]' : overdue ? 'text-[#dd5c86] dark:text-[var(--dark-warning)]' : 'text-brand-dark'}`}>
             {pct}%
           </span>
         )}
@@ -84,7 +84,7 @@ export function GoalCard({ goal, currentValue, onClick, loading = false }: GoalC
       <div className="h-2 bg-slate-100 rounded-full overflow-hidden mb-3">
         <div
           className={`h-full rounded-full transition-all duration-700 ease-out ${loading ? 'animate-pulse' : ''}`}
-          style={{ width: loading ? '35%' : `${barWidth}%`, background: loading ? '#e2e8f0' : barColor }}
+          style={{ width: loading ? '35%' : `${barWidth}%`, background: loading ? 'var(--goal-loading)' : barColor }}
         />
       </div>
 
@@ -99,7 +99,7 @@ export function GoalCard({ goal, currentValue, onClick, loading = false }: GoalC
           </span>
         )}
         {!loading && achieved ? (
-          <span className="font-semibold text-[#1e4025]">Uppnått! ✓</span>
+          <span className="font-semibold text-[#1e4025] dark:text-[var(--dark-positive)]">Uppnått! ✓</span>
         ) : !loading ? (
           <span className={`font-medium ${daysColor}`}>
             {days < 0 ? `${Math.abs(days)} dagar sedan` : days === 0 ? 'Idag' : `${days} dagar kvar`}
