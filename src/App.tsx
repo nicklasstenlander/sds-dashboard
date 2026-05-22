@@ -163,6 +163,10 @@ function AppShell() {
           { id: 'signage', label: 'Skyltning', Icon: Monitor       },
         ]
         const isMoreActive = MORE.some(m => m.id === tab)
+        const mobileActiveColor = darkMode ? '#7bd4cf' : '#1e4025'
+        const mobileInactiveColor = darkMode ? '#78908c' : '#9ca3af'
+        const drawerActiveColor = darkMode ? '#7bd4cf' : '#1e4025'
+        const drawerInactiveColor = darkMode ? '#d1d5db' : '#374151'
 
         function pick(id: Tab) { setTab(id); setDrawerOpen(false) }
 
@@ -183,9 +187,9 @@ function AppShell() {
                   >
                     <Icon
                       className="w-6 h-6"
-                      style={{ color: tab === id ? '#1e4025' : '#9ca3af', strokeWidth: tab === id ? 2.5 : 2 }}
+                      style={{ color: tab === id ? mobileActiveColor : mobileInactiveColor, strokeWidth: tab === id ? 2.5 : 2 }}
                     />
-                    <span className="text-[10px] font-medium" style={{ color: tab === id ? '#1e4025' : '#9ca3af' }}>
+                    <span className="text-[10px] font-medium" style={{ color: tab === id ? mobileActiveColor : mobileInactiveColor }}>
                       {label}
                     </span>
                   </button>
@@ -198,13 +202,13 @@ function AppShell() {
                   <div className="relative">
                     <MoreHorizontal
                       className="w-6 h-6"
-                      style={{ color: isMoreActive || drawerOpen ? '#1e4025' : '#9ca3af', strokeWidth: isMoreActive || drawerOpen ? 2.5 : 2 }}
+                      style={{ color: isMoreActive || drawerOpen ? mobileActiveColor : mobileInactiveColor, strokeWidth: isMoreActive || drawerOpen ? 2.5 : 2 }}
                     />
                     {isMoreActive && !drawerOpen && (
                       <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-[#dd5c86]" />
                     )}
                   </div>
-                  <span className="text-[10px] font-medium" style={{ color: isMoreActive || drawerOpen ? '#1e4025' : '#9ca3af' }}>
+                  <span className="text-[10px] font-medium" style={{ color: isMoreActive || drawerOpen ? mobileActiveColor : mobileInactiveColor }}>
                     Mer
                   </span>
                 </button>
@@ -239,7 +243,7 @@ function AppShell() {
                   aria-label={label}
                   aria-current={tab === id ? 'page' : undefined}
                   className="w-full flex items-center gap-4 px-6 hover:bg-slate-50 transition-colors"
-                  style={{ minHeight: 56, color: tab === id ? '#1e4025' : '#374151' }}
+                  style={{ minHeight: 56, color: tab === id ? drawerActiveColor : drawerInactiveColor }}
                 >
                   <Icon className="w-5 h-5 shrink-0" style={{ strokeWidth: tab === id ? 2.5 : 2 }} />
                   <span className="text-sm font-medium">{label}</span>
@@ -250,7 +254,7 @@ function AppShell() {
                 onClick={() => { setSettingsOpen(true); setDrawerOpen(false) }}
                 aria-label="Inställningar"
                 className="w-full flex items-center gap-4 px-6 hover:bg-slate-50 transition-colors"
-                style={{ minHeight: 56, color: '#374151' }}
+                style={{ minHeight: 56, color: drawerInactiveColor }}
               >
                 <Settings className="w-5 h-5 shrink-0" />
                 <span className="text-sm font-medium">Inställningar</span>
