@@ -5,6 +5,7 @@ import {
 } from '../services/goalsService'
 import { EVENT_BLOCK_IDS_BY_CODE } from '../config/cogwork'
 import { matchesPeriodCode } from '../utils/periods'
+import { buildCourseMetrics, isAcceptedBooking, metricsForEvent } from '../utils/courseMetrics'
 import type { Booking, Event } from '../types/cogwork'
 
 // ---------------------------------------------------------------------------
@@ -25,21 +26,22 @@ export function computeCurrentValue(goal: Goal, bookings: Booking[], events: Eve
       return scopedBookings.length
 
     case 'accepted_count':
-      return scopedBookings.filter(b => b.status?.code?.toUpperCase() === 'ACCEPTED').length
+      return scopedBookings.filter(isAcceptedBooking).length
 
     case 'revenue':
       return scopedBookings
-        .filter(b => b.status?.code?.toUpperCase() === 'ACCEPTED')
+        .filter(isAcceptedBooking)
         .reduce((sum, b) => sum + (b.payment?.priceAgreed ?? 0), 0)
 
     case 'occupancy': {
+      const metricsByEvent = buildCourseMetrics(scopedBookings)
       const filteredEvents = goal.event_block_id
         ? events.filter(e => eventMatchesEventBlock(e, goal.event_block_id))
         : events
       if (filteredEvents.length === 0) return 0
       const total = filteredEvents.reduce((sum, e) => {
         const max      = e.requirements?.maxParticipants ?? 0
-        const accepted = e.statistics?.accepted ?? 0
+        const accepted = metricsForEvent(metricsByEvent, e, false).accepted
         return max > 0 ? sum + (accepted / max) * 100 : sum
       }, 0)
       return Math.round(total / filteredEvents.length)
