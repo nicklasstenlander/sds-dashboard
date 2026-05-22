@@ -20,6 +20,7 @@ import { useAlerts } from '../hooks/useAlerts'
 import { useGoals, computeCurrentValue } from '../hooks/useGoals'
 import { purgeProxyCache } from '../services/proxyService'
 import { blockNameToCode, isPeriodCode, matchesPeriodCode } from '../utils/periods'
+import { buildCourseMetrics, isAcceptedBooking, metricsForEvent } from '../utils/courseMetrics'
 import { getDefaultEventBlockId } from '../config/cogwork'
 import type { Booking, Event } from '../types/cogwork'
 
@@ -86,7 +87,7 @@ export function Dashboard() {
   const bookingsTotal = (clientPeriodCode || categoryFilter)
     ? bookings.length
     : (allDataQuery.data?.bookings.search?.numRowsFound ?? bookings.length)
-  const kpi           = computeKPIs(events)
+  const kpi           = computeKPIs(events, bookings)
   const bookingKpi    = computeBookingKPIs(bookings)
   const revenueKpi    = computeRevenueKPIs(bookings)
   const { data: goals = [] } = useGoals()
@@ -294,7 +295,7 @@ export function Dashboard() {
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <BookingsChart bookings={bookings} loading={allDataQuery.isLoading} />
-        <CategoryChart events={events} loading={allDataQuery.isLoading} />
+        <CategoryChart events={events} bookings={bookings} loading={allDataQuery.isLoading} />
       </div>
 
       <EventsTable
@@ -389,18 +390,18 @@ function DashboardGreeting({
   )
 }
 
-function computeKPIs(events: Event[]) {
+function computeKPIs(events: Event[], bookings: Booking[]) {
+  const metricsByEvent = buildCourseMetrics(bookings)
   let totalAccepted = 0
   let totalMax = 0
   let estimatedRevenue = 0
   let openCourses = 0
   for (const e of events) {
-    const accepted = e.statistics?.accepted ?? 0
+    const metrics = metricsForEvent(metricsByEvent, e, false)
     const max      = e.requirements?.maxParticipants ?? 0
-    const price    = e.pricing?.basePriceInclVat ?? 0
-    totalAccepted   += accepted
+    totalAccepted   += metrics.accepted
     if (max > 0) totalMax += max
-    estimatedRevenue += accepted * price
+    estimatedRevenue += metrics.revenue
     if (e.registration?.open) openCourses++
   }
   const avgFill = totalMax > 0 ? Math.round((totalAccepted / totalMax) * 100) : 0
@@ -413,7 +414,7 @@ function computeBookingKPIs(bookings: import('../types/cogwork').Booking[]) {
   let vantarAterkoppling = 0
   for (const b of bookings) {
     const code = b.status?.code?.toUpperCase() ?? ''
-    if (code === 'ACCEPTED') antagna++
+    if (isAcceptedBooking(b)) antagna++
     if (b.payment?.paid === false) ejBetalda++
     if (code === 'AWAITING_RESPONSE' || code === 'WAITING') vantarAterkoppling++
   }
@@ -426,7 +427,7 @@ function computeRevenueKPIs(bookings: import('../types/cogwork').Booking[]) {
   for (const b of bookings) {
     if (b.payment?.paid === true && b.payment.amountPaid)
       mottaget += b.payment.amountPaid
-    if (b.payment?.priceAgreed && b.status?.code?.toUpperCase() === 'ACCEPTED')
+    if (b.payment?.priceAgreed && isAcceptedBooking(b))
       aviserat += b.payment.priceAgreed
   }
   return { mottaget, aviserat }
@@ -452,16 +453,16 @@ function bookingMatchesPeriod(booking: Booking, periodCode: string): boolean {
 
 function buildEventsFromPeriod(events: Event[], bookings: Booking[], periodCode: string): Event[] {
   const fromEvents = events.filter((event) => eventMatchesPeriod(event, periodCode))
-  const byId = new Map<number, Event>(fromEvents.map((event) => [event.id, event]))
+  const byId = new Map<string, Event>(fromEvents.map((event) => [String(event.id), event]))
 
   for (const booking of bookings) {
     if (!bookingMatchesPeriod(booking, periodCode)) continue
     const bookingEvent = booking.event
-    if (!bookingEvent?.id || byId.has(bookingEvent.id)) continue
+    if (!bookingEvent?.id || byId.has(String(bookingEvent.id))) continue
 
-    const eventBookings = bookings.filter((b) => b.event?.id === bookingEvent.id)
-    const accepted = eventBookings.filter((b) => b.status?.code?.toUpperCase() === 'ACCEPTED').length
-    byId.set(bookingEvent.id, {
+    const eventBookings = bookings.filter((b) => String(b.event?.id) === String(bookingEvent.id))
+    const accepted = eventBookings.filter(isAcceptedBooking).length
+    byId.set(String(bookingEvent.id), {
       id: bookingEvent.id,
       key: bookingEvent.key,
       name: bookingEvent.name,

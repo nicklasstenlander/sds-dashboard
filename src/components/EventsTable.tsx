@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import { ArrowUpDown, ChevronRight, RefreshCw, DatabaseZap, MessageSquare } from 'lucide-react'
+import { buildCourseMetrics, bookingEventId, isAcceptedBooking, metricsForEvent } from '../utils/courseMetrics'
 import type { Event, Booking } from '../types/cogwork'
 
 interface EventsTableProps {
@@ -36,73 +37,23 @@ function fillBadgeClass(pct: number) {
   return 'bg-brand-mint text-brand-forest'
 }
 
-function bookingEventId(booking: Booking): string {
-  return booking.event?.id != null ? String(booking.event.id) : ''
-}
-
-function isAccepted(booking: Booking): boolean {
-  return booking.status?.code?.toUpperCase() === 'ACCEPTED'
-}
-
 export function EventsTable({ events, bookings = [], loading, search, onSelect, onRefresh, onDirectRefresh, onGroupSms, isRefreshing, isDirectRefreshing }: EventsTableProps) {
   const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: 'accepted', dir: 'desc' })
 
-  const bookingCounts = useMemo(() => {
-    const map: Record<string, { registered: number; accepted: number }> = {}
-    for (const b of bookings) {
-      const eventId = bookingEventId(b)
-      if (!eventId) continue
-
-      map[eventId] ??= { registered: 0, accepted: 0 }
-      map[eventId].registered += 1
-      if (isAccepted(b)) map[eventId].accepted += 1
-    }
-    return map
-  }, [bookings])
-
-  const paymentPer = useMemo(() => {
-    const map: Record<string, { price?: number; revenue: number }> = {}
-    const priceCounts: Record<string, Record<number, number>> = {}
-
-    for (const b of bookings) {
-      const eventId = bookingEventId(b)
-      const price = b.payment?.priceAgreed
-      if (!eventId || !price) continue
-
-      priceCounts[eventId] ??= {}
-      priceCounts[eventId][price] = (priceCounts[eventId][price] ?? 0) + 1
-
-      if (isAccepted(b)) {
-        map[eventId] ??= { revenue: 0 }
-        map[eventId].revenue += price
-      }
-    }
-
-    for (const [eventId, counts] of Object.entries(priceCounts)) {
-      map[eventId] ??= { revenue: 0 }
-      map[eventId].price = Number(
-        Object.entries(counts).sort((a, b) => b[1] - a[1] || Number(b[0]) - Number(a[0]))[0][0],
-      )
-    }
-
-    return map
-  }, [bookings])
+  const metricsByEvent = useMemo(() => buildCourseMetrics(bookings), [bookings])
 
   const filtered = events
     .filter((e) => !search || e.name.toLowerCase().includes(search.toLowerCase()))
     .map((e) => {
-      const payments = paymentPer[String(e.id)]
-      const counts = bookingCounts[String(e.id)]
-      const price = e.pricing?.basePriceInclVat ?? payments?.price ?? 0
-      const revenue = payments?.revenue ?? ((e.statistics?.accepted ?? 0) * price)
-      const accepted = counts?.accepted ?? e.statistics?.accepted ?? 0
+      const metrics = metricsForEvent(metricsByEvent, e, false)
+      const price = e.pricing?.basePriceInclVat ?? metrics.price ?? 0
       return {
         ...e,
-        _registered: counts?.registered ?? e.statistics?.accepted ?? 0,
-        _accepted: accepted,
-        _fill: fillRate(e, accepted),
+        _registered: metrics.registered,
+        _accepted: metrics.accepted,
+        _fill: fillRate(e, metrics.accepted),
         _price: price,
-        _revenue: revenue,
+        _revenue: metrics.revenue || (metrics.accepted * price),
       }
     })
     .sort((a, b) => {
@@ -287,7 +238,7 @@ export function EventsTable({ events, bookings = [], loading, search, onSelect, 
                   <div className="flex items-center gap-1">
                     {onGroupSms && (() => {
                       const courseBookings = bookings.filter(b => bookingEventId(b) === String(e.id))
-                      const hasAccepted = courseBookings.some(isAccepted)
+                      const hasAccepted = courseBookings.some(isAcceptedBooking)
                       return hasAccepted ? (
                         <button
                           onClick={ev => { ev.stopPropagation(); onGroupSms(e, courseBookings) }}

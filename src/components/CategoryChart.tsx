@@ -1,17 +1,19 @@
 import { useState } from 'react'
-import type { Event } from '../types/cogwork'
+import { buildCourseMetrics, metricsForEvent } from '../utils/courseMetrics'
+import type { Booking, Event } from '../types/cogwork'
 
 const COLORS = ['#009399','#dd5c86','#45aba5','#ee7a9f','#a0c4b9','#f192ac','#cfded2','#f4d1ce','#7bbfbb','#f7b8cb']
 const TOP_N = 7
 
 interface CategoryChartProps {
   events: Event[]
+  bookings?: Booking[]
   loading?: boolean
 }
 
-export function CategoryChart({ events, loading }: CategoryChartProps) {
+export function CategoryChart({ events, bookings = [], loading }: CategoryChartProps) {
   const [hovered, setHovered] = useState<number | null>(null)
-  const data = buildCategoryData(events)
+  const data = buildCategoryData(events, bookings)
   const total = data.reduce((s, d) => s + d.value, 0)
 
   if (loading) {
@@ -111,12 +113,13 @@ export function CategoryChart({ events, loading }: CategoryChartProps) {
   )
 }
 
-function buildCategoryData(events: Event[]) {
+function buildCategoryData(events: Event[], bookings: Booking[]) {
+  const metricsByEvent = buildCourseMetrics(bookings)
   const counts: Record<string, number> = {}
   for (const e of events) {
     const name = e.grouping?.primaryEventGroup?.name ?? 'Övrigt'
-    const accepted = e.statistics?.accepted ?? 0
-    counts[name] = (counts[name] ?? 0) + accepted
+    const registered = metricsForEvent(metricsByEvent, e, false).registered
+    counts[name] = (counts[name] ?? 0) + registered
   }
   const sorted = Object.entries(counts)
     .map(([name, value]) => ({ name, value }))

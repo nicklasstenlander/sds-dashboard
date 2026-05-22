@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import { X, Users, Clock, MapPin, User, Banknote } from 'lucide-react'
 import { useEventBookings } from '../hooks/useEventBookings'
 import { ParticipantPanel } from './ParticipantPanel'
+import { buildCourseMetrics, isAcceptedBooking } from '../utils/courseMetrics'
 import type { Event, Booking, BookingPayment } from '../types/cogwork'
 
 function PayBadge({ payment }: { payment?: BookingPayment }) {
@@ -24,18 +25,14 @@ function PayBadge({ payment }: { payment?: BookingPayment }) {
   return null
 }
 
-function isAccepted(booking: Booking): boolean {
-  return booking.status?.code?.toUpperCase() === 'ACCEPTED'
-}
-
 interface CourseDetailPanelProps {
   event: Event | null
   onClose: () => void
 }
 
 function BookingSection({ bookings, onSelectParticipant }: { bookings: Booking[]; onSelectParticipant: (name: string) => void }) {
-  const antagna    = bookings.filter(isAccepted)
-  const ejAntagna  = bookings.filter((b) => !isAccepted(b))
+  const antagna    = bookings.filter(isAcceptedBooking)
+  const ejAntagna  = bookings.filter((b) => !isAcceptedBooking(b))
 
   return (
     <div>
@@ -101,21 +98,24 @@ function BookingRow({ b, onSelect }: { b: Booking; onSelect: (name: string) => v
 export function CourseDetailPanel({ event, onClose }: CourseDetailPanelProps) {
   const { data: bookings = [], isLoading } = useEventBookings(event?.id ?? null)
   const [selectedParticipant, setSelectedParticipant] = useState<string | null>(null)
+  const metrics = useMemo(() => {
+    const [courseMetrics] = buildCourseMetrics(bookings).values()
+    return courseMetrics
+  }, [bookings])
 
   const acceptedCount = bookings.length > 0
-    ? bookings.filter(isAccepted).length
+    ? (metrics?.accepted ?? 0)
     : (event?.statistics?.accepted ?? 0)
-  const prelCount = bookings.filter((b) => !isAccepted(b)).length
+  const prelCount = bookings.length > 0
+    ? bookings.length - acceptedCount
+    : 0
 
   const revenue = useMemo(() => {
-    const fromBookings = bookings
-      .filter((b) => isAccepted(b) && b.payment?.priceAgreed != null)
-      .reduce((s, b) => s + (b.payment!.priceAgreed ?? 0), 0)
-    if (fromBookings > 0) return fromBookings
+    if (metrics?.revenue) return metrics.revenue
     const accepted = event?.statistics?.accepted ?? 0
     const price = event?.pricing?.basePriceInclVat ?? 0
     return accepted * price
-  }, [bookings, event])
+  }, [event, metrics])
 
   return (
     <>
