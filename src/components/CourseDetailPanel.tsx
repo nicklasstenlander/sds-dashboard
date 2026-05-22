@@ -24,14 +24,18 @@ function PayBadge({ payment }: { payment?: BookingPayment }) {
   return null
 }
 
+function isAccepted(booking: Booking): boolean {
+  return booking.status?.code?.toUpperCase() === 'ACCEPTED'
+}
+
 interface CourseDetailPanelProps {
   event: Event | null
   onClose: () => void
 }
 
 function BookingSection({ bookings, onSelectParticipant }: { bookings: Booking[]; onSelectParticipant: (name: string) => void }) {
-  const antagna    = bookings.filter((b) => b.payment?.paid === true)
-  const ejAntagna  = bookings.filter((b) => b.payment?.paid !== true)
+  const antagna    = bookings.filter(isAccepted)
+  const ejAntagna  = bookings.filter((b) => !isAccepted(b))
 
   return (
     <div>
@@ -98,11 +102,14 @@ export function CourseDetailPanel({ event, onClose }: CourseDetailPanelProps) {
   const { data: bookings = [], isLoading } = useEventBookings(event?.id ?? null)
   const [selectedParticipant, setSelectedParticipant] = useState<string | null>(null)
 
-  const prelCount = bookings.filter((b) => b.payment?.paid !== true).length
+  const acceptedCount = bookings.length > 0
+    ? bookings.filter(isAccepted).length
+    : (event?.statistics?.accepted ?? 0)
+  const prelCount = bookings.filter((b) => !isAccepted(b)).length
 
   const revenue = useMemo(() => {
     const fromBookings = bookings
-      .filter((b) => b.payment?.paid === true && b.payment.priceAgreed != null)
+      .filter((b) => isAccepted(b) && b.payment?.priceAgreed != null)
       .reduce((s, b) => s + (b.payment!.priceAgreed ?? 0), 0)
     if (fromBookings > 0) return fromBookings
     const accepted = event?.statistics?.accepted ?? 0
@@ -164,7 +171,7 @@ export function CourseDetailPanel({ event, onClose }: CourseDetailPanelProps) {
             )}
             <span className="flex items-center gap-1.5 text-sm text-slate-500">
               <Users className="w-3.5 h-3.5 shrink-0" />
-              {event.statistics?.accepted ?? 0} antagna
+              {acceptedCount} antagna
               {event.requirements?.maxParticipants
                 ? ` / ${event.requirements.maxParticipants} platser`
                 : ''}
