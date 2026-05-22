@@ -60,7 +60,7 @@ function AppShell() {
       >
         {/* Logo */}
         <div className={`py-4 border-b border-slate-200 flex items-center gap-3 transition-all duration-250 ${collapsed ? 'justify-center px-0' : 'px-5'}`}>
-          <img src="logo.png" alt="SDS" className="w-8 h-8 object-contain shrink-0" />
+          <img src="logo.png" alt="SDS" className="w-8 h-8 object-contain shrink-0 dark:brightness-0 dark:invert" />
           {!collapsed && (
             <div>
               <p className="text-xl font-bold tracking-widest text-brand-forest leading-none">CORE</p>
