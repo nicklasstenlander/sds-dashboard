@@ -18,9 +18,8 @@ interface EventsTableProps {
 type SortKey = 'name' | 'accepted' | 'antagna' | 'fill' | 'price' | 'revenue' | 'category'
 type SortDir = 'asc' | 'desc'
 
-function fillRate(e: Event): number {
+function fillRate(e: Event, accepted: number): number {
   const max = e.requirements?.maxParticipants
-  const accepted = e.statistics?.accepted ?? 0
   if (!max) return 0
   return Math.round((accepted / max) * 100)
 }
@@ -41,17 +40,22 @@ function bookingEventId(booking: Booking): string {
   return booking.event?.id != null ? String(booking.event.id) : ''
 }
 
+function isAccepted(booking: Booking): boolean {
+  return booking.status?.code?.toUpperCase() === 'ACCEPTED'
+}
+
 export function EventsTable({ events, bookings = [], loading, search, onSelect, onRefresh, onDirectRefresh, onGroupSms, isRefreshing, isDirectRefreshing }: EventsTableProps) {
   const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: 'accepted', dir: 'desc' })
 
-  // Count paid (antagna) bookings per event id
-  const antagnaPer = useMemo(() => {
-    const map: Record<string, number> = {}
+  const bookingCounts = useMemo(() => {
+    const map: Record<string, { registered: number; accepted: number }> = {}
     for (const b of bookings) {
       const eventId = bookingEventId(b)
-      if (b.payment?.paid === true && eventId) {
-        map[eventId] = (map[eventId] ?? 0) + 1
-      }
+      if (!eventId) continue
+
+      map[eventId] ??= { registered: 0, accepted: 0 }
+      map[eventId].registered += 1
+      if (isAccepted(b)) map[eventId].accepted += 1
     }
     return map
   }, [bookings])
@@ -68,7 +72,7 @@ export function EventsTable({ events, bookings = [], loading, search, onSelect, 
       priceCounts[eventId] ??= {}
       priceCounts[eventId][price] = (priceCounts[eventId][price] ?? 0) + 1
 
-      if (b.status?.code?.toUpperCase() === 'ACCEPTED') {
+      if (isAccepted(b)) {
         map[eventId] ??= { revenue: 0 }
         map[eventId].revenue += price
       }
@@ -88,11 +92,15 @@ export function EventsTable({ events, bookings = [], loading, search, onSelect, 
     .filter((e) => !search || e.name.toLowerCase().includes(search.toLowerCase()))
     .map((e) => {
       const payments = paymentPer[String(e.id)]
+      const counts = bookingCounts[String(e.id)]
       const price = e.pricing?.basePriceInclVat ?? payments?.price ?? 0
       const revenue = payments?.revenue ?? ((e.statistics?.accepted ?? 0) * price)
+      const accepted = counts?.accepted ?? e.statistics?.accepted ?? 0
       return {
         ...e,
-        _fill: fillRate(e),
+        _registered: counts?.registered ?? e.statistics?.accepted ?? 0,
+        _accepted: accepted,
+        _fill: fillRate(e, accepted),
         _price: price,
         _revenue: revenue,
       }
@@ -101,8 +109,8 @@ export function EventsTable({ events, bookings = [], loading, search, onSelect, 
       let diff = 0
       switch (sort.key) {
         case 'name':     diff = a.name.localeCompare(b.name, 'sv'); break
-        case 'accepted': diff = (a.statistics?.accepted ?? 0) - (b.statistics?.accepted ?? 0); break
-        case 'antagna':  diff = (antagnaPer[String(a.id)] ?? 0) - (antagnaPer[String(b.id)] ?? 0); break
+        case 'accepted': diff = a._registered - b._registered; break
+        case 'antagna':  diff = a._accepted - b._accepted; break
         case 'fill':     diff = a._fill - b._fill; break
         case 'price':    diff = a._price - b._price; break
         case 'revenue':  diff = a._revenue - b._revenue; break
@@ -244,10 +252,10 @@ export function EventsTable({ events, bookings = [], loading, search, onSelect, 
                   </span>
                 </td>
                 <td className="py-3 px-4 text-sm text-slate-600 tabular-nums">
-                  {e.statistics?.accepted ?? '—'}
+                  {e._registered}
                 </td>
                 <td className="hidden sm:table-cell py-3 px-4 text-sm font-semibold text-brand-forest tabular-nums">
-                  {antagnaPer[String(e.id)] ?? 0}
+                  {e._accepted}
                 </td>
                 <td className="hidden sm:table-cell py-3 px-4 text-sm text-slate-500 tabular-nums">
                   {e.requirements?.maxParticipants ?? '—'}
@@ -279,7 +287,7 @@ export function EventsTable({ events, bookings = [], loading, search, onSelect, 
                   <div className="flex items-center gap-1">
                     {onGroupSms && (() => {
                       const courseBookings = bookings.filter(b => bookingEventId(b) === String(e.id))
-                      const hasAccepted = courseBookings.some(b => b.status?.code?.toUpperCase() === 'ACCEPTED')
+                      const hasAccepted = courseBookings.some(isAccepted)
                       return hasAccepted ? (
                         <button
                           onClick={ev => { ev.stopPropagation(); onGroupSms(e, courseBookings) }}
