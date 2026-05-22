@@ -12,10 +12,10 @@ interface KPICardProps {
 }
 
 const colorMap = {
-  violet:  { cardBg: 'bg-[#f0e9f5]', iconBg: 'bg-white/60', icon: 'text-brand-pinkDark', border: 'border-purple-200', title: 'text-slate-500',     value: 'text-brand-dark', delta: 'text-brand-forest', accent: '#e9d5ff' },
-  emerald: { cardBg: 'bg-brand-mint', iconBg: 'bg-white/60', icon: 'text-brand-forest',   border: 'border-brand-sage', title: 'text-brand-dark/70', value: 'text-brand-dark', delta: 'text-brand-forest', accent: '#a0c4b9' },
+  violet:  { cardBg: 'bg-[#f0e9f5]', iconBg: 'bg-white/60', icon: 'text-brand-pinkDark', border: 'border-purple-200', title: 'text-slate-500 dark:text-slate-300',     value: 'text-brand-dark dark:text-white', delta: 'text-brand-forest dark:text-brand-sage', accent: '#e9d5ff' },
+  emerald: { cardBg: 'bg-brand-mint', iconBg: 'bg-white/60', icon: 'text-brand-forest',   border: 'border-brand-sage', title: 'text-brand-dark/70 dark:text-slate-300', value: 'text-brand-dark dark:text-white', delta: 'text-brand-forest dark:text-brand-sage', accent: '#a0c4b9' },
   amber:   { cardBg: 'bg-[#f7dc66]',  iconBg: 'bg-black/10', icon: 'text-[#7a5c00]',      border: 'border-[#e6c940]',  title: 'text-[#7a5c00]/80',  value: 'text-[#7a5c00]',  delta: 'text-[#7a5c00]',    accent: '#e6c940' },
-  sky:     { cardBg: 'bg-sky-100',    iconBg: 'bg-white/60', icon: 'text-sky-700',        border: 'border-sky-200',    title: 'text-slate-500',     value: 'text-brand-dark', delta: 'text-brand-forest', accent: '#bae6fd' },
+  sky:     { cardBg: 'bg-sky-100',    iconBg: 'bg-white/60', icon: 'text-sky-700',        border: 'border-sky-200',    title: 'text-slate-500 dark:text-slate-300',     value: 'text-brand-dark dark:text-white', delta: 'text-brand-forest dark:text-brand-sage', accent: '#bae6fd' },
   red:     { cardBg: 'bg-red-100',    iconBg: 'bg-white/60', icon: 'text-red-600',        border: 'border-red-200',    title: 'text-slate-500',     value: 'text-red-800',    delta: 'text-red-600',      accent: '#fecaca' },
   dark:    { cardBg: 'bg-[#1a2e2e]',  iconBg: 'bg-white/10', icon: 'text-white/80',       border: 'border-[#1a2e2e]',  title: 'text-white/60',      value: 'text-white',      delta: 'text-brand-mint',   accent: '#cfded2' },
 }
