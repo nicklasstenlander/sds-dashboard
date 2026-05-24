@@ -32,9 +32,11 @@ export function ParticipantPanel({ name, onClose, elevated }: ParticipantPanelPr
 
       {/* Panel */}
       <div
-        className={`fixed top-0 right-0 h-full w-full max-w-sm bg-white shadow-xl ${panelZ} flex flex-col ${!open ? 'translate-x-full' : ''}`}
-        style={open ? { animation: 'panel-slide-in 0.25s cubic-bezier(0.32, 0.72, 0, 1)' } : undefined}
+        className={`fixed inset-x-0 bottom-0 flex max-h-[88dvh] w-full flex-col rounded-t-[28px] bg-white shadow-2xl transition-transform duration-300 ease-out md:inset-x-auto md:bottom-auto md:right-0 md:top-0 md:h-full md:max-h-none md:max-w-sm md:rounded-none ${panelZ} ${
+          open ? 'translate-y-0 md:translate-x-0' : 'translate-y-full md:translate-y-0 md:translate-x-full'
+        }`}
       >
+        <div className="mx-auto mt-3 h-1 w-11 rounded-full bg-slate-200 md:hidden" />
         {/* Header */}
         <div className="flex items-start justify-between gap-4 p-5 border-b border-slate-100">
           <div className="min-w-0">
