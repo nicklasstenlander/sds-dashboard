@@ -155,11 +155,11 @@ function AppShell() {
           { id: 'dashboard', label: 'Översikt',    Icon: LayoutDashboard },
           { id: 'bookings',  label: 'Anmälningar', Icon: ClipboardList   },
           { id: 'customers', label: 'Kunder',      Icon: Users           },
+          { id: 'shop',      label: 'Shop',        Icon: ShoppingBag     },
         ]
         const MORE: { id: Tab; label: string; Icon: React.ElementType }[] = [
           { id: 'calls',   label: 'Samtal',    Icon: Phone         },
           { id: 'narvaro', label: 'Närvaro',   Icon: ClipboardCheck },
-          { id: 'shop',    label: 'Shop',      Icon: ShoppingBag   },
           { id: 'signage', label: 'Skyltning', Icon: Monitor       },
         ]
         const isMoreActive = MORE.some(m => m.id === tab)
@@ -168,33 +168,35 @@ function AppShell() {
         return (
           <>
             <nav
-              className="sds-bottom-nav md:hidden fixed bottom-0 inset-x-0 bg-white border-t border-gray-100 z-30"
-              style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+              className="md:hidden fixed inset-x-0 bottom-0 z-30 px-4 pb-4"
+              style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}
             >
-              <div className="grid grid-cols-4 h-16">
-                {BOTTOM.map(({ id, label, Icon }) => (
-                  <button
-                    key={id}
-                    onClick={() => pick(id)}
-                    aria-label={label}
-                    aria-current={tab === id ? 'page' : undefined}
-                    className={`flex flex-col items-center justify-center gap-0.5 transition-colors ${
-                      tab === id ? 'text-[#1e4025] dark:text-[var(--dark-positive)]' : 'text-[#9ca3af] dark:text-[var(--dark-text-muted)]'
-                    }`}
-                  >
-                    <Icon
-                      className="w-6 h-6"
-                      style={{ strokeWidth: tab === id ? 2.5 : 2 }}
-                    />
-                    <span className="text-[10px] font-medium">
-                      {label}
-                    </span>
-                  </button>
-                ))}
+              <div className="flex items-end justify-center gap-3">
+                <div className="sds-bottom-nav grid grid-cols-4 h-16 flex-1 max-w-[390px] rounded-full border border-white/30 bg-white/70 shadow-[0_16px_40px_rgba(15,23,42,0.18)] backdrop-blur-2xl dark:border-white/10 dark:bg-black/35 dark:shadow-[0_18px_48px_rgba(0,0,0,0.34)]">
+                  {BOTTOM.map(({ id, label, Icon }) => (
+                    <button
+                      key={id}
+                      onClick={() => pick(id)}
+                      aria-label={label}
+                      aria-current={tab === id ? 'page' : undefined}
+                      className={`flex flex-col items-center justify-center gap-0.5 transition-colors ${
+                        tab === id ? 'text-[#1e4025] dark:text-[var(--dark-positive)]' : 'text-[#9ca3af] dark:text-[var(--dark-text-muted)]'
+                      }`}
+                    >
+                      <Icon
+                        className="w-6 h-6"
+                        style={{ strokeWidth: tab === id ? 2.5 : 2 }}
+                      />
+                      <span className="text-[10px] font-medium">
+                        {label}
+                      </span>
+                    </button>
+                  ))}
+                </div>
                 <button
                   onClick={() => setDrawerOpen(o => !o)}
                   aria-label="Mer"
-                  className={`flex flex-col items-center justify-center gap-0.5 transition-colors ${
+                  className={`sds-bottom-nav relative flex h-16 w-16 shrink-0 flex-col items-center justify-center gap-0.5 rounded-full border border-white/30 bg-white/70 shadow-[0_16px_40px_rgba(15,23,42,0.18)] backdrop-blur-2xl transition-colors dark:border-white/10 dark:bg-black/35 dark:shadow-[0_18px_48px_rgba(0,0,0,0.34)] ${
                     isMoreActive || drawerOpen ? 'text-[#1e4025] dark:text-[var(--dark-positive)]' : 'text-[#9ca3af] dark:text-[var(--dark-text-muted)]'
                   }`}
                 >
@@ -227,7 +229,7 @@ function AppShell() {
               role="dialog"
               aria-modal="true"
               aria-label="Fler navigeringsalternativ"
-              className={`sds-drawer fixed inset-x-0 bottom-0 bg-white rounded-t-2xl z-50 md:hidden transform transition-transform duration-300 ease-out ${
+              className={`sds-drawer fixed inset-x-3 bottom-3 bg-white rounded-[28px] z-50 md:hidden transform border border-white/30 shadow-2xl backdrop-blur-2xl transition-transform duration-300 ease-out dark:border-white/10 ${
                 drawerOpen ? 'translate-y-0' : 'translate-y-full'
               }`}
               style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
