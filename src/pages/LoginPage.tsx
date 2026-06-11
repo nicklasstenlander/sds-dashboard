@@ -4,12 +4,16 @@ import { useApiConfig } from '../context/ApiContext'
 
 const BASE = 'https://dans.se/api/public'
 
-async function verifyPassword(pw: string): Promise<boolean> {
+type VerifyResult = 'ok' | 'rejected' | 'error'
+
+async function verifyPassword(pw: string): Promise<VerifyResult> {
   try {
     const res = await fetch(`${BASE}/events/?org=sollentunadans&pw=${encodeURIComponent(pw)}&maxRows=1`)
-    return res.ok
+    if (res.ok) return 'ok'
+    if (res.status === 401 || res.status === 403) return 'rejected'
+    return 'error'
   } catch {
-    return false
+    return 'error'
   }
 }
 
@@ -25,11 +29,13 @@ export function LoginPage() {
     if (!pw.trim()) return
     setLoading(true)
     setError('')
-    const ok = await verifyPassword(pw.trim())
-    if (ok) {
+    const result = await verifyPassword(pw.trim())
+    if (result === 'ok') {
       setConfig({ org: 'sollentunadans', pw: pw.trim() })
-    } else {
+    } else if (result === 'rejected') {
       setError('Felaktigt lösenord. Försök igen.')
+    } else {
+      setError('Kunde inte nå servern. Försök igen om en stund.')
     }
     setLoading(false)
   }
