@@ -162,7 +162,7 @@ export function RecentBookings() {
   if (!config.pw) {
     return (
       <div className="flex flex-col items-center justify-center py-24 text-center">
-        <div className="w-16 h-16 rounded-full bg-brand-mintLight flex items-center justify-center mb-4 text-2xl">
+        <div className="w-16 h-16 rounded-full bg-brand-pinkLight flex items-center justify-center mb-4 text-2xl">
           🔒
         </div>
         <p className="font-bold text-brand-dark text-lg">API-nyckel krävs</p>

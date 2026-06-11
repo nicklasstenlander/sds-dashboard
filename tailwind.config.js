@@ -12,7 +12,6 @@ export default {
           teal:       '#45aba5',
           sage:       '#a0c4b9',  // ljus teal-sage
           mint:       '#cfded2',  // ljusgrön mint — borders, dividers
-          mintLight:  '#f4d1ce',  // ljusrosa — hover-bakgrunder, kort-tints
 
           // Rosa/pink family
           pink:       '#f192ac',

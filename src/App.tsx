@@ -1,30 +1,37 @@
-import { useEffect, useState, useRef, useLayoutEffect } from 'react'
-import { LayoutDashboard, ClipboardList, Users, Settings, LogOut, ShoppingBag, PanelLeft, Phone, ClipboardCheck, Monitor, MoreHorizontal } from 'lucide-react'
+import { useEffect, useState, useRef, useLayoutEffect, lazy, Suspense } from 'react'
+import { Routes, Route, Navigate, NavLink, useLocation } from 'react-router-dom'
+import { LayoutDashboard, ClipboardList, Users, Settings, LogOut, ShoppingBag, PanelLeft, Phone, ClipboardCheck, Monitor, MoreHorizontal, Loader2 } from 'lucide-react'
 import { ApiProvider, useApiConfig } from './context/ApiContext'
-import { Dashboard } from './pages/Dashboard'
-import { RecentBookings } from './pages/RecentBookings'
-import { Customers } from './pages/Customers'
-import { Shop } from './pages/Shop'
-import { Calls } from './pages/Calls'
-import { Narvaro } from './pages/Narvaro'
-import { Signage } from './pages/Signage'
 import { LoginPage } from './pages/LoginPage'
 import { SettingsModal } from './components/SettingsModal'
 
-type Tab = 'dashboard' | 'bookings' | 'customers' | 'shop' | 'calls' | 'narvaro' | 'signage'
+const Dashboard = lazy(() => import('./pages/Dashboard').then(m => ({ default: m.Dashboard })))
+const RecentBookings = lazy(() => import('./pages/RecentBookings').then(m => ({ default: m.RecentBookings })))
+const Customers = lazy(() => import('./pages/Customers').then(m => ({ default: m.Customers })))
+const Shop = lazy(() => import('./pages/Shop').then(m => ({ default: m.Shop })))
+const Calls = lazy(() => import('./pages/Calls').then(m => ({ default: m.Calls })))
+const Narvaro = lazy(() => import('./pages/Narvaro').then(m => ({ default: m.Narvaro })))
+const Signage = lazy(() => import('./pages/Signage').then(m => ({ default: m.Signage })))
+
+function PageLoader() {
+  return (
+    <div className="flex items-center justify-center py-24">
+      <Loader2 className="w-6 h-6 animate-spin text-brand-forest" />
+    </div>
+  )
+}
 
 const NAV = [
-  { id: 'dashboard' as Tab, label: 'Översikt',    Icon: LayoutDashboard },
-  { id: 'bookings'  as Tab, label: 'Anmälningar', Icon: ClipboardList   },
-  { id: 'customers' as Tab, label: 'Kunder',       Icon: Users           },
-  { id: 'shop'      as Tab, label: 'Shop',          Icon: ShoppingBag    },
-  { id: 'calls'     as Tab, label: 'Samtal',        Icon: Phone           },
-  { id: 'narvaro'   as Tab, label: 'Närvaro',       Icon: ClipboardCheck  },
-  { id: 'signage'   as Tab, label: 'Skyltning',     Icon: Monitor         },
+  { to: '/',            label: 'Översikt',    Icon: LayoutDashboard },
+  { to: '/anmalningar', label: 'Anmälningar', Icon: ClipboardList   },
+  { to: '/kunder',      label: 'Kunder',       Icon: Users           },
+  { to: '/shop',        label: 'Shop',          Icon: ShoppingBag    },
+  { to: '/samtal',      label: 'Samtal',        Icon: Phone           },
+  { to: '/narvaro',     label: 'Närvaro',       Icon: ClipboardCheck  },
+  { to: '/skyltning',   label: 'Skyltning',     Icon: Monitor         },
 ]
 
 function AppShell() {
-  const [tab, setTab] = useState<Tab>('dashboard')
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -37,12 +44,14 @@ function AppShell() {
   const hasPw = Boolean(config.pw)
   const navRef = useRef<HTMLElement>(null)
   const [pill, setPill] = useState({ top: 0, height: 0 })
+  const { pathname } = useLocation()
+  const isActive = (to: string) => (to === '/' ? pathname === '/' : pathname.startsWith(to))
 
   useLayoutEffect(() => {
     if (!hasPw) return
-    const btn = navRef.current?.querySelector<HTMLButtonElement>('[data-active="true"]')
-    if (btn) setPill({ top: btn.offsetTop, height: btn.offsetHeight })
-  }, [tab, hasPw, collapsed])
+    const link = navRef.current?.querySelector<HTMLAnchorElement>('[data-active="true"]')
+    if (link) setPill({ top: link.offsetTop, height: link.offsetHeight })
+  }, [pathname, hasPw, collapsed])
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode)
@@ -78,20 +87,23 @@ function AppShell() {
               style={{ top: pill.top, height: pill.height }}
             />
           )}
-          {NAV.map(({ id, label, Icon }) => (
-            <button
-              key={id}
-              data-active={String(tab === id)}
-              onClick={() => setTab(id)}
-              title={collapsed ? label : undefined}
-              className={`sds-nav-item relative z-10 w-full flex items-center gap-3 rounded-xl text-sm font-medium transition-colors ${
-                collapsed ? 'justify-center px-0 py-2.5' : 'px-3 py-2.5'
-              } ${tab === id ? 'sds-nav-item-active text-brand-dark' : 'text-slate-500 hover:text-brand-dark'}`}
-            >
-              <Icon className="w-4 h-4 shrink-0" />
-              {!collapsed && label}
-            </button>
-          ))}
+          {NAV.map(({ to, label, Icon }) => {
+            const active = isActive(to)
+            return (
+              <NavLink
+                key={to}
+                to={to}
+                data-active={String(active)}
+                title={collapsed ? label : undefined}
+                className={`sds-nav-item relative z-10 w-full flex items-center gap-3 rounded-xl text-sm font-medium transition-colors ${
+                  collapsed ? 'justify-center px-0 py-2.5' : 'px-3 py-2.5'
+                } ${active ? 'sds-nav-item-active text-brand-dark' : 'text-slate-500 hover:text-brand-dark'}`}
+              >
+                <Icon className="w-4 h-4 shrink-0" />
+                {!collapsed && label}
+              </NavLink>
+            )
+          })}
         </nav>
 
         {/* Collapse toggle + Settings + Logout */}
@@ -139,31 +151,35 @@ function AppShell() {
         )}
         {/* extra bottom padding on mobile so content isn't hidden behind bottom nav */}
         <main className="flex-1 overflow-y-auto px-4 py-4 md:px-6 md:py-6 pb-24 md:pb-6">
-          {tab === 'dashboard' && <Dashboard darkMode={darkMode} onToggleDarkMode={() => setDarkMode((value) => !value)} />}
-          {tab === 'bookings'  && <RecentBookings />}
-          {tab === 'customers' && <Customers />}
-          {tab === 'shop'      && <Shop />}
-          {tab === 'calls'     && <Calls />}
-          {tab === 'narvaro'   && <Narvaro />}
-          {tab === 'signage'   && <Signage />}
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              <Route path="/" element={<Dashboard darkMode={darkMode} onToggleDarkMode={() => setDarkMode((value) => !value)} />} />
+              <Route path="/anmalningar" element={<RecentBookings />} />
+              <Route path="/kunder" element={<Customers />} />
+              <Route path="/shop" element={<Shop />} />
+              <Route path="/samtal" element={<Calls />} />
+              <Route path="/narvaro" element={<Narvaro />} />
+              <Route path="/skyltning" element={<Signage />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Suspense>
         </main>
       </div>
 
       {/* ── Bottom nav (mobile) ── */}
       {(() => {
-        const BOTTOM: { id: Tab; label: string; Icon: React.ElementType }[] = [
-          { id: 'dashboard', label: 'Översikt',    Icon: LayoutDashboard },
-          { id: 'bookings',  label: 'Anmälningar', Icon: ClipboardList   },
-          { id: 'customers', label: 'Kunder',      Icon: Users           },
-          { id: 'shop',      label: 'Shop',        Icon: ShoppingBag     },
+        const BOTTOM: { to: string; label: string; Icon: React.ElementType }[] = [
+          { to: '/',            label: 'Översikt',    Icon: LayoutDashboard },
+          { to: '/anmalningar', label: 'Anmälningar', Icon: ClipboardList   },
+          { to: '/kunder',      label: 'Kunder',      Icon: Users           },
+          { to: '/shop',        label: 'Shop',        Icon: ShoppingBag     },
         ]
-        const MORE: { id: Tab; label: string; Icon: React.ElementType }[] = [
-          { id: 'calls',   label: 'Samtal',    Icon: Phone         },
-          { id: 'narvaro', label: 'Närvaro',   Icon: ClipboardCheck },
-          { id: 'signage', label: 'Skyltning', Icon: Monitor       },
+        const MORE: { to: string; label: string; Icon: React.ElementType }[] = [
+          { to: '/samtal',    label: 'Samtal',    Icon: Phone         },
+          { to: '/narvaro',   label: 'Närvaro',   Icon: ClipboardCheck },
+          { to: '/skyltning', label: 'Skyltning', Icon: Monitor       },
         ]
-        const isMoreActive = MORE.some(m => m.id === tab)
-        function pick(id: Tab) { setTab(id); setDrawerOpen(false) }
+        const isMoreActive = MORE.some(m => isActive(m.to))
 
         return (
           <>
@@ -173,25 +189,29 @@ function AppShell() {
             >
               <div className="flex items-end justify-center gap-3">
                 <div className="sds-bottom-nav grid grid-cols-4 h-16 flex-1 max-w-[390px] rounded-full border border-white/30 bg-white/70 shadow-[0_16px_40px_rgba(15,23,42,0.18)] backdrop-blur-2xl dark:border-white/10 dark:bg-black/35 dark:shadow-[0_18px_48px_rgba(0,0,0,0.34)]">
-                  {BOTTOM.map(({ id, label, Icon }) => (
-                    <button
-                      key={id}
-                      onClick={() => pick(id)}
-                      aria-label={label}
-                      aria-current={tab === id ? 'page' : undefined}
-                      className={`flex flex-col items-center justify-center gap-0.5 transition-colors ${
-                        tab === id ? 'text-[#1e4025] dark:text-[var(--dark-positive)]' : 'text-[#9ca3af] dark:text-[var(--dark-text-muted)]'
-                      }`}
-                    >
-                      <Icon
-                        className="w-6 h-6"
-                        style={{ strokeWidth: tab === id ? 2.5 : 2 }}
-                      />
-                      <span className="text-[10px] font-medium">
-                        {label}
-                      </span>
-                    </button>
-                  ))}
+                  {BOTTOM.map(({ to, label, Icon }) => {
+                    const active = isActive(to)
+                    return (
+                      <NavLink
+                        key={to}
+                        to={to}
+                        onClick={() => setDrawerOpen(false)}
+                        aria-label={label}
+                        aria-current={active ? 'page' : undefined}
+                        className={`flex flex-col items-center justify-center gap-0.5 transition-colors ${
+                          active ? 'text-[#1e4025] dark:text-[var(--dark-positive)]' : 'text-[#9ca3af] dark:text-[var(--dark-text-muted)]'
+                        }`}
+                      >
+                        <Icon
+                          className="w-6 h-6"
+                          style={{ strokeWidth: active ? 2.5 : 2 }}
+                        />
+                        <span className="text-[10px] font-medium">
+                          {label}
+                        </span>
+                      </NavLink>
+                    )
+                  })}
                 </div>
                 <button
                   onClick={() => setDrawerOpen(o => !o)}
@@ -237,21 +257,25 @@ function AppShell() {
               <div className="flex justify-center pt-3 pb-2">
                 <div className="w-10 h-1 bg-gray-300 rounded-full" />
               </div>
-              {MORE.map(({ id, label, Icon }) => (
-                <button
-                  key={id}
-                  onClick={() => pick(id)}
-                  aria-label={label}
-                  aria-current={tab === id ? 'page' : undefined}
-                  className={`w-full flex items-center gap-4 px-6 hover:bg-slate-50 transition-colors ${
-                    tab === id ? 'text-[#1e4025] dark:text-[var(--dark-positive)]' : 'text-[#374151] dark:text-[var(--dark-text-primary)]'
-                  }`}
-                  style={{ minHeight: 56 }}
-                >
-                  <Icon className="w-5 h-5 shrink-0" style={{ strokeWidth: tab === id ? 2.5 : 2 }} />
-                  <span className="text-sm font-medium">{label}</span>
-                </button>
-              ))}
+              {MORE.map(({ to, label, Icon }) => {
+                const active = isActive(to)
+                return (
+                  <NavLink
+                    key={to}
+                    to={to}
+                    onClick={() => setDrawerOpen(false)}
+                    aria-label={label}
+                    aria-current={active ? 'page' : undefined}
+                    className={`w-full flex items-center gap-4 px-6 hover:bg-slate-50 transition-colors ${
+                      active ? 'text-[#1e4025] dark:text-[var(--dark-positive)]' : 'text-[#374151] dark:text-[var(--dark-text-primary)]'
+                    }`}
+                    style={{ minHeight: 56 }}
+                  >
+                    <Icon className="w-5 h-5 shrink-0" style={{ strokeWidth: active ? 2.5 : 2 }} />
+                    <span className="text-sm font-medium">{label}</span>
+                  </NavLink>
+                )
+              })}
               <div className="mx-6 my-1 h-px bg-gray-100" />
               <button
                 onClick={() => { setSettingsOpen(true); setDrawerOpen(false) }}
