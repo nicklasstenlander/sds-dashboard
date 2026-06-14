@@ -46,8 +46,15 @@ export function useAllData(eventBlockId: string) {
 
 function mergeEvents(proxyEvents: Event[], allEvents: Event[]): Event[] {
   const proxyById = new Map(proxyEvents.map((event) => [String(event.id), event]))
-  return allEvents.map((event) => {
+  const merged = allEvents.map((event) => {
     const proxyEvent = proxyById.get(String(event.id))
     return proxyEvent ? { ...proxyEvent, ...event, pricing: event.pricing ?? proxyEvent.pricing } : event
   })
+
+  // Apps Script-listan (all_events) kan sakna nyligen skapade events som redan
+  // finns i CogWork-proxyns cache. Lägg till dem så de inte tappas helt.
+  const allEventIds = new Set(allEvents.map((event) => String(event.id)))
+  const onlyInProxy = proxyEvents.filter((event) => !allEventIds.has(String(event.id)))
+
+  return [...merged, ...onlyInProxy]
 }
