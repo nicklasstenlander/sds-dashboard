@@ -5,7 +5,7 @@ import {
 } from '../services/goalsService'
 import { EVENT_BLOCK_IDS_BY_CODE } from '../config/cogwork'
 import { matchesPeriodCode } from '../utils/periods'
-import { buildCourseMetrics, isAcceptedBooking, metricsForEvent } from '../utils/courseMetrics'
+import { bookingTicketQuantity, buildCourseMetrics, isAcceptedBooking, metricsForEvent } from '../utils/courseMetrics'
 import type { Booking, Event } from '../types/cogwork'
 
 // ---------------------------------------------------------------------------
@@ -23,10 +23,12 @@ export function computeCurrentValue(goal: Goal, bookings: Booking[], events: Eve
 
   switch (goal.metric) {
     case 'bookings_count':
-      return scopedBookings.length
+      return scopedBookings.reduce((sum, booking) => sum + bookingTicketQuantity(booking), 0)
 
     case 'accepted_count':
-      return scopedBookings.filter(isAcceptedBooking).length
+      return scopedBookings
+        .filter(isAcceptedBooking)
+        .reduce((sum, booking) => sum + bookingTicketQuantity(booking), 0)
 
     case 'revenue':
       return scopedBookings

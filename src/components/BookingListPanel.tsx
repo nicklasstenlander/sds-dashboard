@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { X } from 'lucide-react'
 import { ParticipantPanel } from './ParticipantPanel'
+import { bookingTicketQuantity } from '../utils/courseMetrics'
 import type { Booking, BookingPayment } from '../types/cogwork'
 
 function PayBadge({ payment }: { payment?: BookingPayment }) {
@@ -32,6 +33,7 @@ interface BookingListPanelProps {
 export function BookingListPanel({ title, bookings, onClose }: BookingListPanelProps) {
   const [selectedName, setSelectedName] = useState<string | null>(null)
   const open = Boolean(title)
+  const ticketCount = bookings.reduce((sum, booking) => sum + bookingTicketQuantity(booking), 0)
 
   return (
     <>
@@ -52,7 +54,11 @@ export function BookingListPanel({ title, bookings, onClose }: BookingListPanelP
         <div className="flex items-center justify-between gap-4 p-5 border-b border-slate-100">
           <div>
             <h2 className="text-base font-bold text-brand-dark">{title}</h2>
-            <p className="text-xs text-slate-400 mt-0.5">{bookings.length} personer</p>
+            <p className="text-xs text-slate-400 mt-0.5">
+              {ticketCount === bookings.length
+                ? `${bookings.length} personer`
+                : `${ticketCount} biljetter · ${bookings.length} köp`}
+            </p>
           </div>
           <button
             onClick={onClose}
@@ -74,6 +80,7 @@ export function BookingListPanel({ title, bookings, onClose }: BookingListPanelP
                 const name = b.participant?.name ?? ''
                 const parts = name.trim().split(' ')
                 const initials = ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase() || '?'
+                const ticketQuantity = bookingTicketQuantity(b)
                 return (
                   <li key={b.key} className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50/60 transition-colors">
                     <div className="w-8 h-8 rounded-full bg-brand-teal flex items-center justify-center text-white text-xs font-semibold shrink-0">
@@ -94,6 +101,11 @@ export function BookingListPanel({ title, bookings, onClose }: BookingListPanelP
                         <p className="text-xs text-slate-400 mt-0.5 line-clamp-1">{b.event.name}</p>
                       )}
                     </div>
+                    {ticketQuantity > 1 && (
+                      <span className="shrink-0 text-xs font-semibold px-3 py-1 rounded-full bg-slate-100 text-slate-500 whitespace-nowrap">
+                        {ticketQuantity} biljetter
+                      </span>
+                    )}
                     <PayBadge payment={b.payment} />
                   </li>
                 )

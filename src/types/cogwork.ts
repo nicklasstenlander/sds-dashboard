@@ -92,6 +92,21 @@ export interface BookingPayment {
   paymentDue?: string
 }
 
+export interface BookingFormQuestion {
+  questionId?: number
+  questionType?: string
+  questionTitle?: string
+  htmlIdForQuestion?: string
+  answers?: Record<string, string | number | null | undefined>
+}
+
+export interface BookingFormResponse {
+  createdDateTime?: string
+  textSummary?: string
+  htmlSummary?: string
+  answeredQuestions?: BookingFormQuestion[]
+}
+
 export interface Booking {
   key: string
   id: number
@@ -121,6 +136,11 @@ export interface Booking {
     code?: string
   }
   payment?: BookingPayment
+  regFormResponse?: {
+    textSummary?: string
+    htmlSummary?: string
+  }
+  formResponses?: BookingFormResponse[]
   comment?: string
   /** Legacy field — use payment.paid instead when available */
   finStatus?: string

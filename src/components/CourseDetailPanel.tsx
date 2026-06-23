@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { X, Users, Clock, MapPin, User, Banknote } from 'lucide-react'
 import { useEventBookings } from '../hooks/useEventBookings'
 import { ParticipantPanel } from './ParticipantPanel'
-import { buildCourseMetrics, isAcceptedBooking } from '../utils/courseMetrics'
+import { bookingTicketQuantity, buildCourseMetrics, isAcceptedBooking } from '../utils/courseMetrics'
 import type { Event, Booking, BookingPayment } from '../types/cogwork'
 
 function PayBadge({ payment }: { payment?: BookingPayment }) {
@@ -33,10 +33,12 @@ interface CourseDetailPanelProps {
 function BookingSection({ bookings, onSelectParticipant }: { bookings: Booking[]; onSelectParticipant: (name: string) => void }) {
   const antagna    = bookings.filter(isAcceptedBooking)
   const ejAntagna  = bookings.filter((b) => !isAcceptedBooking(b))
+  const antagnaCount = antagna.reduce((sum, booking) => sum + bookingTicketQuantity(booking), 0)
+  const ejAntagnaCount = ejAntagna.reduce((sum, booking) => sum + bookingTicketQuantity(booking), 0)
 
   return (
     <div>
-      <SectionHeader label="Antagna" count={antagna.length} color="text-brand-forest" />
+      <SectionHeader label="Antagna" count={antagnaCount} color="text-brand-forest" />
       {antagna.length === 0 ? (
         <p className="px-5 py-3 text-sm text-slate-400">Inga antagna ännu</p>
       ) : (
@@ -45,7 +47,7 @@ function BookingSection({ bookings, onSelectParticipant }: { bookings: Booking[]
         </ul>
       )}
 
-      <SectionHeader label="Anmälda — ej antagna" count={ejAntagna.length} color="text-amber-600" />
+      <SectionHeader label="Anmälda — ej antagna" count={ejAntagnaCount} color="text-amber-600" />
       {ejAntagna.length === 0 ? (
         <p className="px-5 py-3 text-sm text-slate-400">Alla anmälda är antagna</p>
       ) : (
@@ -70,6 +72,7 @@ function BookingRow({ b, onSelect }: { b: Booking; onSelect: (name: string) => v
   const name = b.participant?.name ?? ''
   const parts = name.trim().split(' ')
   const initials = ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase() || '?'
+  const ticketQuantity = bookingTicketQuantity(b)
   return (
     <li className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50/60">
       <div className="w-8 h-8 rounded-full bg-brand-teal flex items-center justify-center text-white text-xs font-semibold shrink-0">
@@ -90,6 +93,11 @@ function BookingRow({ b, onSelect }: { b: Booking; onSelect: (name: string) => v
           <p className="text-xs text-slate-400">{b.status.name}</p>
         )}
       </div>
+      {ticketQuantity > 1 && (
+        <span className="shrink-0 text-xs font-semibold px-3 py-1 rounded-full bg-slate-100 text-slate-500 whitespace-nowrap">
+          {ticketQuantity} biljetter
+        </span>
+      )}
       <PayBadge payment={b.payment} />
     </li>
   )
@@ -107,7 +115,7 @@ export function CourseDetailPanel({ event, onClose }: CourseDetailPanelProps) {
     ? (metrics?.accepted ?? 0)
     : (event?.statistics?.accepted ?? 0)
   const prelCount = bookings.length > 0
-    ? bookings.length - acceptedCount
+    ? bookings.reduce((sum, booking) => sum + bookingTicketQuantity(booking), 0) - acceptedCount
     : 0
 
   const revenue = useMemo(() => {

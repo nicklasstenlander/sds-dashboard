@@ -20,7 +20,7 @@ import { useAlerts } from '../hooks/useAlerts'
 import { useGoals, computeCurrentValue } from '../hooks/useGoals'
 import { purgeProxyCache } from '../services/proxyService'
 import { blockNameToCode, isPeriodCode, matchesPeriodCode } from '../utils/periods'
-import { buildCourseMetrics, isAcceptedBooking, metricsForEvent } from '../utils/courseMetrics'
+import { bookingTicketQuantity, buildCourseMetrics, isAcceptedBooking, metricsForEvent } from '../utils/courseMetrics'
 import { getDefaultEventBlockId } from '../config/cogwork'
 import type { Booking, Event } from '../types/cogwork'
 
@@ -89,11 +89,9 @@ export function Dashboard({ darkMode, onToggleDarkMode }: DashboardProps) {
     return result
   }, [clientPeriodCode, rawBookings, categoryFilter, events])
 
-  const bookingsTotal = (clientPeriodCode || categoryFilter)
-    ? bookings.length
-    : (allDataQuery.data?.bookings.search?.numRowsFound ?? bookings.length)
   const kpi           = computeKPIs(events, bookings)
   const bookingKpi    = computeBookingKPIs(bookings)
+  const bookingsTotal = bookingKpi.total
   const revenueKpi    = computeRevenueKPIs(bookings)
   const { data: goals = [] } = useGoals()
   const { alerts, duplicateCount, pendingCount } = useAlerts(bookings)
@@ -121,7 +119,9 @@ export function Dashboard({ darkMode, onToggleDarkMode }: DashboardProps) {
 
   const today = new Date().toISOString().slice(0, 10)
   const newToday = useMemo(
-    () => bookings.filter((b) => b.created?.startsWith(today)).length,
+    () => bookings
+      .filter((b) => b.created?.startsWith(today))
+      .reduce((sum, b) => sum + bookingTicketQuantity(b), 0),
     [bookings, today],
   )
 
@@ -429,11 +429,17 @@ function computeBookingKPIs(bookings: import('../types/cogwork').Booking[]) {
   let vantarAterkoppling = 0
   for (const b of bookings) {
     const code = b.status?.code?.toUpperCase() ?? ''
-    if (isAcceptedBooking(b)) antagna++
+    const quantity = bookingTicketQuantity(b)
+    if (isAcceptedBooking(b)) antagna += quantity
     if (b.payment?.paid === false) ejBetalda++
     if (code === 'AWAITING_RESPONSE' || code === 'WAITING') vantarAterkoppling++
   }
-  return { total: bookings.length, antagna, ejBetalda, vantarAterkoppling }
+  return {
+    total: bookings.reduce((sum, b) => sum + bookingTicketQuantity(b), 0),
+    antagna,
+    ejBetalda,
+    vantarAterkoppling,
+  }
 }
 
 function computeRevenueKPIs(bookings: import('../types/cogwork').Booking[]) {
@@ -476,7 +482,9 @@ function buildEventsFromPeriod(events: Event[], bookings: Booking[], periodCode:
     if (!bookingEvent?.id || byId.has(String(bookingEvent.id))) continue
 
     const eventBookings = bookings.filter((b) => String(b.event?.id) === String(bookingEvent.id))
-    const accepted = eventBookings.filter(isAcceptedBooking).length
+    const accepted = eventBookings
+      .filter(isAcceptedBooking)
+      .reduce((sum, booking) => sum + bookingTicketQuantity(booking), 0)
     byId.set(String(bookingEvent.id), {
       id: bookingEvent.id,
       key: bookingEvent.key,
