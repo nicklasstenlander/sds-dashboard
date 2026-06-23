@@ -222,7 +222,7 @@ export default {
     // ── CORS ────────────────────────────────────────────────────────────────
     const corsHeaders = {
       "Access-Control-Allow-Origin": env.CORS_ORIGIN ?? "*",
-      "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type, Authorization",
     };
 
@@ -425,6 +425,23 @@ fetch('/api/files')
       if (!isAuthorized()) return err('Ej behörig', 401);
       const body = await request.json();
       await env.BUCKET.put('_schedules.json', JSON.stringify(body), {
+        httpMetadata: { contentType: 'application/json' },
+      });
+      return json({ ok: true });
+    }
+
+    // ── GET /api/playlist — hämta spelliste-konfiguration ───────────────────
+    if (path === '/api/playlist' && request.method === 'GET') {
+      const obj = await env.BUCKET.get('_playlist.json');
+      const config = obj ? JSON.parse(await obj.text()) : { order: [], durations: {} };
+      return json(config);
+    }
+
+    // ── PUT /api/playlist — spara spelliste-konfiguration ───────────────────
+    if (path === '/api/playlist' && request.method === 'PUT') {
+      if (!isAuthorized()) return err('Ej behörig', 401);
+      const body = await request.json();
+      await env.BUCKET.put('_playlist.json', JSON.stringify(body), {
         httpMetadata: { contentType: 'application/json' },
       });
       return json({ ok: true });
