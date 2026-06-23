@@ -10,6 +10,7 @@ import { isPeriodCode, matchesPeriodCode } from '../utils/periods'
 import type { AllDataResponse } from '../services/proxyService'
 import { PeriodFilter } from '../components/PeriodFilter'
 import { ParticipantPanel } from '../components/ParticipantPanel'
+import { formatBookingStatus } from '../lib/status'
 import type { Booking, BookingPayment } from '../types/cogwork'
 
 // ---------------------------------------------------------------------------
@@ -331,7 +332,7 @@ export function RecentBookings() {
                       <PayBadge booking={b} />
                     </td>
                     <td className="py-3 px-5 text-sm text-slate-500 whitespace-nowrap">
-                      {b.status?.name ?? '—'}
+                      {formatBookingStatus(b.status?.code, b.status?.name)}
                     </td>
                     <td className="py-3 px-5 text-sm text-slate-600 max-w-[240px]">
                       {b.comment

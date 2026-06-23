@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import { X, Users, Clock, MapPin, User, Banknote } from 'lucide-react'
 import { useEventBookings } from '../hooks/useEventBookings'
 import { ParticipantPanel } from './ParticipantPanel'
+import { formatBookingStatus } from '../lib/status'
 import { bookingTicketQuantity, buildCourseMetrics, isAcceptedBooking } from '../utils/courseMetrics'
 import type { Event, Booking, BookingPayment } from '../types/cogwork'
 
@@ -90,7 +91,7 @@ function BookingRow({ b, onSelect }: { b: Booking; onSelect: (name: string) => v
           <p className="text-sm font-medium text-brand-dark truncate">—</p>
         )}
         {b.status?.name && (
-          <p className="text-xs text-slate-400">{b.status.name}</p>
+          <p className="text-xs text-slate-400">{formatBookingStatus(b.status.code, b.status.name)}</p>
         )}
       </div>
       {ticketQuantity > 1 && (

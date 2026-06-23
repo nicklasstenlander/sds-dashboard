@@ -3,6 +3,7 @@ import { X, Mail, Phone, MapPin, Calendar, Hash, BookOpen, MessageSquare } from 
 import { useUser } from '../hooks/useUser'
 import { useUserBookings } from '../hooks/useUserBookings'
 import { blockNameToFullLabel } from '../utils/periods'
+import { formatBookingStatus } from '../lib/status'
 import { AgentDial } from './AgentDial'
 import { SmsModal } from './SmsModal'
 
@@ -157,7 +158,7 @@ export function ParticipantPanel({ name, onClose, elevated }: ParticipantPanelPr
                               </span>
                             )}
                             {b.status?.name && (
-                              <span className="text-xs text-slate-400">{b.status.name}</span>
+                              <span className="text-xs text-slate-400">{formatBookingStatus(b.status.code, b.status.name)}</span>
                             )}
                           </div>
                         </li>
