@@ -61,9 +61,11 @@ function Badge({ type }: { type: MediaType }) {
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
   return (
-    <button onClick={() => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
+    <button
+      className="sds-focus-ring"
+      onClick={() => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
       style={{
-        padding: "5px 12px", borderRadius: 7, border: "1.5px solid #a3c0b2",
+        minHeight: 36, padding: "5px 12px", borderRadius: 7, border: "1.5px solid #a3c0b2",
         background: copied ? "#1e4025" : "#f5f8f6", color: copied ? "#fff" : "#1e4025",
         fontFamily: "inherit", fontSize: 12, fontWeight: 600, cursor: "pointer",
         transition: "all 0.2s", whiteSpace: "nowrap" as const,
@@ -90,6 +92,7 @@ export function Signage() {
   const [dragId, setDragId]       = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [deleting, setDeleting]   = useState<string | null>(null);
+  const [confirmDeleteKey, setConfirmDeleteKey] = useState<string | null>(null);
   const fileInputRef              = useRef<HTMLInputElement>(null);
 
   // ── Schedules ────────────────────────────────────────────────────────────
@@ -265,13 +268,13 @@ export function Signage() {
 
   // ── Delete ───────────────────────────────────────────────────────────────
   const deleteItem = useCallback(async (key: string) => {
-    if (!confirm(`Ta bort "${key}"?`)) return;
     setDeleting(key);
     try {
       await fetch(`${WORKER_URL}/api/files/${encodeURIComponent(key)}`, {
         method: "DELETE",
       });
       setItems(prev => prev.filter(i => i.key !== key));
+      setConfirmDeleteKey(null);
     } catch (e) {
       alert("Kunde inte ta bort filen.");
     } finally {
@@ -318,8 +321,8 @@ export function Signage() {
             {items.length} objekt · ca {Math.round(totalDuration / 60)} min per loop
           </p>
         </div>
-        <button onClick={fetchFiles} disabled={loading} style={{
-          padding: "9px 18px", borderRadius: 9, border: "none",
+        <button className="sds-focus-ring" onClick={fetchFiles} disabled={loading} style={{
+          minHeight: 44, padding: "9px 18px", borderRadius: 9, border: "none",
           background: "#CDDCD1", color: "#1e4025", fontFamily: "inherit",
           fontSize: 13, fontWeight: 700, cursor: loading ? "wait" : "pointer",
         }}>
@@ -362,8 +365,16 @@ export function Signage() {
               </div>
               <div style={{ display: "flex", gap: 8 }}>
                 <CopyButton text={screenUrl(s.id)} />
-                <a href={screenUrl(s.id)} target="_blank" rel="noreferrer"
-                  style={{ padding: "5px 12px", borderRadius: 7, border: "1.5px solid #CDDCD1", background: "transparent", color: "#1e4025", fontSize: 12, fontWeight: 600, textDecoration: "none" }}>
+                <a
+                  className="sds-focus-ring"
+                  href={screenUrl(s.id)}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{
+                    minHeight: 36, padding: "5px 12px", borderRadius: 7, border: "1.5px solid #CDDCD1",
+                    background: "transparent", color: "#1e4025", fontSize: 12, fontWeight: 600,
+                    textDecoration: "none", display: "inline-flex", alignItems: "center",
+                  }}>
                   Förhandsgranska ↗
                 </a>
               </div>
@@ -401,10 +412,11 @@ export function Signage() {
               }}
             />
             <button
+              className="sds-focus-ring"
               onClick={saveStudioBUrl}
               disabled={studioBSaving}
               style={{
-                padding: "6px 14px", borderRadius: 7, border: "none",
+                minHeight: 36, padding: "6px 14px", borderRadius: 7, border: "none",
                 background: studioBSaving ? "#a3c0b2" : "#1e4025", color: "#fff",
                 fontSize: 12, fontWeight: 700, cursor: studioBSaving ? "default" : "pointer",
                 whiteSpace: "nowrap" as const,
@@ -422,8 +434,16 @@ export function Signage() {
 
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" as const }}>
             <CopyButton text={studioBRedirectUrl} />
-            <a href={studioBRedirectUrl} target="_blank" rel="noreferrer"
-              style={{ padding: "5px 12px", borderRadius: 7, border: "1.5px solid #CDDCD1", background: "transparent", color: "#1e4025", fontSize: 12, fontWeight: 600, textDecoration: "none" }}>
+            <a
+              className="sds-focus-ring"
+              href={studioBRedirectUrl}
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                minHeight: 36, padding: "5px 12px", borderRadius: 7, border: "1.5px solid #CDDCD1",
+                background: "transparent", color: "#1e4025", fontSize: 12, fontWeight: 600,
+                textDecoration: "none", display: "inline-flex", alignItems: "center",
+              }}>
               Förhandsgranska ↗
             </a>
           </div>
@@ -461,10 +481,19 @@ export function Signage() {
       {/* ── Drop zone ── */}
       <section style={{ marginBottom: 28 }}>
         <div
+          className="sds-focus-ring"
+          role="button"
+          tabIndex={0}
           onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
           onDragLeave={() => setDragOver(false)}
           onDrop={(e) => { e.preventDefault(); setDragOver(false); if (e.dataTransfer.files.length) uploadFiles(e.dataTransfer.files); }}
           onClick={() => fileInputRef.current?.click()}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              fileInputRef.current?.click();
+            }
+          }}
           style={{
             border: `2px dashed ${dragOver ? "#1e4025" : "#a3c0b2"}`,
             borderRadius: 12, padding: "32px 24px", textAlign: "center" as const,
@@ -552,7 +581,8 @@ export function Signage() {
                   <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                     <input type="number" min={1} max={120} value={item.duration}
                       onChange={(e) => setItems(prev => prev.map(i => i.key === item.key ? { ...i, duration: Number(e.target.value) } : i))}
-                      style={{ width: 48, padding: "3px 6px", borderRadius: 6, border: "1.5px solid #a3c0b2", background: "#f5f8f6", color: "#1e4025", fontFamily: "inherit", fontSize: 13, textAlign: "center" as const }}
+                      className="sds-focus-ring"
+                      style={{ width: 56, minHeight: 36, padding: "6px 8px", borderRadius: 6, border: "1.5px solid #a3c0b2", background: "#f5f8f6", color: "#1e4025", fontFamily: "inherit", fontSize: 13, textAlign: "center" as const }}
                     />
                     <span style={{ fontSize: 11, color: "#a3c0b2" }}>sek</span>
                   </div>
@@ -562,10 +592,11 @@ export function Signage() {
 
                 {/* Schedule */}
                 <button
+                  className="sds-focus-ring"
                   onClick={() => openSchedule(item.key)}
                   title="Tidsstyrning"
                   style={{
-                    width: 28, height: 28, borderRadius: 7,
+                    width: 44, height: 44, borderRadius: 9,
                     border: `1.5px solid ${schedules[item.key] ? "#1e4025" : "#CDDCD1"}`,
                     background: schedules[item.key] ? "#CDDCD1" : "transparent",
                     color: schedules[item.key] ? "#1e4025" : "#a3c0b2",
@@ -576,14 +607,46 @@ export function Signage() {
                 </button>
 
                 {/* Delete */}
-                <button onClick={() => deleteItem(item.key)} disabled={deleting === item.key}
-                  style={{
-                    width: 28, height: 28, borderRadius: 7, border: "1.5px solid #f0d0d8",
-                    background: "transparent", color: "#dd5c86", fontWeight: 700, fontSize: 16,
-                    cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-                  }}>
-                  {deleting === item.key ? "…" : "×"}
-                </button>
+                {confirmDeleteKey === item.key ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                    <span style={{ fontSize: 11, color: "#dd5c86", fontWeight: 700 }}>Ta bort?</span>
+                    <button
+                      className="sds-focus-ring"
+                      onClick={() => deleteItem(item.key)}
+                      disabled={deleting === item.key}
+                      style={{
+                        minWidth: 44, minHeight: 36, borderRadius: 7, border: "none",
+                        background: "#dd5c86", color: "#fff", fontWeight: 700, fontSize: 12,
+                        cursor: deleting === item.key ? "wait" : "pointer",
+                      }}>
+                      {deleting === item.key ? "…" : "Ja"}
+                    </button>
+                    <button
+                      className="sds-focus-ring"
+                      onClick={() => setConfirmDeleteKey(null)}
+                      disabled={deleting === item.key}
+                      style={{
+                        minWidth: 58, minHeight: 36, borderRadius: 7, border: "1.5px solid #CDDCD1",
+                        background: "transparent", color: "#1e4025", fontWeight: 700, fontSize: 12,
+                        cursor: deleting === item.key ? "default" : "pointer",
+                      }}>
+                      Avbryt
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    className="sds-focus-ring"
+                    onClick={() => setConfirmDeleteKey(item.key)}
+                    disabled={deleting === item.key}
+                    aria-label={`Förbered borttagning av ${item.name}`}
+                    style={{
+                      width: 44, height: 44, borderRadius: 9, border: "1.5px solid #f0d0d8",
+                      background: "transparent", color: "#dd5c86", fontWeight: 700, fontSize: 16,
+                      cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                    }}>
+                    ×
+                  </button>
+                )}
               </div>
             ))}
           </div>
@@ -604,7 +667,7 @@ export function Signage() {
           }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
               <strong style={{ fontSize: 14, color: "#1e4025" }}>Tidsstyrning</strong>
-              <button onClick={() => setScheduleTarget(null)}
+              <button className="sds-focus-ring" onClick={() => setScheduleTarget(null)}
                 style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", color: "#a3c0b2" }}>×</button>
             </div>
             <div style={{ fontSize: 11, color: "#a3c0b2", marginBottom: 16, wordBreak: "break-all" as const }}>
@@ -642,8 +705,8 @@ export function Signage() {
                 {WEEKDAYS.map(({ n, label }) => {
                   const active = (schedDraft.weekdays ?? []).includes(n);
                   return (
-                    <button key={n} onClick={() => toggleWeekday(n)} style={{
-                      padding: "4px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700,
+                    <button key={n} className="sds-focus-ring" onClick={() => toggleWeekday(n)} style={{
+                      minWidth: 44, minHeight: 32, padding: "4px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700,
                       border: `1.5px solid ${active ? "#1e4025" : "#CDDCD1"}`,
                       background: active ? "#1e4025" : "transparent",
                       color: active ? "#CDDCD1" : "#a3c0b2", cursor: "pointer",
@@ -658,17 +721,17 @@ export function Signage() {
 
             {/* Knappar */}
             <div style={{ display: "flex", gap: 8, justifyContent: "space-between" }}>
-              <button onClick={() => { setSchedDraft({}); }}
-                style={{ padding: "7px 14px", borderRadius: 7, border: "1.5px solid #f0d0d8", background: "transparent", color: "#dd5c86", fontSize: 12, cursor: "pointer" }}>
+              <button className="sds-focus-ring" onClick={() => { setSchedDraft({}); }}
+                style={{ minHeight: 36, padding: "7px 14px", borderRadius: 7, border: "1.5px solid #f0d0d8", background: "transparent", color: "#dd5c86", fontSize: 12, cursor: "pointer" }}>
                 Rensa schema
               </button>
               <div style={{ display: "flex", gap: 8 }}>
-                <button onClick={() => setScheduleTarget(null)}
-                  style={{ padding: "7px 14px", borderRadius: 7, border: "1.5px solid #CDDCD1", background: "transparent", color: "#a3c0b2", fontSize: 12, cursor: "pointer" }}>
+                <button className="sds-focus-ring" onClick={() => setScheduleTarget(null)}
+                  style={{ minHeight: 36, padding: "7px 14px", borderRadius: 7, border: "1.5px solid #CDDCD1", background: "transparent", color: "#a3c0b2", fontSize: 12, cursor: "pointer" }}>
                   Avbryt
                 </button>
-                <button onClick={saveSchedule} disabled={schedSaving}
-                  style={{ padding: "7px 18px", borderRadius: 7, border: "none", background: "#1e4025", color: "#CDDCD1", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                <button className="sds-focus-ring" onClick={saveSchedule} disabled={schedSaving}
+                  style={{ minHeight: 36, padding: "7px 18px", borderRadius: 7, border: "none", background: "#1e4025", color: "#CDDCD1", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
                   {schedSaving ? "Sparar…" : "Spara"}
                 </button>
               </div>
