@@ -46,7 +46,7 @@ export function BookingsChart({ bookings, loading }: BookingsChartProps) {
               className={`px-2.5 py-1 text-xs rounded-full font-medium transition-colors ${
                 granularity === g
                   ? 'bg-brand-mint text-brand-dark dark:bg-[var(--dark-green-secondary)] dark:text-[var(--dark-text-primary)]'
-                  : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:text-[var(--dark-text-secondary)] dark:hover:text-[var(--dark-text-primary)]'
+                  : 'text-slate-600 hover:text-brand-dark hover:bg-slate-100 dark:text-[var(--dark-text-secondary)] dark:hover:text-[var(--dark-text-primary)]'
               }`}
             >
               {g === 'month' ? 'Månad' : g === 'week' ? 'Vecka' : 'Dag'}
@@ -56,7 +56,7 @@ export function BookingsChart({ bookings, loading }: BookingsChartProps) {
       </div>
 
       {data.length === 0 ? (
-        <div className="flex items-center justify-center h-48 text-sm text-slate-400">
+        <div className="flex items-center justify-center h-48 text-sm text-slate-600">
           Ingen bokningsdata tillgänglig — kontrollera API-nyckel
         </div>
       ) : (

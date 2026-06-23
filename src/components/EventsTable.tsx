@@ -76,7 +76,7 @@ export function EventsTable({ events, bookings = [], loading, search, onSelect, 
 
   const Th = ({ label, sortKey, hide }: { label: string; sortKey?: SortKey; hide?: string }) => (
     <th
-      className={`text-left text-xs font-semibold text-slate-400 py-3 px-4 whitespace-nowrap ${sortKey ? 'cursor-pointer select-none hover:text-slate-600' : ''} ${hide ?? ''}`}
+      className={`text-left text-xs font-semibold text-slate-600 py-3 px-4 whitespace-nowrap ${sortKey ? 'cursor-pointer select-none hover:text-brand-dark' : ''} ${hide ?? ''}`}
       onClick={() => sortKey && toggleSort(sortKey)}
     >
       <span className="flex items-center gap-1">
@@ -104,7 +104,7 @@ export function EventsTable({ events, bookings = [], loading, search, onSelect, 
       <div className="p-5 pb-0 flex items-center justify-between">
         <h2 className="text-sm font-bold text-brand-dark">
           Kursöversikt{' '}
-          <span className="text-slate-400 font-light">({filtered.length} kurser)</span>
+          <span className="text-slate-600 font-light">({filtered.length} kurser)</span>
         </h2>
         <div className="flex items-center gap-1">
           {onRefresh && (
@@ -123,7 +123,7 @@ export function EventsTable({ events, bookings = [], loading, search, onSelect, 
               onClick={onDirectRefresh}
               disabled={isDirectRefreshing}
               title="Hämta färsk data direkt från CogWork (långsammare)"
-              className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-brand-forest px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
+              className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-brand-forest px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
             >
               {isDirectRefreshing
                 ? <RefreshCw className="w-3.5 h-3.5 animate-spin" />
@@ -166,7 +166,7 @@ export function EventsTable({ events, bookings = [], loading, search, onSelect, 
           <tbody className="divide-y divide-slate-50">
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={10} className="text-center py-10 text-sm text-slate-400">
+                <td colSpan={10} className="text-center py-10 text-sm text-slate-600">
                   Inga kurser hittades
                 </td>
               </tr>
@@ -181,7 +181,7 @@ export function EventsTable({ events, bookings = [], loading, search, onSelect, 
                   <div className="flex items-start gap-1.5 flex-wrap">
                     <span className="line-clamp-2">{e.name}</span>
                     {e.registration?.showing === false && (
-                      <span className="shrink-0 text-xs font-medium px-1.5 py-0.5 rounded bg-slate-100 text-slate-400 whitespace-nowrap">
+                      <span className="shrink-0 text-xs font-medium px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 whitespace-nowrap">
                         Ej publik
                       </span>
                     )}
@@ -225,7 +225,7 @@ export function EventsTable({ events, bookings = [], loading, search, onSelect, 
                       </span>
                     </div>
                   ) : (
-                    <span className="text-sm text-slate-400">—</span>
+                    <span className="text-sm text-slate-600">—</span>
                   )}
                 </td>
                 <td className="hidden lg:table-cell py-3 px-4 text-sm text-slate-600 tabular-nums whitespace-nowrap">
@@ -243,13 +243,13 @@ export function EventsTable({ events, bookings = [], loading, search, onSelect, 
                         <button
                           onClick={ev => { ev.stopPropagation(); onGroupSms(e, courseBookings) }}
                           title="Skicka SMS till gruppen"
-                          className="p-1 rounded text-slate-300 hover:text-brand-dark hover:bg-slate-100 transition-colors"
+                          className="p-1 rounded text-slate-500 hover:text-brand-dark hover:bg-slate-100 transition-colors"
                         >
                           <MessageSquare className="w-4 h-4" />
                         </button>
                       ) : null
                     })()}
-                    {onSelect && <ChevronRight className="w-4 h-4 text-slate-300" />}
+                    {onSelect && <ChevronRight className="w-4 h-4 text-slate-500" />}
                   </div>
                 </td>
               </tr>

@@ -32,6 +32,7 @@ const WEEKDAYS = [
 
 const WORKER_URL    = import.meta.env.VITE_WORKER_URL    ?? "";
 const PLAYER_URL    = import.meta.env.VITE_PLAYER_URL    ?? "/player.html";
+const SECONDARY_TEXT = "#4f6f60";
 
 function formatBytes(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
@@ -317,7 +318,7 @@ export function Signage() {
           <h1 style={{ fontSize: 26, fontWeight: 700, color: "#1e4025", margin: 0, letterSpacing: "-0.02em" }}>
             Skyltning
           </h1>
-          <p style={{ margin: "4px 0 0", fontSize: 13, color: "#a3c0b2" }}>
+          <p style={{ margin: "4px 0 0", fontSize: 13, color: SECONDARY_TEXT }}>
             {items.length} objekt · ca {Math.round(totalDuration / 60)} min per loop
           </p>
         </div>
@@ -342,7 +343,7 @@ export function Signage() {
 
       {/* ── Screens ── */}
       <section style={{ marginBottom: 32 }}>
-        <h2 style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase" as const, color: "#a3c0b2", margin: "0 0 12px" }}>
+        <h2 style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase" as const, color: SECONDARY_TEXT, margin: "0 0 12px" }}>
           Skärmar
         </h2>
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" as const }}>
@@ -360,7 +361,7 @@ export function Signage() {
                   LIVE
                 </span>
               </div>
-              <div style={{ fontSize: 11, color: "#a3c0b2", marginBottom: 10, fontFamily: "monospace", wordBreak: "break-all" as const }}>
+              <div style={{ fontSize: 11, color: SECONDARY_TEXT, marginBottom: 10, fontFamily: "monospace", wordBreak: "break-all" as const }}>
                 {screenUrl(s.id)}
               </div>
               <div style={{ display: "flex", gap: 8 }}>
@@ -394,7 +395,7 @@ export function Signage() {
             </span>
           </div>
 
-          <div style={{ fontSize: 11, color: "#a3c0b2", marginBottom: 6 }}>Aktuell URL</div>
+          <div style={{ fontSize: 11, color: SECONDARY_TEXT, marginBottom: 6 }}>Aktuell URL</div>
           <div style={{ fontFamily: "monospace", fontSize: 11, color: "#1e4025", background: "#f0faf4", borderRadius: 6, padding: "6px 10px", marginBottom: 10, wordBreak: "break-all" as const }}>
             {studioBUrl || '—'}
           </div>
@@ -417,7 +418,7 @@ export function Signage() {
               disabled={studioBSaving}
               style={{
                 minHeight: 36, padding: "6px 14px", borderRadius: 7, border: "none",
-                background: studioBSaving ? "#a3c0b2" : "#1e4025", color: "#fff",
+                background: studioBSaving ? "#CDDCD1" : "#1e4025", color: studioBSaving ? "#1e4025" : "#fff",
                 fontSize: 12, fontWeight: 700, cursor: studioBSaving ? "default" : "pointer",
                 whiteSpace: "nowrap" as const,
               }}
@@ -461,7 +462,7 @@ export function Signage() {
               }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
                   <span style={{ fontSize: 12, fontWeight: 600, color: "#1e4025" }}>{job.file.name}</span>
-                  <span style={{ fontSize: 11, color: job.status === "error" ? "#dd5c86" : job.status === "done" ? "#1e4025" : "#a3c0b2" }}>
+                  <span style={{ fontSize: 11, color: job.status === "error" ? "#dd5c86" : job.status === "done" ? "#1e4025" : SECONDARY_TEXT }}>
                     {job.status === "done" ? "✓ Klar" : job.status === "error" ? `✗ ${job.errorMsg}` : `${job.progress}%`}
                   </span>
                 </div>
@@ -505,7 +506,7 @@ export function Signage() {
           <div style={{ fontSize: 14, fontWeight: 600, color: "#1e4025" }}>
             Dra och släpp bilder eller filmer här
           </div>
-          <div style={{ fontSize: 12, color: "#a3c0b2", marginTop: 4 }}>
+          <div style={{ fontSize: 12, color: SECONDARY_TEXT, marginTop: 4 }}>
             JPG, PNG, WebP, MP4, MOV, WebM · Laddas upp direkt till Cloudflare R2
           </div>
           <input ref={fileInputRef} type="file" accept="image/*,video/*" multiple
@@ -517,16 +518,16 @@ export function Signage() {
       {/* ── Playlist ── */}
       <section>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-          <h2 style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase" as const, color: "#a3c0b2", margin: 0 }}>
+          <h2 style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase" as const, color: SECONDARY_TEXT, margin: 0 }}>
             Spellista
           </h2>
-          <span style={{ fontSize: 11, color: "#a3c0b2" }}>Dra för att ändra ordning</span>
+          <span style={{ fontSize: 11, color: SECONDARY_TEXT }}>Dra för att ändra ordning</span>
         </div>
 
         {loading && items.length === 0 ? (
-          <div style={{ textAlign: "center" as const, padding: "40px", color: "#a3c0b2", fontSize: 13 }}>Laddar…</div>
+          <div style={{ textAlign: "center" as const, padding: "40px", color: SECONDARY_TEXT, fontSize: 13 }}>Laddar…</div>
         ) : items.length === 0 ? (
-          <div style={{ textAlign: "center" as const, padding: "40px", color: "#a3c0b2", fontSize: 13 }}>
+          <div style={{ textAlign: "center" as const, padding: "40px", color: SECONDARY_TEXT, fontSize: 13 }}>
             Inga filer än. Ladda upp något ovan!
           </div>
         ) : (
@@ -547,7 +548,7 @@ export function Signage() {
                 }}
               >
                 {/* Nr */}
-                <span style={{ width: 22, fontSize: 12, color: "#a3c0b2", fontWeight: 700, textAlign: "right" as const, flexShrink: 0 }}>
+                <span style={{ width: 22, fontSize: 12, color: SECONDARY_TEXT, fontWeight: 700, textAlign: "right" as const, flexShrink: 0 }}>
                   {idx + 1}
                 </span>
 
@@ -568,7 +569,7 @@ export function Signage() {
                   <div style={{ fontSize: 13, fontWeight: 600, color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>
                     {item.name}
                   </div>
-                  <div style={{ fontSize: 11, color: "#a3c0b2", marginTop: 2 }}>
+                  <div style={{ fontSize: 11, color: SECONDARY_TEXT, marginTop: 2 }}>
                     {formatBytes(item.size)} · {formatDate(item.uploaded)}
                   </div>
                 </div>
@@ -584,10 +585,10 @@ export function Signage() {
                       className="sds-focus-ring"
                       style={{ width: 56, minHeight: 36, padding: "6px 8px", borderRadius: 6, border: "1.5px solid #a3c0b2", background: "#f5f8f6", color: "#1e4025", fontFamily: "inherit", fontSize: 13, textAlign: "center" as const }}
                     />
-                    <span style={{ fontSize: 11, color: "#a3c0b2" }}>sek</span>
+                    <span style={{ fontSize: 11, color: SECONDARY_TEXT }}>sek</span>
                   </div>
                 ) : (
-                  <span style={{ fontSize: 11, color: "#a3c0b2", minWidth: 55 }}>Hel film</span>
+                  <span style={{ fontSize: 11, color: SECONDARY_TEXT, minWidth: 55 }}>Hel film</span>
                 )}
 
                 {/* Schedule */}
@@ -599,7 +600,7 @@ export function Signage() {
                     width: 44, height: 44, borderRadius: 9,
                     border: `1.5px solid ${schedules[item.key] ? "#1e4025" : "#CDDCD1"}`,
                     background: schedules[item.key] ? "#CDDCD1" : "transparent",
-                    color: schedules[item.key] ? "#1e4025" : "#a3c0b2",
+                    color: schedules[item.key] ? "#1e4025" : SECONDARY_TEXT,
                     fontSize: 14, cursor: "pointer",
                     display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
                   }}>
@@ -668,9 +669,9 @@ export function Signage() {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
               <strong style={{ fontSize: 14, color: "#1e4025" }}>Tidsstyrning</strong>
               <button className="sds-focus-ring" onClick={() => setScheduleTarget(null)}
-                style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", color: "#a3c0b2" }}>×</button>
+                style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", color: SECONDARY_TEXT }}>×</button>
             </div>
-            <div style={{ fontSize: 11, color: "#a3c0b2", marginBottom: 16, wordBreak: "break-all" as const }}>
+            <div style={{ fontSize: 11, color: SECONDARY_TEXT, marginBottom: 16, wordBreak: "break-all" as const }}>
               {scheduleTarget}
             </div>
 
@@ -680,7 +681,7 @@ export function Signage() {
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 <input type="date" value={schedDraft.dateFrom ?? ''} onChange={e => setSchedDraft(d => ({ ...d, dateFrom: e.target.value || undefined }))}
                   style={{ flex: 1, padding: "5px 8px", border: "1.5px solid #CDDCD1", borderRadius: 7, fontFamily: "inherit", fontSize: 12, color: "#1e4025" }} />
-                <span style={{ fontSize: 11, color: "#a3c0b2" }}>→</span>
+                <span style={{ fontSize: 11, color: SECONDARY_TEXT }}>→</span>
                 <input type="date" value={schedDraft.dateTo ?? ''} onChange={e => setSchedDraft(d => ({ ...d, dateTo: e.target.value || undefined }))}
                   style={{ flex: 1, padding: "5px 8px", border: "1.5px solid #CDDCD1", borderRadius: 7, fontFamily: "inherit", fontSize: 12, color: "#1e4025" }} />
               </div>
@@ -692,7 +693,7 @@ export function Signage() {
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 <input type="time" value={schedDraft.timeFrom ?? ''} onChange={e => setSchedDraft(d => ({ ...d, timeFrom: e.target.value || undefined }))}
                   style={{ flex: 1, padding: "5px 8px", border: "1.5px solid #CDDCD1", borderRadius: 7, fontFamily: "inherit", fontSize: 12, color: "#1e4025" }} />
-                <span style={{ fontSize: 11, color: "#a3c0b2" }}>→</span>
+                <span style={{ fontSize: 11, color: SECONDARY_TEXT }}>→</span>
                 <input type="time" value={schedDraft.timeTo ?? ''} onChange={e => setSchedDraft(d => ({ ...d, timeTo: e.target.value || undefined }))}
                   style={{ flex: 1, padding: "5px 8px", border: "1.5px solid #CDDCD1", borderRadius: 7, fontFamily: "inherit", fontSize: 12, color: "#1e4025" }} />
               </div>
@@ -709,12 +710,12 @@ export function Signage() {
                       minWidth: 44, minHeight: 32, padding: "4px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700,
                       border: `1.5px solid ${active ? "#1e4025" : "#CDDCD1"}`,
                       background: active ? "#1e4025" : "transparent",
-                      color: active ? "#CDDCD1" : "#a3c0b2", cursor: "pointer",
+                      color: active ? "#CDDCD1" : SECONDARY_TEXT, cursor: "pointer",
                     }}>{label}</button>
                   );
                 })}
               </div>
-              <div style={{ fontSize: 10, color: "#a3c0b2", marginTop: 6 }}>
+              <div style={{ fontSize: 10, color: SECONDARY_TEXT, marginTop: 6 }}>
                 Tomt = alla dagar
               </div>
             </div>
@@ -727,7 +728,7 @@ export function Signage() {
               </button>
               <div style={{ display: "flex", gap: 8 }}>
                 <button className="sds-focus-ring" onClick={() => setScheduleTarget(null)}
-                  style={{ minHeight: 36, padding: "7px 14px", borderRadius: 7, border: "1.5px solid #CDDCD1", background: "transparent", color: "#a3c0b2", fontSize: 12, cursor: "pointer" }}>
+                  style={{ minHeight: 36, padding: "7px 14px", borderRadius: 7, border: "1.5px solid #CDDCD1", background: "transparent", color: SECONDARY_TEXT, fontSize: 12, cursor: "pointer" }}>
                   Avbryt
                 </button>
                 <button className="sds-focus-ring" onClick={saveSchedule} disabled={schedSaving}
