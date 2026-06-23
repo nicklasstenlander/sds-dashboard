@@ -30,17 +30,8 @@ const WEEKDAYS = [
   { n: 7, label: "Sön" },
 ];
 
-// ─── Config ───────────────────────────────────────────────────────────────────
-// .env:
-//   VITE_WORKER_URL=https://sodss-signage.ditt-konto.workers.dev
-//   VITE_WORKER_SECRET=din-hemliga-nyckel
-//   VITE_PLAYER_URL=https://din-url.se/player.html
-
 const WORKER_URL    = import.meta.env.VITE_WORKER_URL    ?? "";
-const WORKER_SECRET = import.meta.env.VITE_WORKER_SECRET ?? "";
 const PLAYER_URL    = import.meta.env.VITE_PLAYER_URL    ?? "/player.html";
-
-const authHeader = { Authorization: `Bearer ${WORKER_SECRET}` };
 
 function formatBytes(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
@@ -138,7 +129,7 @@ export function Signage() {
     }
     await fetch(`${WORKER_URL}/api/schedules`, {
       method: 'PUT',
-      headers: { ...authHeader, 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(next),
     });
     setSchedules(next);
@@ -178,7 +169,7 @@ export function Signage() {
     try {
       const res = await fetch(`${WORKER_URL}/api/url/studio-b`, {
         method: 'PUT',
-        headers: { ...authHeader, 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: studioBInput.trim() }),
       });
       if (!res.ok) throw new Error();
@@ -231,7 +222,6 @@ export function Signage() {
         await new Promise<void>((resolve, reject) => {
           const xhr = new XMLHttpRequest();
           xhr.open("POST", `${WORKER_URL}/api/upload`);
-          xhr.setRequestHeader("Authorization", `Bearer ${WORKER_SECRET}`);
 
           xhr.upload.onprogress = (e) => {
             if (e.lengthComputable) {
@@ -279,7 +269,7 @@ export function Signage() {
     setDeleting(key);
     try {
       await fetch(`${WORKER_URL}/api/files/${encodeURIComponent(key)}`, {
-        method: "DELETE", headers: authHeader,
+        method: "DELETE",
       });
       setItems(prev => prev.filter(i => i.key !== key));
     } catch (e) {
@@ -343,7 +333,7 @@ export function Signage() {
           background: "#fff8e1", border: "1.5px solid #f5c842", borderRadius: 10,
           padding: "14px 18px", marginBottom: 24, fontSize: 13, color: "#7a5c00",
         }}>
-          ⚠️ <strong>VITE_WORKER_URL</strong> saknas i <code>.env</code>. Sätt upp Cloudflare Worker först.
+          ⚠️ <strong>Skyltning är inte konfigurerad.</strong> Sätt upp Cloudflare Worker innan vyn används.
         </div>
       )}
 
@@ -687,18 +677,6 @@ export function Signage() {
         </>
       )}
 
-      {/* ── Setup guide ── */}
-      <section style={{
-        marginTop: 40, padding: "18px 20px", background: "#f5f8f6",
-        borderRadius: 10, border: "1.5px solid #CDDCD1", fontSize: 12, color: "#1e4025", lineHeight: 1.8,
-      }}>
-        <strong style={{ display: "block", marginBottom: 8 }}>⚙️ Konfiguration (.env)</strong>
-        <code style={{ display: "block", fontFamily: "monospace", color: "#555", fontSize: 11 }}>
-          VITE_WORKER_URL=https://sodss-signage.ditt-konto.workers.dev<br />
-          VITE_WORKER_SECRET=din-hemliga-nyckel<br />
-          VITE_PLAYER_URL=https://din-url.se/player.html
-        </code>
-      </section>
     </div>
   );
 }
