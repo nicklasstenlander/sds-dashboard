@@ -5,6 +5,21 @@ export default {
   theme: {
     extend: {
       colors: {
+        // Statusfärger är semantiska och ska endast användas för tillstånd.
+        status: {
+          ok: '#a3c0b2',
+          okSoft: '#CDDCD1',
+          warning: '#E0A23B',
+          warningSoft: '#F6E4BE',
+          critical: '#dd5c86',
+          criticalSoft: '#F7DDE6',
+        },
+        // Identitetsfärger är dekorativa per korttyp och saknar statusbetydelse.
+        identity: {
+          violet: '#f0e9f5',
+          sky: '#dceff8',
+          amber: '#f7dc66',
+        },
         brand: {
           // Teal/mint family
           dark:       '#1a2e2e',  // mörk text-färg (teal-tinted near-black)

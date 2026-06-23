@@ -32,9 +32,9 @@ function PayBadge({ booking }: { booking: Booking }) {
   const s = paymentStatus(booking)
   const p = booking.payment
   const map = {
-    paid:    { label: 'Betald',    cls: 'bg-brand-mint text-brand-forest' },
-    unpaid:  { label: 'Obetald',   cls: 'bg-red-50 text-red-700' },
-    partial: { label: 'Delbetald', cls: 'bg-amber-100 text-amber-800' },
+    paid:    { label: 'Betald',    cls: 'bg-status-okSoft text-brand-forest' },
+    unpaid:  { label: 'Obetald',   cls: 'bg-status-criticalSoft text-status-critical' },
+    partial: { label: 'Delbetald', cls: 'bg-status-warningSoft text-[#5f4700]' },
     unknown: { label: '—',         cls: '' },
   }
   const { label, cls } = map[s]
@@ -237,7 +237,7 @@ export function RecentBookings() {
                 <span className="font-semibold text-brand-forest">{paidCount}</span> betalda
               </span>
               <span>
-                <span className="font-semibold text-red-600">{unpaidCount}</span> obetalda
+                <span className="font-semibold text-status-critical">{unpaidCount}</span> obetalda
               </span>
               {partialCount > 0 && (
                 <span>

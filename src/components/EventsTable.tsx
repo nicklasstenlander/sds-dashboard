@@ -32,9 +32,9 @@ function fillBarColor(pct: number) {
 }
 
 function fillBadgeClass(pct: number) {
-  if (pct >= 90) return 'bg-red-50 text-red-700 dark:bg-[rgba(232,98,127,0.14)] dark:text-[var(--dark-warning)]'
-  if (pct >= 70) return 'bg-amber-50 text-amber-700 dark:bg-[rgba(234,179,8,0.14)] dark:text-[var(--dark-attention)]'
-  return 'bg-brand-mint text-brand-forest dark:bg-[rgba(93,184,138,0.14)] dark:text-[var(--dark-positive)]'
+  if (pct >= 90) return 'bg-status-criticalSoft text-status-critical dark:bg-[rgba(232,98,127,0.14)] dark:text-[var(--dark-warning)]'
+  if (pct >= 70) return 'bg-status-warningSoft text-[#5f4700] dark:bg-[rgba(234,179,8,0.14)] dark:text-[var(--dark-attention)]'
+  return 'bg-status-okSoft text-brand-forest dark:bg-[rgba(93,184,138,0.14)] dark:text-[var(--dark-positive)]'
 }
 
 export function EventsTable({ events, bookings = [], loading, search, onSelect, onRefresh, onDirectRefresh, onGroupSms, isRefreshing, isDirectRefreshing }: EventsTableProps) {

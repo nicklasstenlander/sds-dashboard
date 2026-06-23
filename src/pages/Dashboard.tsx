@@ -225,7 +225,7 @@ export function Dashboard({ darkMode, onToggleDarkMode }: DashboardProps) {
           value={bookingKpi.antagna.toLocaleString('sv-SE')}
           subtitle={bookingKpi.total > 0 ? `${Math.round((bookingKpi.antagna / bookingKpi.total) * 100)}% av anmälda` : undefined}
           icon={<UserCheck className="w-6 h-6" />}
-          color="emerald"
+          color="ok"
           onClick={() => setActiveFilter('antagna')}
         />
         <KPICard
@@ -233,7 +233,7 @@ export function Dashboard({ darkMode, onToggleDarkMode }: DashboardProps) {
           value={bookingKpi.ejBetalda.toLocaleString('sv-SE')}
           subtitle={bookingKpi.ejBetalda > 0 ? 'Kräver åtgärd' : 'Alla betalda'}
           icon={<CreditCard className="w-6 h-6" />}
-          color={bookingKpi.ejBetalda > 0 ? 'red' : 'emerald'}
+          color={bookingKpi.ejBetalda > 0 ? 'critical' : 'ok'}
           onClick={() => setActiveFilter('ejBetalda')}
         />
         <KPICard
@@ -248,11 +248,11 @@ export function Dashboard({ darkMode, onToggleDarkMode }: DashboardProps) {
             <div className="relative">
               <Clock className="w-6 h-6" />
               {duplicateCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-orange-400 ring-1 ring-white" />
+                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-status-warning ring-1 ring-white" />
               )}
             </div>
           }
-          color={alerts.length > 0 ? 'amber' : 'emerald'}
+          color={alerts.length > 0 ? 'warning' : 'ok'}
           onClick={() => setAlertsOpen(true)}
         />
       </div>
