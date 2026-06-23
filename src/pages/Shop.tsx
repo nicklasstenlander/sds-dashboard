@@ -403,6 +403,7 @@ function PeriodValueControl({
             type="date"
             value={datePickerValue}
             onChange={(event) => {
+              if (!event.target.value) return
               const selected = parseISO(event.target.value)
               onChange(periodDefaultValue(period, selected))
             }}
