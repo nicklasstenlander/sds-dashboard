@@ -10,6 +10,7 @@ import { isPeriodCode, matchesPeriodCode } from '../utils/periods'
 import type { AllDataResponse } from '../services/proxyService'
 import { PeriodFilter } from '../components/PeriodFilter'
 import { ParticipantPanel } from '../components/ParticipantPanel'
+import { formatBookingStatus } from '../lib/status'
 import type { Booking, BookingPayment } from '../types/cogwork'
 
 // ---------------------------------------------------------------------------
@@ -31,13 +32,13 @@ function PayBadge({ booking }: { booking: Booking }) {
   const s = paymentStatus(booking)
   const p = booking.payment
   const map = {
-    paid:    { label: 'Betald',    cls: 'bg-brand-mint text-brand-forest' },
-    unpaid:  { label: 'Obetald',   cls: 'bg-red-50 text-red-700' },
-    partial: { label: 'Delbetald', cls: 'bg-amber-100 text-amber-800' },
+    paid:    { label: 'Betald',    cls: 'bg-status-okSoft text-brand-forest' },
+    unpaid:  { label: 'Obetald',   cls: 'bg-status-criticalSoft text-status-critical' },
+    partial: { label: 'Delbetald', cls: 'bg-status-warningSoft text-[#5f4700]' },
     unknown: { label: '—',         cls: '' },
   }
   const { label, cls } = map[s]
-  if (s === 'unknown') return <span className="text-xs text-slate-300">—</span>
+  if (s === 'unknown') return <span className="text-xs text-slate-600">—</span>
   return (
     <span className={`inline-block text-xs font-semibold px-2.5 py-0.5 rounded-full ${cls}`}>
       {label}
@@ -188,7 +189,7 @@ export function RecentBookings() {
 
       {/* Payment filter */}
       <div className="space-y-1">
-        <p className="text-xs font-medium text-slate-400">Betalning</p>
+        <p className="text-xs font-medium text-slate-600">Betalning</p>
         <div className="flex flex-wrap gap-2">
           <Pill active={payFilter === ''} onClick={() => setPayFilter('')}>
             Alla
@@ -236,7 +237,7 @@ export function RecentBookings() {
                 <span className="font-semibold text-brand-forest">{paidCount}</span> betalda
               </span>
               <span>
-                <span className="font-semibold text-red-600">{unpaidCount}</span> obetalda
+                <span className="font-semibold text-status-critical">{unpaidCount}</span> obetalda
               </span>
               {partialCount > 0 && (
                 <span>
@@ -259,7 +260,7 @@ export function RecentBookings() {
               onClick={handleDirectRefresh}
               disabled={isDirectRefreshing}
               title="Rensa proxy-cache och hämta färsk data från CogWork (långsammare)"
-              className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-brand-forest px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
+              className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-brand-forest px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
             >
               {isDirectRefreshing
                 ? <RefreshCw className="w-3.5 h-3.5 animate-spin" />
@@ -282,7 +283,7 @@ export function RecentBookings() {
           </div>
         ) : filtered.length === 0 ? (
           <div className="flex items-center justify-center py-16">
-            <p className="text-sm text-slate-400 font-light">Inga anmälningar hittades</p>
+            <p className="text-sm text-slate-600 font-light">Inga anmälningar hittades</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -301,7 +302,7 @@ export function RecentBookings() {
               <tbody className="divide-y divide-slate-50">
                 {filtered.map((b) => (
                   <tr key={b.key} className="hover:bg-slate-50/60 dark:hover:bg-[var(--dark-green-secondary)] transition-colors">
-                    <td className="py-3 px-5 text-sm text-slate-400 whitespace-nowrap">
+                    <td className="py-3 px-5 text-sm text-slate-600 whitespace-nowrap">
                       {formatDate(b.created)}
                     </td>
                     <td className="py-3 px-5 text-sm font-medium whitespace-nowrap">
@@ -331,12 +332,12 @@ export function RecentBookings() {
                       <PayBadge booking={b} />
                     </td>
                     <td className="py-3 px-5 text-sm text-slate-500 whitespace-nowrap">
-                      {b.status?.name ?? '—'}
+                      {formatBookingStatus(b.status?.code, b.status?.name)}
                     </td>
                     <td className="py-3 px-5 text-sm text-slate-600 max-w-[240px]">
                       {b.comment
                         ? <span className="line-clamp-2" title={b.comment}>{b.comment}</span>
-                        : <span className="text-slate-300">—</span>}
+                        : <span className="text-slate-600">—</span>}
                     </td>
                   </tr>
                 ))}
@@ -353,7 +354,7 @@ export function RecentBookings() {
 
 function Th({ children }: { children: React.ReactNode }) {
   return (
-    <th className="text-left text-xs font-semibold text-slate-400 py-3 px-5 whitespace-nowrap">
+    <th className="text-left text-xs font-semibold text-slate-600 py-3 px-5 whitespace-nowrap">
       {children}
     </th>
   )

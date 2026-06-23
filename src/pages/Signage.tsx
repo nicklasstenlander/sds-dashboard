@@ -30,17 +30,9 @@ const WEEKDAYS = [
   { n: 7, label: "Sön" },
 ];
 
-// ─── Config ───────────────────────────────────────────────────────────────────
-// .env:
-//   VITE_WORKER_URL=https://sodss-signage.ditt-konto.workers.dev
-//   VITE_WORKER_SECRET=din-hemliga-nyckel
-//   VITE_PLAYER_URL=https://din-url.se/player.html
-
 const WORKER_URL    = import.meta.env.VITE_WORKER_URL    ?? "";
-const WORKER_SECRET = import.meta.env.VITE_WORKER_SECRET ?? "";
 const PLAYER_URL    = import.meta.env.VITE_PLAYER_URL    ?? "/player.html";
-
-const authHeader = { Authorization: `Bearer ${WORKER_SECRET}` };
+const SECONDARY_TEXT = "#4f6f60";
 
 function formatBytes(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
@@ -70,9 +62,11 @@ function Badge({ type }: { type: MediaType }) {
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
   return (
-    <button onClick={() => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
+    <button
+      className="sds-focus-ring"
+      onClick={() => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
       style={{
-        padding: "5px 12px", borderRadius: 7, border: "1.5px solid #a3c0b2",
+        minHeight: 36, padding: "5px 12px", borderRadius: 7, border: "1.5px solid #a3c0b2",
         background: copied ? "#1e4025" : "#f5f8f6", color: copied ? "#fff" : "#1e4025",
         fontFamily: "inherit", fontSize: 12, fontWeight: 600, cursor: "pointer",
         transition: "all 0.2s", whiteSpace: "nowrap" as const,
@@ -99,6 +93,7 @@ export function Signage() {
   const [dragId, setDragId]       = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [deleting, setDeleting]   = useState<string | null>(null);
+  const [confirmDeleteKey, setConfirmDeleteKey] = useState<string | null>(null);
   const fileInputRef              = useRef<HTMLInputElement>(null);
 
   // ── Schedules ────────────────────────────────────────────────────────────
@@ -138,7 +133,7 @@ export function Signage() {
     }
     await fetch(`${WORKER_URL}/api/schedules`, {
       method: 'PUT',
-      headers: { ...authHeader, 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(next),
     });
     setSchedules(next);
@@ -178,7 +173,7 @@ export function Signage() {
     try {
       const res = await fetch(`${WORKER_URL}/api/url/studio-b`, {
         method: 'PUT',
-        headers: { ...authHeader, 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: studioBInput.trim() }),
       });
       if (!res.ok) throw new Error();
@@ -231,7 +226,6 @@ export function Signage() {
         await new Promise<void>((resolve, reject) => {
           const xhr = new XMLHttpRequest();
           xhr.open("POST", `${WORKER_URL}/api/upload`);
-          xhr.setRequestHeader("Authorization", `Bearer ${WORKER_SECRET}`);
 
           xhr.upload.onprogress = (e) => {
             if (e.lengthComputable) {
@@ -275,13 +269,13 @@ export function Signage() {
 
   // ── Delete ───────────────────────────────────────────────────────────────
   const deleteItem = useCallback(async (key: string) => {
-    if (!confirm(`Ta bort "${key}"?`)) return;
     setDeleting(key);
     try {
       await fetch(`${WORKER_URL}/api/files/${encodeURIComponent(key)}`, {
-        method: "DELETE", headers: authHeader,
+        method: "DELETE",
       });
       setItems(prev => prev.filter(i => i.key !== key));
+      setConfirmDeleteKey(null);
     } catch (e) {
       alert("Kunde inte ta bort filen.");
     } finally {
@@ -324,12 +318,12 @@ export function Signage() {
           <h1 style={{ fontSize: 26, fontWeight: 700, color: "#1e4025", margin: 0, letterSpacing: "-0.02em" }}>
             Skyltning
           </h1>
-          <p style={{ margin: "4px 0 0", fontSize: 13, color: "#a3c0b2" }}>
+          <p style={{ margin: "4px 0 0", fontSize: 13, color: SECONDARY_TEXT }}>
             {items.length} objekt · ca {Math.round(totalDuration / 60)} min per loop
           </p>
         </div>
-        <button onClick={fetchFiles} disabled={loading} style={{
-          padding: "9px 18px", borderRadius: 9, border: "none",
+        <button className="sds-focus-ring" onClick={fetchFiles} disabled={loading} style={{
+          minHeight: 44, padding: "9px 18px", borderRadius: 9, border: "none",
           background: "#CDDCD1", color: "#1e4025", fontFamily: "inherit",
           fontSize: 13, fontWeight: 700, cursor: loading ? "wait" : "pointer",
         }}>
@@ -343,13 +337,13 @@ export function Signage() {
           background: "#fff8e1", border: "1.5px solid #f5c842", borderRadius: 10,
           padding: "14px 18px", marginBottom: 24, fontSize: 13, color: "#7a5c00",
         }}>
-          ⚠️ <strong>VITE_WORKER_URL</strong> saknas i <code>.env</code>. Sätt upp Cloudflare Worker först.
+          ⚠️ <strong>Skyltning är inte konfigurerad.</strong> Sätt upp Cloudflare Worker innan vyn används.
         </div>
       )}
 
       {/* ── Screens ── */}
       <section style={{ marginBottom: 32 }}>
-        <h2 style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase" as const, color: "#a3c0b2", margin: "0 0 12px" }}>
+        <h2 style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase" as const, color: SECONDARY_TEXT, margin: "0 0 12px" }}>
           Skärmar
         </h2>
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" as const }}>
@@ -367,13 +361,21 @@ export function Signage() {
                   LIVE
                 </span>
               </div>
-              <div style={{ fontSize: 11, color: "#a3c0b2", marginBottom: 10, fontFamily: "monospace", wordBreak: "break-all" as const }}>
+              <div style={{ fontSize: 11, color: SECONDARY_TEXT, marginBottom: 10, fontFamily: "monospace", wordBreak: "break-all" as const }}>
                 {screenUrl(s.id)}
               </div>
               <div style={{ display: "flex", gap: 8 }}>
                 <CopyButton text={screenUrl(s.id)} />
-                <a href={screenUrl(s.id)} target="_blank" rel="noreferrer"
-                  style={{ padding: "5px 12px", borderRadius: 7, border: "1.5px solid #CDDCD1", background: "transparent", color: "#1e4025", fontSize: 12, fontWeight: 600, textDecoration: "none" }}>
+                <a
+                  className="sds-focus-ring"
+                  href={screenUrl(s.id)}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{
+                    minHeight: 36, padding: "5px 12px", borderRadius: 7, border: "1.5px solid #CDDCD1",
+                    background: "transparent", color: "#1e4025", fontSize: 12, fontWeight: 600,
+                    textDecoration: "none", display: "inline-flex", alignItems: "center",
+                  }}>
                   Förhandsgranska ↗
                 </a>
               </div>
@@ -393,7 +395,7 @@ export function Signage() {
             </span>
           </div>
 
-          <div style={{ fontSize: 11, color: "#a3c0b2", marginBottom: 6 }}>Aktuell URL</div>
+          <div style={{ fontSize: 11, color: SECONDARY_TEXT, marginBottom: 6 }}>Aktuell URL</div>
           <div style={{ fontFamily: "monospace", fontSize: 11, color: "#1e4025", background: "#f0faf4", borderRadius: 6, padding: "6px 10px", marginBottom: 10, wordBreak: "break-all" as const }}>
             {studioBUrl || '—'}
           </div>
@@ -411,11 +413,12 @@ export function Signage() {
               }}
             />
             <button
+              className="sds-focus-ring"
               onClick={saveStudioBUrl}
               disabled={studioBSaving}
               style={{
-                padding: "6px 14px", borderRadius: 7, border: "none",
-                background: studioBSaving ? "#a3c0b2" : "#1e4025", color: "#fff",
+                minHeight: 36, padding: "6px 14px", borderRadius: 7, border: "none",
+                background: studioBSaving ? "#CDDCD1" : "#1e4025", color: studioBSaving ? "#1e4025" : "#fff",
                 fontSize: 12, fontWeight: 700, cursor: studioBSaving ? "default" : "pointer",
                 whiteSpace: "nowrap" as const,
               }}
@@ -432,8 +435,16 @@ export function Signage() {
 
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" as const }}>
             <CopyButton text={studioBRedirectUrl} />
-            <a href={studioBRedirectUrl} target="_blank" rel="noreferrer"
-              style={{ padding: "5px 12px", borderRadius: 7, border: "1.5px solid #CDDCD1", background: "transparent", color: "#1e4025", fontSize: 12, fontWeight: 600, textDecoration: "none" }}>
+            <a
+              className="sds-focus-ring"
+              href={studioBRedirectUrl}
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                minHeight: 36, padding: "5px 12px", borderRadius: 7, border: "1.5px solid #CDDCD1",
+                background: "transparent", color: "#1e4025", fontSize: 12, fontWeight: 600,
+                textDecoration: "none", display: "inline-flex", alignItems: "center",
+              }}>
               Förhandsgranska ↗
             </a>
           </div>
@@ -451,7 +462,7 @@ export function Signage() {
               }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
                   <span style={{ fontSize: 12, fontWeight: 600, color: "#1e4025" }}>{job.file.name}</span>
-                  <span style={{ fontSize: 11, color: job.status === "error" ? "#dd5c86" : job.status === "done" ? "#1e4025" : "#a3c0b2" }}>
+                  <span style={{ fontSize: 11, color: job.status === "error" ? "#dd5c86" : job.status === "done" ? "#1e4025" : SECONDARY_TEXT }}>
                     {job.status === "done" ? "✓ Klar" : job.status === "error" ? `✗ ${job.errorMsg}` : `${job.progress}%`}
                   </span>
                 </div>
@@ -471,10 +482,19 @@ export function Signage() {
       {/* ── Drop zone ── */}
       <section style={{ marginBottom: 28 }}>
         <div
+          className="sds-focus-ring"
+          role="button"
+          tabIndex={0}
           onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
           onDragLeave={() => setDragOver(false)}
           onDrop={(e) => { e.preventDefault(); setDragOver(false); if (e.dataTransfer.files.length) uploadFiles(e.dataTransfer.files); }}
           onClick={() => fileInputRef.current?.click()}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              fileInputRef.current?.click();
+            }
+          }}
           style={{
             border: `2px dashed ${dragOver ? "#1e4025" : "#a3c0b2"}`,
             borderRadius: 12, padding: "32px 24px", textAlign: "center" as const,
@@ -486,7 +506,7 @@ export function Signage() {
           <div style={{ fontSize: 14, fontWeight: 600, color: "#1e4025" }}>
             Dra och släpp bilder eller filmer här
           </div>
-          <div style={{ fontSize: 12, color: "#a3c0b2", marginTop: 4 }}>
+          <div style={{ fontSize: 12, color: SECONDARY_TEXT, marginTop: 4 }}>
             JPG, PNG, WebP, MP4, MOV, WebM · Laddas upp direkt till Cloudflare R2
           </div>
           <input ref={fileInputRef} type="file" accept="image/*,video/*" multiple
@@ -498,16 +518,16 @@ export function Signage() {
       {/* ── Playlist ── */}
       <section>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-          <h2 style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase" as const, color: "#a3c0b2", margin: 0 }}>
+          <h2 style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase" as const, color: SECONDARY_TEXT, margin: 0 }}>
             Spellista
           </h2>
-          <span style={{ fontSize: 11, color: "#a3c0b2" }}>Dra för att ändra ordning</span>
+          <span style={{ fontSize: 11, color: SECONDARY_TEXT }}>Dra för att ändra ordning</span>
         </div>
 
         {loading && items.length === 0 ? (
-          <div style={{ textAlign: "center" as const, padding: "40px", color: "#a3c0b2", fontSize: 13 }}>Laddar…</div>
+          <div style={{ textAlign: "center" as const, padding: "40px", color: SECONDARY_TEXT, fontSize: 13 }}>Laddar…</div>
         ) : items.length === 0 ? (
-          <div style={{ textAlign: "center" as const, padding: "40px", color: "#a3c0b2", fontSize: 13 }}>
+          <div style={{ textAlign: "center" as const, padding: "40px", color: SECONDARY_TEXT, fontSize: 13 }}>
             Inga filer än. Ladda upp något ovan!
           </div>
         ) : (
@@ -528,7 +548,7 @@ export function Signage() {
                 }}
               >
                 {/* Nr */}
-                <span style={{ width: 22, fontSize: 12, color: "#a3c0b2", fontWeight: 700, textAlign: "right" as const, flexShrink: 0 }}>
+                <span style={{ width: 22, fontSize: 12, color: SECONDARY_TEXT, fontWeight: 700, textAlign: "right" as const, flexShrink: 0 }}>
                   {idx + 1}
                 </span>
 
@@ -549,7 +569,7 @@ export function Signage() {
                   <div style={{ fontSize: 13, fontWeight: 600, color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>
                     {item.name}
                   </div>
-                  <div style={{ fontSize: 11, color: "#a3c0b2", marginTop: 2 }}>
+                  <div style={{ fontSize: 11, color: SECONDARY_TEXT, marginTop: 2 }}>
                     {formatBytes(item.size)} · {formatDate(item.uploaded)}
                   </div>
                 </div>
@@ -562,23 +582,25 @@ export function Signage() {
                   <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                     <input type="number" min={1} max={120} value={item.duration}
                       onChange={(e) => setItems(prev => prev.map(i => i.key === item.key ? { ...i, duration: Number(e.target.value) } : i))}
-                      style={{ width: 48, padding: "3px 6px", borderRadius: 6, border: "1.5px solid #a3c0b2", background: "#f5f8f6", color: "#1e4025", fontFamily: "inherit", fontSize: 13, textAlign: "center" as const }}
+                      className="sds-focus-ring"
+                      style={{ width: 56, minHeight: 36, padding: "6px 8px", borderRadius: 6, border: "1.5px solid #a3c0b2", background: "#f5f8f6", color: "#1e4025", fontFamily: "inherit", fontSize: 13, textAlign: "center" as const }}
                     />
-                    <span style={{ fontSize: 11, color: "#a3c0b2" }}>sek</span>
+                    <span style={{ fontSize: 11, color: SECONDARY_TEXT }}>sek</span>
                   </div>
                 ) : (
-                  <span style={{ fontSize: 11, color: "#a3c0b2", minWidth: 55 }}>Hel film</span>
+                  <span style={{ fontSize: 11, color: SECONDARY_TEXT, minWidth: 55 }}>Hel film</span>
                 )}
 
                 {/* Schedule */}
                 <button
+                  className="sds-focus-ring"
                   onClick={() => openSchedule(item.key)}
                   title="Tidsstyrning"
                   style={{
-                    width: 28, height: 28, borderRadius: 7,
+                    width: 44, height: 44, borderRadius: 9,
                     border: `1.5px solid ${schedules[item.key] ? "#1e4025" : "#CDDCD1"}`,
                     background: schedules[item.key] ? "#CDDCD1" : "transparent",
-                    color: schedules[item.key] ? "#1e4025" : "#a3c0b2",
+                    color: schedules[item.key] ? "#1e4025" : SECONDARY_TEXT,
                     fontSize: 14, cursor: "pointer",
                     display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
                   }}>
@@ -586,14 +608,46 @@ export function Signage() {
                 </button>
 
                 {/* Delete */}
-                <button onClick={() => deleteItem(item.key)} disabled={deleting === item.key}
-                  style={{
-                    width: 28, height: 28, borderRadius: 7, border: "1.5px solid #f0d0d8",
-                    background: "transparent", color: "#dd5c86", fontWeight: 700, fontSize: 16,
-                    cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-                  }}>
-                  {deleting === item.key ? "…" : "×"}
-                </button>
+                {confirmDeleteKey === item.key ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                    <span style={{ fontSize: 11, color: "#dd5c86", fontWeight: 700 }}>Ta bort?</span>
+                    <button
+                      className="sds-focus-ring"
+                      onClick={() => deleteItem(item.key)}
+                      disabled={deleting === item.key}
+                      style={{
+                        minWidth: 44, minHeight: 36, borderRadius: 7, border: "none",
+                        background: "#dd5c86", color: "#fff", fontWeight: 700, fontSize: 12,
+                        cursor: deleting === item.key ? "wait" : "pointer",
+                      }}>
+                      {deleting === item.key ? "…" : "Ja"}
+                    </button>
+                    <button
+                      className="sds-focus-ring"
+                      onClick={() => setConfirmDeleteKey(null)}
+                      disabled={deleting === item.key}
+                      style={{
+                        minWidth: 58, minHeight: 36, borderRadius: 7, border: "1.5px solid #CDDCD1",
+                        background: "transparent", color: "#1e4025", fontWeight: 700, fontSize: 12,
+                        cursor: deleting === item.key ? "default" : "pointer",
+                      }}>
+                      Avbryt
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    className="sds-focus-ring"
+                    onClick={() => setConfirmDeleteKey(item.key)}
+                    disabled={deleting === item.key}
+                    aria-label={`Förbered borttagning av ${item.name}`}
+                    style={{
+                      width: 44, height: 44, borderRadius: 9, border: "1.5px solid #f0d0d8",
+                      background: "transparent", color: "#dd5c86", fontWeight: 700, fontSize: 16,
+                      cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                    }}>
+                    ×
+                  </button>
+                )}
               </div>
             ))}
           </div>
@@ -614,10 +668,10 @@ export function Signage() {
           }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
               <strong style={{ fontSize: 14, color: "#1e4025" }}>Tidsstyrning</strong>
-              <button onClick={() => setScheduleTarget(null)}
-                style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", color: "#a3c0b2" }}>×</button>
+              <button className="sds-focus-ring" onClick={() => setScheduleTarget(null)}
+                style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", color: SECONDARY_TEXT }}>×</button>
             </div>
-            <div style={{ fontSize: 11, color: "#a3c0b2", marginBottom: 16, wordBreak: "break-all" as const }}>
+            <div style={{ fontSize: 11, color: SECONDARY_TEXT, marginBottom: 16, wordBreak: "break-all" as const }}>
               {scheduleTarget}
             </div>
 
@@ -627,7 +681,7 @@ export function Signage() {
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 <input type="date" value={schedDraft.dateFrom ?? ''} onChange={e => setSchedDraft(d => ({ ...d, dateFrom: e.target.value || undefined }))}
                   style={{ flex: 1, padding: "5px 8px", border: "1.5px solid #CDDCD1", borderRadius: 7, fontFamily: "inherit", fontSize: 12, color: "#1e4025" }} />
-                <span style={{ fontSize: 11, color: "#a3c0b2" }}>→</span>
+                <span style={{ fontSize: 11, color: SECONDARY_TEXT }}>→</span>
                 <input type="date" value={schedDraft.dateTo ?? ''} onChange={e => setSchedDraft(d => ({ ...d, dateTo: e.target.value || undefined }))}
                   style={{ flex: 1, padding: "5px 8px", border: "1.5px solid #CDDCD1", borderRadius: 7, fontFamily: "inherit", fontSize: 12, color: "#1e4025" }} />
               </div>
@@ -639,7 +693,7 @@ export function Signage() {
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 <input type="time" value={schedDraft.timeFrom ?? ''} onChange={e => setSchedDraft(d => ({ ...d, timeFrom: e.target.value || undefined }))}
                   style={{ flex: 1, padding: "5px 8px", border: "1.5px solid #CDDCD1", borderRadius: 7, fontFamily: "inherit", fontSize: 12, color: "#1e4025" }} />
-                <span style={{ fontSize: 11, color: "#a3c0b2" }}>→</span>
+                <span style={{ fontSize: 11, color: SECONDARY_TEXT }}>→</span>
                 <input type="time" value={schedDraft.timeTo ?? ''} onChange={e => setSchedDraft(d => ({ ...d, timeTo: e.target.value || undefined }))}
                   style={{ flex: 1, padding: "5px 8px", border: "1.5px solid #CDDCD1", borderRadius: 7, fontFamily: "inherit", fontSize: 12, color: "#1e4025" }} />
               </div>
@@ -652,33 +706,33 @@ export function Signage() {
                 {WEEKDAYS.map(({ n, label }) => {
                   const active = (schedDraft.weekdays ?? []).includes(n);
                   return (
-                    <button key={n} onClick={() => toggleWeekday(n)} style={{
-                      padding: "4px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700,
+                    <button key={n} className="sds-focus-ring" onClick={() => toggleWeekday(n)} style={{
+                      minWidth: 44, minHeight: 32, padding: "4px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700,
                       border: `1.5px solid ${active ? "#1e4025" : "#CDDCD1"}`,
                       background: active ? "#1e4025" : "transparent",
-                      color: active ? "#CDDCD1" : "#a3c0b2", cursor: "pointer",
+                      color: active ? "#CDDCD1" : SECONDARY_TEXT, cursor: "pointer",
                     }}>{label}</button>
                   );
                 })}
               </div>
-              <div style={{ fontSize: 10, color: "#a3c0b2", marginTop: 6 }}>
+              <div style={{ fontSize: 10, color: SECONDARY_TEXT, marginTop: 6 }}>
                 Tomt = alla dagar
               </div>
             </div>
 
             {/* Knappar */}
             <div style={{ display: "flex", gap: 8, justifyContent: "space-between" }}>
-              <button onClick={() => { setSchedDraft({}); }}
-                style={{ padding: "7px 14px", borderRadius: 7, border: "1.5px solid #f0d0d8", background: "transparent", color: "#dd5c86", fontSize: 12, cursor: "pointer" }}>
+              <button className="sds-focus-ring" onClick={() => { setSchedDraft({}); }}
+                style={{ minHeight: 36, padding: "7px 14px", borderRadius: 7, border: "1.5px solid #f0d0d8", background: "transparent", color: "#dd5c86", fontSize: 12, cursor: "pointer" }}>
                 Rensa schema
               </button>
               <div style={{ display: "flex", gap: 8 }}>
-                <button onClick={() => setScheduleTarget(null)}
-                  style={{ padding: "7px 14px", borderRadius: 7, border: "1.5px solid #CDDCD1", background: "transparent", color: "#a3c0b2", fontSize: 12, cursor: "pointer" }}>
+                <button className="sds-focus-ring" onClick={() => setScheduleTarget(null)}
+                  style={{ minHeight: 36, padding: "7px 14px", borderRadius: 7, border: "1.5px solid #CDDCD1", background: "transparent", color: SECONDARY_TEXT, fontSize: 12, cursor: "pointer" }}>
                   Avbryt
                 </button>
-                <button onClick={saveSchedule} disabled={schedSaving}
-                  style={{ padding: "7px 18px", borderRadius: 7, border: "none", background: "#1e4025", color: "#CDDCD1", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                <button className="sds-focus-ring" onClick={saveSchedule} disabled={schedSaving}
+                  style={{ minHeight: 36, padding: "7px 18px", borderRadius: 7, border: "none", background: "#1e4025", color: "#CDDCD1", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
                   {schedSaving ? "Sparar…" : "Spara"}
                 </button>
               </div>
@@ -687,18 +741,6 @@ export function Signage() {
         </>
       )}
 
-      {/* ── Setup guide ── */}
-      <section style={{
-        marginTop: 40, padding: "18px 20px", background: "#f5f8f6",
-        borderRadius: 10, border: "1.5px solid #CDDCD1", fontSize: 12, color: "#1e4025", lineHeight: 1.8,
-      }}>
-        <strong style={{ display: "block", marginBottom: 8 }}>⚙️ Konfiguration (.env)</strong>
-        <code style={{ display: "block", fontFamily: "monospace", color: "#555", fontSize: 11 }}>
-          VITE_WORKER_URL=https://sodss-signage.ditt-konto.workers.dev<br />
-          VITE_WORKER_SECRET=din-hemliga-nyckel<br />
-          VITE_PLAYER_URL=https://din-url.se/player.html
-        </code>
-      </section>
     </div>
   );
 }

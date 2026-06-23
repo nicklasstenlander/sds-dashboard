@@ -5,6 +5,7 @@ import { useUserBookings } from '../hooks/useUserBookings'
 import { useApiConfig } from '../context/ApiContext'
 import { AgentDial } from '../components/AgentDial'
 import { SmsModal } from '../components/SmsModal'
+import { formatBookingStatus } from '../lib/status'
 import type { User as UserType } from '../types/cogwork'
 
 export function Customers() {
@@ -151,7 +152,7 @@ function UserCard({ user }: { user: UserType }) {
     acc.push({
       name,
       period: b.event?.grouping?.eventBlock?.name ?? '',
-      status: b.status?.name ?? '',
+      status: formatBookingStatus(b.status?.code, b.status?.name),
     })
     return acc
   }, [])

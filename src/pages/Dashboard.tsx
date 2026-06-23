@@ -160,7 +160,7 @@ export function Dashboard({ darkMode, onToggleDarkMode }: DashboardProps) {
             className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-[var(--dark-text-secondary)] hover:text-brand-dark dark:hover:text-[var(--dark-text-primary)] px-3 py-1.5 rounded-lg border border-slate-200 dark:border-white/10 hover:border-brand-dark dark:hover:border-white/20 transition-colors"
           >
             {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-            <span className="hidden sm:inline">{darkMode ? 'Ljust läge' : 'Dark mode'}</span>
+            <span className="hidden sm:inline">{darkMode ? 'Ljust läge' : 'Mörkt läge'}</span>
           </button>
           <button
             onClick={() => setGoalModal({ open: true })}
@@ -196,7 +196,7 @@ export function Dashboard({ darkMode, onToggleDarkMode }: DashboardProps) {
               placeholder="Sök kurs…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full text-sm border border-slate-200 dark:border-white/10 rounded-full pl-9 pr-4 py-2 bg-white dark:bg-[var(--dark-card)] text-slate-700 dark:text-[var(--dark-text-primary)] placeholder:text-slate-400 dark:placeholder:text-[var(--dark-text-muted)] focus:outline-none focus:ring-2 focus:ring-brand-mint dark:focus:ring-[var(--dark-positive)] dark:focus:border-[var(--dark-positive)]"
+              className="w-full text-sm border border-slate-200 dark:border-white/10 rounded-full pl-9 pr-4 py-2 bg-white dark:bg-[var(--dark-card)] text-slate-700 dark:text-[var(--dark-text-primary)] placeholder:text-slate-500 dark:placeholder:text-[var(--dark-text-muted)] focus:outline-none focus:ring-2 focus:ring-brand-mint dark:focus:ring-[var(--dark-positive)] dark:focus:border-[var(--dark-positive)]"
             />
           </div>
         </div>
@@ -225,7 +225,7 @@ export function Dashboard({ darkMode, onToggleDarkMode }: DashboardProps) {
           value={bookingKpi.antagna.toLocaleString('sv-SE')}
           subtitle={bookingKpi.total > 0 ? `${Math.round((bookingKpi.antagna / bookingKpi.total) * 100)}% av anmälda` : undefined}
           icon={<UserCheck className="w-6 h-6" />}
-          color="emerald"
+          color="ok"
           onClick={() => setActiveFilter('antagna')}
         />
         <KPICard
@@ -233,7 +233,7 @@ export function Dashboard({ darkMode, onToggleDarkMode }: DashboardProps) {
           value={bookingKpi.ejBetalda.toLocaleString('sv-SE')}
           subtitle={bookingKpi.ejBetalda > 0 ? 'Kräver åtgärd' : 'Alla betalda'}
           icon={<CreditCard className="w-6 h-6" />}
-          color={bookingKpi.ejBetalda > 0 ? 'red' : 'emerald'}
+          color={bookingKpi.ejBetalda > 0 ? 'critical' : 'ok'}
           onClick={() => setActiveFilter('ejBetalda')}
         />
         <KPICard
@@ -248,11 +248,11 @@ export function Dashboard({ darkMode, onToggleDarkMode }: DashboardProps) {
             <div className="relative">
               <Clock className="w-6 h-6" />
               {duplicateCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-orange-400 ring-1 ring-white" />
+                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-status-warning ring-1 ring-white" />
               )}
             </div>
           }
-          color={alerts.length > 0 ? 'amber' : 'emerald'}
+          color={alerts.length > 0 ? 'warning' : 'ok'}
           onClick={() => setAlertsOpen(true)}
         />
       </div>
@@ -292,7 +292,7 @@ export function Dashboard({ darkMode, onToggleDarkMode }: DashboardProps) {
       {/* Mål */}
       {goals.length > 0 && (
         <div>
-          <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">Mål</p>
+          <p className="text-xs font-semibold text-slate-600 dark:text-slate-500 uppercase tracking-widest mb-3">Mål</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {goals.map(goal => (
               <GoalCard

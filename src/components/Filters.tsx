@@ -45,7 +45,7 @@ export function Filters({ filters, onChange, showSearch = true }: FiltersProps) 
       {/* Period pills */}
       {periodPills.length > 0 && (
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-medium text-slate-400 mr-1">Period:</span>
+          <span className="text-xs font-medium text-slate-600 mr-1">Period:</span>
           <button
             onClick={() => update({ eventBlockId: '' })}
             className={`text-sm px-4 py-1.5 rounded-full border transition-colors font-medium ${

@@ -42,27 +42,31 @@ export function CategoryChart({ events, bookings = [], loading }: CategoryChartP
     const pct = total > 0 ? (d.value / total) * 100 : 0
     const dash = `${pct} ${100 - pct}`
     const offset = 25 - acc
+    const midAngle = ((acc + pct / 2) / 100) * 360 - 90
     acc += pct
-    return { ...d, dash, offset, color: COLORS[i % COLORS.length] }
+    return { ...d, dash, offset, color: COLORS[i % COLORS.length], midAngle, indexLabel: String(i + 1) }
   })
 
   const hoveredSeg = hovered !== null ? segments[hovered] : null
+  const chartLabel = segments.map((seg) => `${seg.indexLabel}. ${seg.name}: ${seg.value}`).join(', ')
 
   return (
     <div className="card p-5">
       <h2 className="text-sm font-semibold text-slate-700 mb-4">Anmälda per kategori</h2>
       {data.length === 0 ? (
-        <div className="flex items-center justify-center h-48 text-sm text-slate-400">
+        <div className="flex items-center justify-center h-48 text-sm text-slate-600">
           Ingen kursdata tillgänglig
         </div>
       ) : (
         <div className="flex items-center gap-8">
           {/* Donut — larger now that legend is compact */}
           <svg
-            className="[--donut-bg:#ffffff] [--donut-border:#f1f5f9] [--donut-text:#1a2e2e] [--donut-muted:#94a3b8] dark:[--donut-bg:var(--dark-icon-bg)] dark:[--donut-border:var(--dark-border-active)] dark:[--donut-text:var(--dark-text-primary)] dark:[--donut-muted:var(--dark-text-tertiary)]"
+            className="[--donut-bg:#ffffff] [--donut-border:#f1f5f9] [--donut-text:#1a2e2e] [--donut-muted:#64748b] dark:[--donut-bg:var(--dark-icon-bg)] dark:[--donut-border:var(--dark-border-active)] dark:[--donut-text:var(--dark-text-primary)] dark:[--donut-muted:var(--dark-text-secondary)]"
             viewBox="0 0 42 42"
             width="180"
             height="180"
+            role="img"
+            aria-label={`Anmälda per kategori. ${chartLabel}`}
             style={{ flexShrink: 0 }}
           >
             <circle cx="21" cy="21" r="15.915" fill="var(--donut-bg)" stroke="var(--donut-border)" strokeWidth="0.5" />
@@ -84,6 +88,19 @@ export function CategoryChart({ events, bookings = [], loading }: CategoryChartP
                 onMouseLeave={() => setHovered(null)}
               />
             ))}
+            {segments.map((seg, i) => {
+              const rad = (seg.midAngle * Math.PI) / 180
+              const x = 21 + Math.cos(rad) * 15.9
+              const y = 21 + Math.sin(rad) * 15.9
+              return (
+                <g key={`label-${i}`} aria-hidden="true">
+                  <circle cx={x} cy={y} r="2.35" fill="var(--donut-bg)" stroke="var(--donut-text)" strokeWidth="0.25" />
+                  <text x={x} y={y + 0.85} textAnchor="middle" fontSize="2.35" fontWeight="700" fill="var(--donut-text)">
+                    {seg.indexLabel}
+                  </text>
+                </g>
+              )
+            })}
             {hoveredSeg ? (
               <>
                 <text x="21" y="19" textAnchor="middle" fontSize="5.5" fontWeight="700" fill="var(--donut-text)">
@@ -119,7 +136,13 @@ export function CategoryChart({ events, bookings = [], loading }: CategoryChartP
                 onMouseEnter={() => setHovered(i)}
                 onMouseLeave={() => setHovered(null)}
               >
-                <span style={{ width: 10, height: 10, borderRadius: 3, background: seg.color, flexShrink: 0, display: 'inline-block' }} />
+                <span
+                  aria-hidden="true"
+                  className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-slate-200 text-[10px] font-bold text-brand-dark"
+                  style={{ borderColor: seg.color, boxShadow: `inset 0 -3px 0 ${seg.color}` }}
+                >
+                  {seg.indexLabel}
+                </span>
                 <span className="flex-1 truncate text-slate-500">{seg.name}</span>
                 <span className="tabular-nums font-semibold text-slate-700">{seg.value}</span>
               </div>

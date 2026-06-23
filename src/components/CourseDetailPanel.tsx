@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import { X, Users, Clock, MapPin, User, Banknote } from 'lucide-react'
 import { useEventBookings } from '../hooks/useEventBookings'
 import { ParticipantPanel } from './ParticipantPanel'
+import { formatBookingStatus } from '../lib/status'
 import { bookingTicketQuantity, buildCourseMetrics, isAcceptedBooking } from '../utils/courseMetrics'
 import type { Event, Booking, BookingPayment } from '../types/cogwork'
 
@@ -10,14 +11,14 @@ function PayBadge({ payment }: { payment?: BookingPayment }) {
   if (payment.paid === true) {
     const amount = payment.priceAgreed ?? payment.amountPaid
     return (
-      <span className="shrink-0 text-xs font-semibold px-3 py-1 rounded-full bg-brand-mint text-brand-forest whitespace-nowrap">
+      <span className="shrink-0 text-xs font-semibold px-3 py-1 rounded-full bg-status-okSoft text-brand-forest whitespace-nowrap">
         Betald{amount != null ? ` · ${amount.toLocaleString('sv-SE')} kr` : ''}
       </span>
     )
   }
   if (payment.paid === false) {
     return (
-      <span className="shrink-0 text-xs font-semibold px-3 py-1 rounded-full bg-red-50 text-red-600 whitespace-nowrap">
+      <span className="shrink-0 text-xs font-semibold px-3 py-1 rounded-full bg-status-criticalSoft text-status-critical whitespace-nowrap">
         Obetald{payment.paymentDue ? ` · ${payment.paymentDue.slice(0, 10)}` : ''}
       </span>
     )
@@ -90,7 +91,7 @@ function BookingRow({ b, onSelect }: { b: Booking; onSelect: (name: string) => v
           <p className="text-sm font-medium text-brand-dark truncate">—</p>
         )}
         {b.status?.name && (
-          <p className="text-xs text-slate-400">{b.status.name}</p>
+          <p className="text-xs text-slate-400">{formatBookingStatus(b.status.code, b.status.name)}</p>
         )}
       </div>
       {ticketQuantity > 1 && (

@@ -50,6 +50,10 @@
     @apply bg-white rounded-2xl shadow-sm border border-slate-100;
   }
 
+  .sds-focus-ring {
+    @apply focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-dark;
+  }
+
   .tab-btn {
     @apply px-5 py-2.5 text-sm font-medium rounded-full transition-colors whitespace-nowrap;
   }
@@ -73,7 +77,7 @@
   --chart-positive: #009399;
   --chart-negative: #dd5c86;
   --chart-grid: #f1f5f9;
-  --chart-axis: #94a3b8;
+  --chart-axis: #64748b;
   --chart-tooltip-bg: #1a2e2e;
   --chart-tooltip-text: #ffffff;
   --fill-track: #f1f5f9;
@@ -251,14 +255,21 @@
   border-radius: 12px;
 }
 
-.dark .kpi-card[data-kpi-color="red"] {
+.dark .kpi-card[data-kpi-color="red"],
+.dark .kpi-card[data-kpi-color="critical"] {
   background: var(--dark-card-warning);
   border-color: rgba(232, 98, 127, 0.2);
 }
 
-.dark .kpi-card[data-kpi-color="amber"] {
+.dark .kpi-card[data-kpi-color="amber"],
+.dark .kpi-card[data-kpi-color="warning"] {
   background: var(--dark-card-attention);
   border-color: rgba(234, 179, 8, 0.2);
+}
+
+.dark .kpi-card[data-kpi-color="ok"] {
+  background: rgba(93, 184, 138, 0.10);
+  border-color: rgba(93, 184, 138, 0.18);
 }
 
 .dark .kpi-card-title {
@@ -279,21 +290,29 @@
 
 .dark .kpi-card[data-kpi-color="red"] .kpi-card-title,
 .dark .kpi-card[data-kpi-color="red"] .kpi-card-value,
-.dark .kpi-card[data-kpi-color="red"] .kpi-card-delta {
+.dark .kpi-card[data-kpi-color="red"] .kpi-card-delta,
+.dark .kpi-card[data-kpi-color="critical"] .kpi-card-title,
+.dark .kpi-card[data-kpi-color="critical"] .kpi-card-value,
+.dark .kpi-card[data-kpi-color="critical"] .kpi-card-delta {
   color: var(--dark-warning);
 }
 
-.dark .kpi-card[data-kpi-color="red"] .kpi-card-subtitle {
+.dark .kpi-card[data-kpi-color="red"] .kpi-card-subtitle,
+.dark .kpi-card[data-kpi-color="critical"] .kpi-card-subtitle {
   color: var(--dark-warning-sub);
 }
 
 .dark .kpi-card[data-kpi-color="amber"] .kpi-card-title,
 .dark .kpi-card[data-kpi-color="amber"] .kpi-card-value,
-.dark .kpi-card[data-kpi-color="amber"] .kpi-card-delta {
+.dark .kpi-card[data-kpi-color="amber"] .kpi-card-delta,
+.dark .kpi-card[data-kpi-color="warning"] .kpi-card-title,
+.dark .kpi-card[data-kpi-color="warning"] .kpi-card-value,
+.dark .kpi-card[data-kpi-color="warning"] .kpi-card-delta {
   color: var(--dark-attention);
 }
 
-.dark .kpi-card[data-kpi-color="amber"] .kpi-card-subtitle {
+.dark .kpi-card[data-kpi-color="amber"] .kpi-card-subtitle,
+.dark .kpi-card[data-kpi-color="warning"] .kpi-card-subtitle {
   color: var(--dark-attention-sub);
 }
 
@@ -302,12 +321,14 @@
   color: var(--dark-positive);
 }
 
-.dark .kpi-card[data-kpi-color="red"] .kpi-card-icon {
+.dark .kpi-card[data-kpi-color="red"] .kpi-card-icon,
+.dark .kpi-card[data-kpi-color="critical"] .kpi-card-icon {
   background: rgba(232, 98, 127, 0.12);
   color: var(--dark-warning);
 }
 
-.dark .kpi-card[data-kpi-color="amber"] .kpi-card-icon {
+.dark .kpi-card[data-kpi-color="amber"] .kpi-card-icon,
+.dark .kpi-card[data-kpi-color="warning"] .kpi-card-icon {
   background: rgba(234, 179, 8, 0.12);
   color: var(--dark-attention);
 }

@@ -27,7 +27,7 @@ export function PeriodFilter({ value, onChange }: PeriodFilterProps) {
 
   return (
     <div className="space-y-1">
-      <p className="text-xs font-medium text-slate-400">Period</p>
+      <p className="text-xs font-medium text-slate-600">Period</p>
       <div className="flex flex-wrap gap-2">
         <Pill active={value === ''} onClick={() => onChange('')}>
           Alla terminer

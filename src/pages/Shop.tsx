@@ -133,7 +133,7 @@ export function Shop() {
         <div className="card p-10 flex flex-col items-center justify-center text-center gap-3">
           <ShoppingBag className="w-10 h-10 text-slate-200" />
           <p className="font-semibold text-slate-500">Ingen Shopify-data tillgänglig</p>
-          <p className="text-sm text-slate-400 max-w-xs">
+          <p className="text-sm text-slate-600 max-w-xs">
             Data hämtas via GitHub Actions vid varje deploy. Lägg till{' '}
             <code className="bg-slate-100 px-1 rounded text-xs">SHOPIFY_ACCESS_TOKEN</code> som repository secret.
           </p>
@@ -153,7 +153,7 @@ export function Shop() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-brand-dark">Shop</h1>
         {data.updatedAt && (
-          <span className="flex items-center gap-1.5 text-xs text-slate-400">
+          <span className="flex items-center gap-1.5 text-xs text-slate-600">
             <Clock className="w-3.5 h-3.5" />
             Uppdaterad {format(parseISO(data.updatedAt), 'd MMM HH:mm', { locale: sv })}
             {isFetching && <RefreshCw className="w-3 h-3 animate-spin ml-1" />}
@@ -226,13 +226,13 @@ export function Shop() {
         <ResponsiveContainer width="100%" height={200}>
           <BarChart data={chartData} margin={{ top: 0, right: 8, left: -16, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-            <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+            <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
             <Tooltip
               contentStyle={{ border: 'none', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', fontSize: '12px' }}
               formatter={(v: number) => [`${v.toLocaleString('sv-SE')} kr`, 'Omsättning']}
             />
-            <Bar dataKey="revenue" fill="#dd5c86" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="revenue" fill="#1e4025" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -246,10 +246,10 @@ export function Shop() {
           <div className="flex items-center gap-2">
             <Zap className="w-4 h-4 text-brand-pinkDark" />
             <h2 className="text-sm font-semibold text-slate-700">Senaste försäljningar</h2>
-            <span className="text-xs text-slate-400">{allSales.length} varor</span>
+            <span className="text-xs text-slate-600">{allSales.length} varor</span>
           </div>
           {totalPages > 1 && (
-            <div className="flex items-center gap-1 text-xs text-slate-400">
+            <div className="flex items-center gap-1 text-xs text-slate-600">
               <button
                 onClick={() => setPage(p => Math.max(0, p - 1))}
                 disabled={page === 0}
@@ -270,18 +270,18 @@ export function Shop() {
         </div>
         <ul className="divide-y divide-slate-50">
           {pageSales.length === 0 ? (
-            <li className="px-5 py-8 text-center text-sm text-slate-400">Inga försäljningar under perioden</li>
+            <li className="px-5 py-8 text-center text-sm text-slate-600">Inga försäljningar under perioden</li>
           ) : (
             pageSales.map((s, i) => (
               <li key={i} className="flex items-center justify-between gap-4 px-5 py-3 hover:bg-brand-mint/30 transition-colors">
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-brand-dark truncate">{s.title}</p>
-                  <p className="text-xs text-slate-400 mt-0.5">
+                  <p className="text-xs text-slate-600 mt-0.5">
                     {formatDistanceToNow(parseISO(s.createdAt), { addSuffix: true, locale: sv })}
                   </p>
                 </div>
                 <div className="shrink-0 text-right">
-                  {s.quantity > 1 && <p className="text-xs text-slate-400">{s.quantity} st</p>}
+                  {s.quantity > 1 && <p className="text-xs text-slate-600">{s.quantity} st</p>}
                   <p className="text-sm font-semibold text-brand-dark tabular-nums">
                     {(parseFloat(s.price) * s.quantity).toLocaleString('sv-SE')} kr
                   </p>
@@ -296,20 +296,20 @@ export function Shop() {
       <div className="card overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-100">
           <h2 className="text-sm font-semibold text-slate-700">Produkter</h2>
-          <p className="text-xs text-slate-400 mt-0.5">{productStats.length} produkter</p>
+          <p className="text-xs text-slate-600 mt-0.5">{productStats.length} produkter</p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-50">
-                <th className="text-left px-5 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wide">Produkt</th>
-                <th className="text-right px-5 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wide">Sålda</th>
-                <th className="text-right px-5 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wide">Omsättning</th>
+                <th className="text-left px-5 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wide">Produkt</th>
+                <th className="text-right px-5 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wide">Sålda</th>
+                <th className="text-right px-5 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wide">Omsättning</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
               {productStats.length === 0 ? (
-                <tr><td colSpan={3} className="px-5 py-8 text-center text-slate-400 text-sm">Inga produkter under perioden</td></tr>
+                <tr><td colSpan={3} className="px-5 py-8 text-center text-slate-600 text-sm">Inga produkter under perioden</td></tr>
               ) : (
                 productStats.map((p) => (
                   <tr key={p.title} className="hover:bg-brand-mint/30 transition-colors">
@@ -403,6 +403,7 @@ function PeriodValueControl({
             type="date"
             value={datePickerValue}
             onChange={(event) => {
+              if (!event.target.value) return
               const selected = parseISO(event.target.value)
               onChange(periodDefaultValue(period, selected))
             }}
@@ -425,7 +426,7 @@ function PeriodValueControl({
           aria-label={pickerLabel}
           title={pickerLabel}
           onClick={openPicker}
-          className="shrink-0 rounded-md p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-brand-dark"
+          className="shrink-0 rounded-md p-1 text-slate-600 transition-colors hover:bg-slate-100 hover:text-brand-dark"
         >
           <Calendar className="h-4 w-4" />
         </button>
