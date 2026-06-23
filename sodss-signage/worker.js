@@ -232,6 +232,7 @@ export default {
 
     // ── Auth (för POST och DELETE) ───────────────────────────────────────────
     function isAuthorized() {
+      if (!env.ADMIN_SECRET) return true; // inget secret konfigurerat = öppet
       const auth = request.headers.get("Authorization") ?? "";
       return auth === `Bearer ${env.ADMIN_SECRET}`;
     }

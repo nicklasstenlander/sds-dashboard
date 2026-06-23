@@ -30,8 +30,13 @@ const WEEKDAYS = [
   { n: 7, label: "Sön" },
 ];
 
-const WORKER_URL = import.meta.env.VITE_WORKER_URL ?? "";
-const PLAYER_URL = import.meta.env.VITE_PLAYER_URL ?? "/player.html";
+const WORKER_URL    = import.meta.env.VITE_WORKER_URL    ?? "";
+const PLAYER_URL    = import.meta.env.VITE_PLAYER_URL    ?? "/player.html";
+const WORKER_SECRET = import.meta.env.VITE_WORKER_SECRET ?? "";
+
+function authHeaders(): Record<string, string> {
+  return WORKER_SECRET ? { Authorization: `Bearer ${WORKER_SECRET}` } : {};
+}
 
 function formatBytes(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
@@ -288,6 +293,8 @@ export function Signage() {
         await new Promise<void>((resolve, reject) => {
           const xhr = new XMLHttpRequest();
           xhr.open("POST", `${WORKER_URL}/api/upload`);
+          const secret = authHeaders().Authorization;
+          if (secret) xhr.setRequestHeader("Authorization", secret);
           xhr.upload.onprogress = (e) => {
             if (e.lengthComputable) {
               const pct = Math.round((e.loaded / e.total) * 100);
@@ -320,12 +327,16 @@ export function Signage() {
   const deleteItem = useCallback(async (key: string) => {
     setDeleting(key);
     try {
-      await fetch(`${WORKER_URL}/api/files/${encodeURIComponent(key)}`, { method: "DELETE" });
+      const res = await fetch(`${WORKER_URL}/api/files/${encodeURIComponent(key)}`, {
+        method: "DELETE",
+        headers: authHeaders(),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setItems(prev => prev.filter(i => i.key !== key));
       setSavedItems(prev => prev.filter(i => i.key !== key));
       setConfirmDeleteKey(null);
-    } catch {
-      alert("Kunde inte ta bort filen.");
+    } catch (e: any) {
+      alert(`Kunde inte ta bort filen. ${e.message}`);
     } finally {
       setDeleting(null);
     }
