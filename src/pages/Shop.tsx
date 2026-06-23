@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { ShoppingBag, TrendingUp, Receipt, RefreshCw, Clock, Zap, ChevronLeft, ChevronRight, Calendar } from 'lucide-react'
 
 import {
@@ -340,13 +340,44 @@ function PeriodValueControl({
   years: string[]
   onChange: (value: string) => void
 }) {
+  type PickerField = (HTMLInputElement | HTMLSelectElement) & { showPicker?: () => void }
+
+  const fieldRef = useRef<PickerField | null>(null)
+  const datePickerRef = useRef<HTMLInputElement | null>(null)
   const inputClass = 'h-8 bg-transparent text-sm font-medium text-brand-dark outline-none [color-scheme:light]'
+  const pickerLabel = period === 'year' ? 'Öppna årsväljare' : `Öppna ${PERIOD_LABELS[period].toLowerCase()}väljare`
+  const displayValue = period === 'week' || period === 'month'
+    ? periodRange(period, value).label
+    : value
+  const datePickerValue = period === 'week'
+    ? format(isoWeekStart(value), 'yyyy-MM-dd')
+    : period === 'month'
+      ? `${value}-01`
+      : periodDefaultValue('day')
+
+  function setFieldRef(node: HTMLInputElement | HTMLSelectElement | null) {
+    fieldRef.current = node as PickerField | null
+  }
+
+  function openPicker() {
+    const field = period === 'week' || period === 'month'
+      ? datePickerRef.current
+      : fieldRef.current
+    if (!field) return
+
+    try {
+      field.showPicker?.()
+    } catch {
+      field.focus()
+    }
+    if (!field.showPicker) field.focus()
+  }
 
   return (
-    <div className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 shadow-sm">
-      <Calendar className="h-4 w-4 text-slate-400" />
+    <div className="relative flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 shadow-sm">
       {period === 'year' ? (
         <select
+          ref={setFieldRef}
           aria-label="Välj år"
           value={value}
           onChange={(event) => onChange(event.target.value)}
@@ -356,16 +387,48 @@ function PeriodValueControl({
             <option key={year} value={year}>{year}</option>
           ))}
         </select>
+      ) : period === 'week' || period === 'month' ? (
+        <>
+          <button
+            type="button"
+            onClick={openPicker}
+            className={`${inputClass} ${period === 'week' ? 'w-28' : 'w-32'} cursor-pointer text-left`}
+          >
+            {displayValue}
+          </button>
+          <input
+            ref={datePickerRef}
+            aria-hidden="true"
+            tabIndex={-1}
+            type="date"
+            value={datePickerValue}
+            onChange={(event) => {
+              const selected = parseISO(event.target.value)
+              onChange(periodDefaultValue(period, selected))
+            }}
+            className="absolute right-3 top-2 h-6 w-6 opacity-0"
+          />
+        </>
       ) : (
         <input
+          ref={setFieldRef}
           aria-label={`Välj ${PERIOD_LABELS[period].toLowerCase()}`}
-          type={period === 'day' ? 'date' : period === 'week' ? 'week' : 'month'}
+          type="date"
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          className={`${inputClass} ${
-            period === 'day' ? 'w-36' : period === 'week' ? 'w-32' : 'w-32'
-          }`}
+          className={`${inputClass} w-36`}
         />
+      )}
+      {period !== 'day' && (
+        <button
+          type="button"
+          aria-label={pickerLabel}
+          title={pickerLabel}
+          onClick={openPicker}
+          className="shrink-0 rounded-md p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-brand-dark"
+        >
+          <Calendar className="h-4 w-4" />
+        </button>
       )}
     </div>
   )
