@@ -1,12 +1,13 @@
 import { useState, useMemo } from 'react'
-import { ShoppingBag, TrendingUp, Receipt, RefreshCw, Clock, Zap, ChevronLeft, ChevronRight } from 'lucide-react'
+import { ShoppingBag, TrendingUp, Receipt, RefreshCw, Clock, Zap, ChevronLeft, ChevronRight, Calendar } from 'lucide-react'
 
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts'
 import {
-  format, formatDistanceToNow, parseISO, subDays, subMonths, subYears,
-  startOfDay, startOfWeek, startOfMonth, getISOWeek,
+  addDays, addMonths, addWeeks,
+  format, formatDistanceToNow, parseISO,
+  startOfDay, startOfWeek, startOfMonth, getISOWeek, getISOWeekYear,
 } from 'date-fns'
 import { sv } from 'date-fns/locale'
 import { useShopify } from '../hooks/useShopify'
@@ -18,12 +19,64 @@ type Period = 'day' | 'week' | 'month' | 'year'
 const PERIOD_LABELS: Record<Period, string> = { day: 'Dag', week: 'Vecka', month: 'Månad', year: 'År' }
 const PAGE_SIZE = 10
 
-function periodCutoff(p: Period): Date {
-  const now = new Date()
-  if (p === 'day')   return startOfDay(now)
-  if (p === 'week')  return subDays(now, 7)
-  if (p === 'month') return subMonths(now, 1)
-  return subYears(now, 1)
+interface PeriodRange {
+  start: Date
+  end: Date
+  label: string
+}
+
+function periodDefaultValue(p: Period, date = new Date()): string {
+  if (p === 'day') return format(date, 'yyyy-MM-dd')
+  if (p === 'week') return `${getISOWeekYear(date)}-W${String(getISOWeek(date)).padStart(2, '0')}`
+  if (p === 'month') return format(date, 'yyyy-MM')
+  return String(date.getFullYear())
+}
+
+function periodRange(p: Period, value: string): PeriodRange {
+  if (p === 'day') {
+    const start = startOfDay(parseISO(value))
+    return {
+      start,
+      end: addDays(start, 1),
+      label: format(start, 'd MMM yyyy', { locale: sv }),
+    }
+  }
+
+  if (p === 'week') {
+    const start = isoWeekStart(value)
+    return {
+      start,
+      end: addWeeks(start, 1),
+      label: `v${getISOWeek(start)} ${getISOWeekYear(start)}`,
+    }
+  }
+
+  if (p === 'month') {
+    const start = startOfMonth(parseISO(`${value}-01`))
+    return {
+      start,
+      end: addMonths(start, 1),
+      label: format(start, 'MMMM yyyy', { locale: sv }),
+    }
+  }
+
+  const year = Number(value) || new Date().getFullYear()
+  const start = new Date(year, 0, 1)
+  return {
+    start,
+    end: new Date(year + 1, 0, 1),
+    label: String(year),
+  }
+}
+
+function isoWeekStart(value: string): Date {
+  const match = value.match(/^(\d{4})-W(\d{2})$/)
+  if (!match) return startOfWeek(new Date(), { weekStartsOn: 1 })
+
+  const year = Number(match[1])
+  const week = Number(match[2])
+  const firstIsoWeek = startOfWeek(new Date(year, 0, 4), { weekStartsOn: 1 })
+  return addWeeks(firstIsoWeek, Math.max(week - 1, 0))
 }
 
 // Auto chart granularity based on period
@@ -36,16 +89,21 @@ function autoGran(p: Period) {
 
 export function Shop() {
   const [period, setPeriod] = useState<Period>('month')
+  const [periodValue, setPeriodValue] = useState(() => periodDefaultValue('month'))
   const [page, setPage] = useState(0)
   const { data, isLoading, isError, isFetching } = useShopify()
 
   const allOrders = data?.orders ?? []
   const products  = data?.products ?? []
+  const selectedRange = useMemo(() => periodRange(period, periodValue), [period, periodValue])
+  const availableYears = useMemo(() => buildAvailableYears(allOrders, periodValue), [allOrders, periodValue])
 
   const orders = useMemo(() => {
-    const cutoff = periodCutoff(period)
-    return allOrders.filter((o) => new Date(o.created_at) >= cutoff)
-  }, [allOrders, period])
+    return allOrders.filter((o) => {
+      const createdAt = new Date(o.created_at)
+      return createdAt >= selectedRange.start && createdAt < selectedRange.end
+    })
+  }, [allOrders, selectedRange])
 
   const kpi          = useMemo(() => computeKPI(orders), [orders])
   const chartData    = useMemo(() => buildChartData(orders, autoGran(period)), [orders, period])
@@ -55,7 +113,16 @@ export function Shop() {
   const pageSales    = allSales.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
 
   // Reset page when period changes
-  const handlePeriod = (p: Period) => { setPeriod(p); setPage(0) }
+  const handlePeriod = (p: Period) => {
+    setPeriod(p)
+    setPeriodValue(periodDefaultValue(p))
+    setPage(0)
+  }
+
+  const handlePeriodValue = (value: string) => {
+    setPeriodValue(value || periodDefaultValue(period))
+    setPage(0)
+  }
 
   if (isLoading) return <ShopSkeleton />
 
@@ -95,20 +162,28 @@ export function Shop() {
       </div>
 
       {/* Global period filter */}
-      <div className="flex gap-1 bg-slate-100 rounded-xl p-1 w-fit">
-        {(Object.keys(PERIOD_LABELS) as Period[]).map((p) => (
-          <button
-            key={p}
-            onClick={() => handlePeriod(p)}
-            className={`px-4 py-1.5 text-sm rounded-lg font-medium transition-colors ${
-              period === p
-                ? 'bg-white text-brand-dark shadow-sm'
-                : 'text-slate-500 hover:text-brand-dark'
-            }`}
-          >
-            {PERIOD_LABELS[p]}
-          </button>
-        ))}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex gap-1 bg-slate-100 rounded-xl p-1 w-fit">
+          {(Object.keys(PERIOD_LABELS) as Period[]).map((p) => (
+            <button
+              key={p}
+              onClick={() => handlePeriod(p)}
+              className={`px-4 py-1.5 text-sm rounded-lg font-medium transition-colors ${
+                period === p
+                  ? 'bg-white text-brand-dark shadow-sm'
+                  : 'text-slate-500 hover:text-brand-dark'
+              }`}
+            >
+              {PERIOD_LABELS[p]}
+            </button>
+          ))}
+        </div>
+        <PeriodValueControl
+          period={period}
+          value={periodValue}
+          years={availableYears}
+          onChange={handlePeriodValue}
+        />
       </div>
 
       {/* KPIs */}
@@ -116,7 +191,7 @@ export function Shop() {
         <KPICard
           title="Ordrar"
           value={kpi.totalOrders.toLocaleString('sv-SE')}
-          subtitle={PERIOD_LABELS[period].toLowerCase()}
+          subtitle={selectedRange.label}
           icon={<Receipt className="w-6 h-6" />}
           color="violet"
         />
@@ -254,6 +329,48 @@ export function Shop() {
   )
 }
 
+function PeriodValueControl({
+  period,
+  value,
+  years,
+  onChange,
+}: {
+  period: Period
+  value: string
+  years: string[]
+  onChange: (value: string) => void
+}) {
+  const inputClass = 'h-8 bg-transparent text-sm font-medium text-brand-dark outline-none [color-scheme:light]'
+
+  return (
+    <div className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 shadow-sm">
+      <Calendar className="h-4 w-4 text-slate-400" />
+      {period === 'year' ? (
+        <select
+          aria-label="Välj år"
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          className={`${inputClass} w-20 cursor-pointer`}
+        >
+          {years.map((year) => (
+            <option key={year} value={year}>{year}</option>
+          ))}
+        </select>
+      ) : (
+        <input
+          aria-label={`Välj ${PERIOD_LABELS[period].toLowerCase()}`}
+          type={period === 'day' ? 'date' : period === 'week' ? 'week' : 'month'}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          className={`${inputClass} ${
+            period === 'day' ? 'w-36' : period === 'week' ? 'w-32' : 'w-32'
+          }`}
+        />
+      )}
+    </div>
+  )
+}
+
 function computeKPI(orders: ShopifyOrder[]) {
   const paid = orders.filter((o) => o.financial_status === 'paid')
   const totalRevenue = paid.reduce((s, o) => s + parseFloat(o.total_price), 0)
@@ -261,6 +378,15 @@ function computeKPI(orders: ShopifyOrder[]) {
   const avgOrder     = totalOrders > 0 ? totalRevenue / totalOrders : 0
   const totalItems   = paid.reduce((s, o) => s + o.line_items.reduce((n, li) => n + li.quantity, 0), 0)
   return { totalRevenue, totalOrders, avgOrder, totalItems }
+}
+
+function buildAvailableYears(orders: ShopifyOrder[], selectedYear: string) {
+  const years = new Set<string>([String(new Date().getFullYear()), selectedYear])
+  for (const order of orders) {
+    const year = new Date(order.created_at).getFullYear()
+    if (Number.isFinite(year)) years.add(String(year))
+  }
+  return Array.from(years).sort((a, b) => Number(b) - Number(a))
 }
 
 function buildChartData(orders: ShopifyOrder[], gran: string) {
