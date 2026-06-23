@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -99,7 +99,7 @@ interface UploadJob {
 
 export function Signage() {
   const [items, setItems]               = useState<PlaylistItem[]>([]);
-  const [savedItems, setSavedItems]     = useState<PlaylistItem[]>([]);
+  const [isDirty, setIsDirty]           = useState(false);
   const [loading, setLoading]           = useState(false);
   const [isSaving, setIsSaving]         = useState(false);
   const [dragOver, setDragOver]         = useState(false);
@@ -109,13 +109,7 @@ export function Signage() {
   const [deleting, setDeleting]         = useState<string | null>(null);
   const [confirmDeleteKey, setConfirmDeleteKey] = useState<string | null>(null);
   const fileInputRef                    = useRef<HTMLInputElement>(null);
-
-  const isDirty = useMemo(() => {
-    if (savedItems.length !== items.length) return true;
-    return items.some((item, idx) =>
-      item.key !== savedItems[idx]?.key || item.duration !== savedItems[idx]?.duration
-    );
-  }, [items, savedItems]);
+  const savedItemsRef                   = useRef<PlaylistItem[]>([]);
 
   // ── Schedules ────────────────────────────────────────────────────────────
   const [schedules, setSchedules]           = useState<Schedules>({});
@@ -241,7 +235,8 @@ export function Signage() {
       }
 
       setItems(files);
-      setSavedItems(files);
+      savedItemsRef.current = files;
+      setIsDirty(false);
     } catch (e) {
       console.error("Kunde inte hämta filer:", e);
     } finally {
@@ -265,7 +260,8 @@ export function Signage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ order, durations }),
       });
-      setSavedItems([...items]);
+      savedItemsRef.current = [...items];
+      setIsDirty(false);
     } catch (e) {
       console.error("Kunde inte spara spellista:", e);
     } finally {
@@ -274,7 +270,8 @@ export function Signage() {
   }
 
   function handleUndo() {
-    setItems([...savedItems]);
+    setItems([...savedItemsRef.current]);
+    setIsDirty(false);
   }
 
   // ── Upload ───────────────────────────────────────────────────────────────
@@ -333,7 +330,7 @@ export function Signage() {
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setItems(prev => prev.filter(i => i.key !== key));
-      setSavedItems(prev => prev.filter(i => i.key !== key));
+      savedItemsRef.current = savedItemsRef.current.filter(i => i.key !== key);
       setConfirmDeleteKey(null);
     } catch (e: any) {
       alert(`Kunde inte ta bort filen. ${e.message}`);
@@ -353,6 +350,7 @@ export function Signage() {
         arr.splice(to, 0, el);
         return arr;
       });
+      setIsDirty(true);
     }
     setDragId(null);
     setDragOverId(null);
@@ -708,11 +706,12 @@ export function Signage() {
                       min={1}
                       max={120}
                       value={item.duration}
-                      onChange={(e) =>
+                      onChange={(e) => {
                         setItems(prev =>
                           prev.map(i => i.key === item.key ? { ...i, duration: Number(e.target.value) } : i)
-                        )
-                      }
+                        );
+                        setIsDirty(true);
+                      }}
                       className="sds-focus-ring text-center text-brand-dark"
                       style={{
                         width: 56, minHeight: 36, padding: "6px 8px", borderRadius: 7,
