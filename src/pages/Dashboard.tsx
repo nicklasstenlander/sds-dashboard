@@ -318,6 +318,7 @@ export function Dashboard({ darkMode, onToggleDarkMode }: DashboardProps) {
         bookings={bookings}
         loading={allDataQuery.isLoading}
         search={search}
+        activePeriod={eventBlockId}
         onSelect={setSelectedEvent}
         onRefresh={handleCacheRefresh}
         onDirectRefresh={handleDirectRefresh}

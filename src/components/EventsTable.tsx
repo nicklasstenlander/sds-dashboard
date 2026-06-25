@@ -8,6 +8,7 @@ interface EventsTableProps {
   bookings?: Booking[]
   loading?: boolean
   search: string
+  activePeriod?: string
   onSelect?: (event: Event) => void
   onRefresh?: () => void
   onDirectRefresh?: () => void
@@ -25,6 +26,13 @@ function fillRate(e: Event, accepted: number): number {
   return Math.round((accepted / max) * 100)
 }
 
+function shortPeriod(name: string): string {
+  return name
+    .replace(/20(\d{2})/, '$1')
+    .replace(/Vårterminen\s*/i, 'VT')
+    .replace(/Höstterminen\s*/i, 'HT')
+}
+
 function fillBarColor(pct: number) {
   if (pct >= 90) return 'var(--fill-danger)'
   if (pct >= 70) return 'var(--fill-warn)'
@@ -37,7 +45,7 @@ function fillBadgeClass(pct: number) {
   return 'bg-status-okSoft text-brand-forest dark:bg-[rgba(93,184,138,0.14)] dark:text-[var(--dark-positive)]'
 }
 
-export function EventsTable({ events, bookings = [], loading, search, onSelect, onRefresh, onDirectRefresh, onGroupSms, isRefreshing, isDirectRefreshing }: EventsTableProps) {
+export function EventsTable({ events, bookings = [], loading, search, activePeriod, onSelect, onRefresh, onDirectRefresh, onGroupSms, isRefreshing, isDirectRefreshing }: EventsTableProps) {
   const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: 'accepted', dir: 'desc' })
 
   const metricsByEvent = useMemo(() => buildCourseMetrics(bookings), [bookings])
@@ -74,12 +82,12 @@ export function EventsTable({ events, bookings = [], loading, search, onSelect, 
     setSort((s) => s.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'desc' })
   }
 
-  const Th = ({ label, sortKey, hide }: { label: string; sortKey?: SortKey; hide?: string }) => (
+  const Th = ({ label, sortKey, hide, align }: { label: string; sortKey?: SortKey; hide?: string; align?: 'left' | 'right' }) => (
     <th
-      className={`text-left text-xs font-semibold text-slate-600 py-3 px-4 whitespace-nowrap ${sortKey ? 'cursor-pointer select-none hover:text-brand-dark' : ''} ${hide ?? ''}`}
+      className={`text-xs font-semibold text-slate-600 py-3 px-4 whitespace-nowrap ${align === 'right' ? 'text-right' : 'text-left'} ${sortKey ? 'cursor-pointer select-none hover:text-brand-dark' : ''} ${hide ?? ''}`}
       onClick={() => sortKey && toggleSort(sortKey)}
     >
-      <span className="flex items-center gap-1">
+      <span className={`flex items-center gap-1 ${align === 'right' ? 'justify-end' : ''}`}>
         {label}
         {sortKey && <ArrowUpDown className="w-3 h-3" />}
       </span>
@@ -134,11 +142,10 @@ export function EventsTable({ events, bookings = [], loading, search, onSelect, 
         </div>
       </div>
       <div className="overflow-x-auto mt-3 rounded-b-2xl">
-        <table className="w-full min-w-[1320px] table-fixed">
+        <table className="w-full min-w-[1140px] table-fixed">
           <colgroup>
-            <col className="w-[14rem]" />
+            <col className="w-[18rem]" />
             <col className="w-[13rem]" />
-            <col className="w-[12rem]" />
             <col className="w-[12rem]" />
             <col className="w-[6rem]" />
             <col className="w-[6rem]" />
@@ -153,20 +160,19 @@ export function EventsTable({ events, bookings = [], loading, search, onSelect, 
               <Th label="Kurs"        sortKey="name"     />
               <Th label="Kategori"    sortKey="category" hide="hidden sm:table-cell" />
               <Th label="Dag / tid"   hide="hidden md:table-cell" />
-              <Th label="Period"      hide="hidden md:table-cell" />
-              <Th label="Anmälda"     sortKey="accepted" />
-              <Th label="Antagna"     sortKey="antagna"  hide="hidden sm:table-cell" />
-              <Th label="Max"         hide="hidden sm:table-cell" />
+              <Th label="Anmälda"     sortKey="accepted" align="right" />
+              <Th label="Antagna"     sortKey="antagna"  hide="hidden sm:table-cell" align="right" />
+              <Th label="Max"         hide="hidden sm:table-cell" align="right" />
               <Th label="Beläggning"  sortKey="fill"     />
-              <Th label="Pris (kr)"   sortKey="price"    hide="hidden lg:table-cell" />
-              <Th label="Intäkt (kr)" sortKey="revenue"  hide="hidden lg:table-cell" />
+              <Th label="Pris (kr)"   sortKey="price"    hide="hidden lg:table-cell" align="right" />
+              <Th label="Intäkt (kr)" sortKey="revenue"  hide="hidden lg:table-cell" align="right" />
               <th className="w-8" />
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50">
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={10} className="text-center py-10 text-sm text-slate-600">
+                <td colSpan={9} className="text-center py-10 text-sm text-slate-600">
                   Inga kurser hittades
                 </td>
               </tr>
@@ -185,6 +191,11 @@ export function EventsTable({ events, bookings = [], loading, search, onSelect, 
                         Ej publik
                       </span>
                     )}
+                    {!activePeriod && e.grouping?.eventBlock?.name && (
+                      <span className="shrink-0 text-[11px] font-medium px-1.5 py-0.5 rounded bg-slate-50 text-slate-400 whitespace-nowrap">
+                        {shortPeriod(e.grouping.eventBlock.name)}
+                      </span>
+                    )}
                   </div>
                 </td>
                 <td className="hidden sm:table-cell py-3 px-4 text-sm text-slate-500">
@@ -197,18 +208,13 @@ export function EventsTable({ events, bookings = [], loading, search, onSelect, 
                     {e.schedule?.dayAndTimeInfo || '—'}
                   </span>
                 </td>
-                <td className="hidden md:table-cell py-3 px-4 text-sm text-slate-500">
-                  <span className="block truncate" title={e.grouping?.eventBlock?.name}>
-                    {e.grouping?.eventBlock?.name || '—'}
-                  </span>
-                </td>
-                <td className="py-3 px-4 text-sm text-slate-600 tabular-nums">
+                <td className="py-3 px-4 text-sm text-slate-600 tabular-nums text-right">
                   {e._registered}
                 </td>
-                <td className="hidden sm:table-cell py-3 px-4 text-sm font-semibold text-brand-forest tabular-nums">
+                <td className="hidden sm:table-cell py-3 px-4 text-sm font-semibold text-brand-forest tabular-nums text-right">
                   {e._accepted}
                 </td>
-                <td className="hidden sm:table-cell py-3 px-4 text-sm text-slate-500 tabular-nums">
+                <td className="hidden sm:table-cell py-3 px-4 text-sm text-slate-500 tabular-nums text-right">
                   {e.requirements?.maxParticipants ?? '—'}
                 </td>
                 <td className="py-3 px-4">
@@ -228,10 +234,10 @@ export function EventsTable({ events, bookings = [], loading, search, onSelect, 
                     <span className="text-sm text-slate-600">—</span>
                   )}
                 </td>
-                <td className="hidden lg:table-cell py-3 px-4 text-sm text-slate-600 tabular-nums whitespace-nowrap">
+                <td className="hidden lg:table-cell py-3 px-4 text-sm text-slate-600 tabular-nums whitespace-nowrap text-right">
                   {e._price > 0 ? e._price.toLocaleString('sv-SE') : '—'}
                 </td>
-                <td className="hidden lg:table-cell py-3 px-4 text-sm font-medium text-slate-700 tabular-nums whitespace-nowrap">
+                <td className="hidden lg:table-cell py-3 px-4 text-sm font-medium text-slate-700 tabular-nums whitespace-nowrap text-right">
                   {e._revenue > 0 ? e._revenue.toLocaleString('sv-SE') : '—'}
                 </td>
                 <td className="py-3 px-2">

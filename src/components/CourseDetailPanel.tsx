@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { X, Users, Clock, MapPin, User, Banknote } from 'lucide-react'
+import { X, Users, Clock, MapPin, User, Banknote, CalendarDays } from 'lucide-react'
 import { useEventBookings } from '../hooks/useEventBookings'
 import { ParticipantPanel } from './ParticipantPanel'
 import { formatBookingStatus } from '../lib/status'
@@ -166,6 +166,12 @@ export function CourseDetailPanel({ event, onClose }: CourseDetailPanelProps) {
               <span className="flex items-center gap-1.5 text-sm text-slate-500">
                 <Clock className="w-3.5 h-3.5 shrink-0" />
                 {event.schedule.dayAndTimeInfo}
+              </span>
+            )}
+            {event.grouping?.eventBlock?.name && (
+              <span className="flex items-center gap-1.5 text-sm text-slate-500">
+                <CalendarDays className="w-3.5 h-3.5 shrink-0" />
+                {event.grouping.eventBlock.name}
               </span>
             )}
             {event.place && (
