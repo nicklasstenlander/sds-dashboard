@@ -30,12 +30,33 @@ interface CourseEvent {
   participants: Participant[]
 }
 
-type Checkins = Record<string, Record<string, string>>
+interface CogworkCheckinResponse {
+  ok:               boolean
+  code:             string
+  state:            number
+  heading:          string
+  message:          string
+  extraInfo:        string
+  occasionIdList:   string
+  attendanceIdList: string
+  soundSignal:      string
+  bgColor:          string
+}
+
+interface CheckinInfo {
+  time:             string
+  attendanceIds?:   string
+  cogworkConfirmed: boolean
+}
+
+type Checkins = Record<string, Record<string, CheckinInfo>>
 
 interface ToastState {
-  message: string
-  error:   boolean
-  key:     number
+  heading?: string
+  message:  string
+  variant:  'success' | 'warning' | 'error'
+  bgColor?: string
+  key:      number
 }
 
 // ---------------------------------------------------------------------------
@@ -134,6 +155,10 @@ function sortEvents(events: CourseEvent[]): CourseEvent[] {
   return [...events].sort((a, b) => (a.time || '').localeCompare(b.time || '', 'sv'))
 }
 
+function isValidPersonnummer(pnr: string): boolean {
+  return /^\d{12}$/.test(pnr)
+}
+
 function initials(name: string): string {
   const parts = name.split(/\s+/).filter(Boolean)
   return (parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')
@@ -149,17 +174,23 @@ function buildEventMetaMap(events: CogworkEvent[]): Map<string, CogworkEvent> {
 
 function Toast({ toast }: { toast: ToastState | null }) {
   if (!toast) return null
+  const variantClasses = {
+    success: 'bg-[#1e4025] text-white border-l-4 border-[#dd5c86]',
+    warning: 'bg-yellow-600 text-white border-l-4 border-yellow-400',
+    error:   'bg-red-700 text-white border-l-4 border-red-400',
+  }
   return (
     <div
       key={toast.key}
-      className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-full text-sm font-medium shadow-lg whitespace-nowrap
-        ${toast.error
-          ? 'bg-red-700 text-white border-l-4 border-red-400'
-          : 'bg-[#1e4025] text-white border-l-4 border-[#dd5c86]'
-        }`}
-      style={{ animation: 'toast-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)' }}
+      className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-2xl text-sm font-medium shadow-lg max-w-md text-center
+        ${variantClasses[toast.variant]}`}
+      style={{
+        ...(toast.bgColor ? { backgroundColor: toast.bgColor } : {}),
+        animation: 'toast-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+      }}
     >
-      {toast.message}
+      {toast.heading && <div className="font-bold">{toast.heading}</div>}
+      <div>{toast.message}</div>
     </div>
   )
 }
@@ -170,35 +201,44 @@ function Toast({ toast }: { toast: ToastState | null }) {
 
 function ParticipantRow({
   participant,
-  checkinTime,
+  checkinInfo,
   rowId,
   onCheckin,
 }: {
   participant:  Participant
-  checkinTime:  string | undefined
+  checkinInfo:  CheckinInfo | undefined
   rowId:        string
   onCheckin:    () => void
 }) {
-  const checked = Boolean(checkinTime)
+  const checked = Boolean(checkinInfo)
+  const hasPnr = isValidPersonnummer(participant.personnummer)
   return (
     <div
       id={rowId}
       onClick={onCheckin}
       className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors rounded-xl ${
-        checked ? 'bg-[#CDDCD1]' : 'hover:bg-slate-50'
+        checked ? 'bg-[#CDDCD1]' : hasPnr ? 'hover:bg-slate-50' : 'bg-red-50 opacity-75'
       }`}
     >
       {checked
         ? <CheckCircle className="w-5 h-5 shrink-0 text-[#1e4025]" />
-        : <Circle className="w-5 h-5 shrink-0 text-slate-300" />}
-      <span className={`text-sm flex-1 font-medium ${checked ? 'text-[#1e4025]' : 'text-brand-dark'}`}>
-        {participant.firstName} {participant.lastName}
-      </span>
+        : <Circle className={`w-5 h-5 shrink-0 ${hasPnr ? 'text-slate-300' : 'text-red-300'}`} />}
+      <div className="flex-1 min-w-0">
+        <span className={`text-sm font-medium ${checked ? 'text-[#1e4025]' : 'text-brand-dark'}`}>
+          {participant.firstName} {participant.lastName}
+        </span>
+        {!hasPnr && (
+          <span className="block text-xs text-red-500">Personnummer saknas – kontakta reception</span>
+        )}
+        {checkinInfo?.attendanceIds && (
+          <span className="block text-xs text-[#1e4025]/70">✓ Sparad i CogWork</span>
+        )}
+      </div>
       {participant.phone && (
         <span className="text-xs text-slate-400 hidden sm:inline">{participant.phone}</span>
       )}
       <span className={`text-xs tabular-nums shrink-0 ${checked ? 'text-[#1e4025] font-semibold' : 'text-slate-400'}`}>
-        {checkinTime ?? '–'}
+        {checkinInfo?.time ?? '–'}
       </span>
     </div>
   )
@@ -218,7 +258,7 @@ function EventCard({
   onScan,
 }: {
   event:        CourseEvent
-  checkins:     Record<string, string>
+  checkins:     Record<string, CheckinInfo>
   scanInput:    string
   scanError:    boolean
   onScanChange: (v: string) => void
@@ -287,7 +327,7 @@ function EventCard({
           <ParticipantRow
             key={p.userKey}
             participant={p}
-            checkinTime={checkins[p.userKey]}
+            checkinInfo={checkins[p.userKey]}
             rowId={`row-${event.eventId}-${p.userKey}`}
             onCheckin={() => onCheckin(p)}
           />
@@ -326,7 +366,7 @@ export function Narvaro() {
         evt.participants.forEach(participant => {
           if (participant.attending !== 'yes' || next[evt.eventId]?.[participant.userKey]) return
           changed = true
-          next[evt.eventId] = { ...(next[evt.eventId] ?? {}), [participant.userKey]: '✓' }
+          next[evt.eventId] = { ...(next[evt.eventId] ?? {}), [participant.userKey]: { time: '✓', cogworkConfirmed: true } }
         })
       })
 
@@ -337,10 +377,10 @@ export function Narvaro() {
   // ---------------------------------------------------------------------------
   // Toast helper
   // ---------------------------------------------------------------------------
-  function showToast(message: string, error = false) {
+  function showToast(message: string, variant: ToastState['variant'] = 'success', heading?: string, bgColor?: string) {
     if (toastTimer.current) clearTimeout(toastTimer.current)
-    setToast({ message, error, key: Date.now() })
-    toastTimer.current = setTimeout(() => setToast(null), 2800)
+    setToast({ message, variant, heading, bgColor, key: Date.now() })
+    toastTimer.current = setTimeout(() => setToast(null), 4000)
   }
 
   // ---------------------------------------------------------------------------
@@ -401,26 +441,65 @@ export function Narvaro() {
       return
     }
 
-    try {
-      const url  = `${NARVARO_URL}?action=checkin&eventId=${encodeURIComponent(eventId)}&checkinString=${encodeURIComponent(participant.userKey)}`
-      const res  = await fetch(url)
-      const data = await res.json()
-
-      if (!data.ok) {
-        showToast(data.error ?? 'Incheckning misslyckades', true)
-        return
-      }
-    } catch {
-      showToast('Nätverksfel – incheckning misslyckades', true)
+    if (!isValidPersonnummer(participant.personnummer)) {
+      showToast(
+        participant.personnummer
+          ? `Ogiltigt personnummer (${participant.personnummer}) – kontakta reception`
+          : `${name} saknar personnummer – kontakta reception`,
+        'error',
+      )
       return
     }
 
-    const time = new Date().toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })
-    setCheckins(prev => ({
-      ...prev,
-      [eventId]: { ...(prev[eventId] ?? {}), [participant.userKey]: time },
-    }))
-    showToast(`✓ ${name} incheckad ${time}`)
+    let data: CogworkCheckinResponse
+    try {
+      const url = `${NARVARO_URL}?action=checkin&checkinString=${encodeURIComponent(participant.personnummer)}&eventId=${encodeURIComponent(eventId)}`
+      const res = await fetch(url)
+      data = await res.json()
+    } catch {
+      showToast('Nätverksfel – incheckning misslyckades', 'error')
+      return
+    }
+
+    if (data.code === 'OK' || data.occasionIdList) {
+      const time = new Date().toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })
+      setCheckins(prev => ({
+        ...prev,
+        [eventId]: {
+          ...(prev[eventId] ?? {}),
+          [participant.userKey]: {
+            time,
+            attendanceIds: data.attendanceIdList || undefined,
+            cogworkConfirmed: true,
+          },
+        },
+      }))
+      showToast(
+        data.message || `${name} incheckad ${time}`,
+        'success',
+        data.heading,
+        data.bgColor,
+      )
+    } else if (data.code === 'NO_OPEN_OCCASIONS') {
+      showToast(
+        data.message || 'Tillfället är ej aktivt – kontakta reception för manuell rättning',
+        'warning',
+        data.heading,
+      )
+    } else if (data.code === 'UNKNOWNN_REFERENCE') {
+      showToast(
+        data.message || 'Personnumret finns inte i CogWork – kontrollera elevprofilen',
+        'error',
+        data.heading,
+      )
+    } else {
+      showToast(
+        data.message || 'Okänt svar från CogWork',
+        data.ok ? 'success' : 'error',
+        data.heading,
+        data.bgColor,
+      )
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -450,7 +529,7 @@ export function Narvaro() {
     } else {
       // Red border feedback, clears after 1 s
       setScanErrors(prev => ({ ...prev, [eventId]: true }))
-      showToast('Ingen matchande deltagare', true)
+      showToast('Ingen matchande deltagare', 'error')
       setTimeout(() => setScanErrors(prev => ({ ...prev, [eventId]: false })), 1000)
     }
   }
