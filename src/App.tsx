@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useLayoutEffect, lazy, Suspense } from 'react'
 import { Routes, Route, Navigate, NavLink, useLocation } from 'react-router-dom'
-import { LayoutDashboard, ClipboardList, Users, Settings, LogOut, ShoppingBag, PanelLeft, Phone, ClipboardCheck, Monitor, MoreHorizontal, Loader2 } from 'lucide-react'
+import { LayoutDashboard, ClipboardList, Users, Settings, LogOut, ShoppingBag, PanelLeft, Phone, ClipboardCheck, Monitor, CalendarDays, MoreHorizontal, Loader2 } from 'lucide-react'
 import { ApiProvider, useApiConfig } from './context/ApiContext'
 import { LoginPage } from './pages/LoginPage'
 import { SettingsModal } from './components/SettingsModal'
@@ -12,6 +12,7 @@ const Shop = lazy(() => import('./pages/Shop').then(m => ({ default: m.Shop })))
 const Calls = lazy(() => import('./pages/Calls').then(m => ({ default: m.Calls })))
 const Narvaro = lazy(() => import('./pages/Narvaro').then(m => ({ default: m.Narvaro })))
 const Signage = lazy(() => import('./pages/Signage').then(m => ({ default: m.Signage })))
+const Schema = lazy(() => import('./pages/Schema').then(m => ({ default: m.Schema })))
 
 function PageLoader() {
   return (
@@ -29,6 +30,7 @@ const NAV = [
   { to: '/samtal',      label: 'Samtal',        Icon: Phone           },
   { to: '/narvaro',     label: 'Närvaro',       Icon: ClipboardCheck  },
   { to: '/skyltning',   label: 'Skyltning',     Icon: Monitor         },
+  { to: '/schema',      label: 'Schema',        Icon: CalendarDays    },
 ]
 
 function AppShell() {
@@ -160,6 +162,7 @@ function AppShell() {
               <Route path="/samtal" element={<Calls />} />
               <Route path="/narvaro" element={<Narvaro />} />
               <Route path="/skyltning" element={<Signage />} />
+              <Route path="/schema" element={<Schema />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Suspense>
@@ -178,6 +181,7 @@ function AppShell() {
           { to: '/samtal',    label: 'Samtal',    Icon: Phone         },
           { to: '/narvaro',   label: 'Närvaro',   Icon: ClipboardCheck },
           { to: '/skyltning', label: 'Skyltning', Icon: Monitor       },
+          { to: '/schema',    label: 'Schema',    Icon: CalendarDays  },
         ]
         const isMoreActive = MORE.some(m => isActive(m.to))
 
