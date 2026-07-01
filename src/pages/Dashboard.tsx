@@ -33,6 +33,8 @@ interface DashboardProps {
 export function Dashboard({ darkMode, onToggleDarkMode }: DashboardProps) {
   const { usingLegacyAuth, profile } = useAuth()
   const canSeeFinancials = usingLegacyAuth || profile?.role !== 'teacher'
+  const firstName = profile?.full_name?.split(' ')[0] || null
+  const greetingName = !usingLegacyAuth && firstName ? firstName : 'Sollentuna'
 
   const [eventBlockId, setEventBlockId] = useState(() => getDefaultEventBlockId())
   const [categoryFilter, setCategoryFilter] = useState('')
@@ -156,6 +158,7 @@ export function Dashboard({ darkMode, onToggleDarkMode }: DashboardProps) {
           ejBetalda={bookingKpi.ejBetalda}
           avgFill={kpi.avgFill}
           periodLabel={periodLabel}
+          greetingName={greetingName}
         />
         <div className="shrink-0 flex items-center gap-2 mt-1">
           <button
@@ -373,11 +376,13 @@ function DashboardGreeting({
   ejBetalda,
   avgFill,
   periodLabel,
+  greetingName,
 }: {
   newToday: number
   ejBetalda: number
   avgFill: number
   periodLabel: string
+  greetingName: string
 }) {
   const now = new Date()
   const hour = now.getHours()
@@ -401,7 +406,7 @@ function DashboardGreeting({
       >
         <span style={{ fontWeight: 300, fontStyle: 'italic' }}>{greeting},</span>
         <br />
-        <span style={{ fontWeight: 400 }}>Sollentuna.</span>
+        <span style={{ fontWeight: 400 }}>{greetingName}.</span>
       </h1>
       {statNodes.length > 0 && (
         <p className="text-sm text-slate-500 mt-3">
