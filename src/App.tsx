@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useLayoutEffect, lazy, Suspense } from 're
 import { Routes, Route, Navigate, NavLink, useLocation } from 'react-router-dom'
 import { LayoutDashboard, ClipboardList, Users, Settings, LogOut, ShoppingBag, PanelLeft, Phone, ClipboardCheck, Monitor, CalendarDays, MoreHorizontal, Loader2 } from 'lucide-react'
 import { ApiProvider, useApiConfig } from './context/ApiContext'
+import { AuthProvider, useAuth } from './context/AuthContext'
 import { LoginPage } from './pages/LoginPage'
 import { SettingsModal } from './components/SettingsModal'
 
@@ -22,6 +23,14 @@ function PageLoader() {
   )
 }
 
+function FullPageLoader() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-white">
+      <Loader2 className="w-6 h-6 animate-spin text-brand-forest" />
+    </div>
+  )
+}
+
 const NAV = [
   { to: '/',            label: 'Översikt',    Icon: LayoutDashboard },
   { to: '/anmalningar', label: 'Anmälningar', Icon: ClipboardList   },
@@ -34,6 +43,7 @@ const NAV = [
 ]
 
 function AppShell() {
+  const { session, loading: authLoading, usingLegacyAuth, profile, signOut } = useAuth()
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -49,18 +59,27 @@ function AppShell() {
   const { pathname } = useLocation()
   const isActive = (to: string) => (to === '/' ? pathname === '/' : pathname.startsWith(to))
 
+  const isAuthenticated = Boolean(session) || usingLegacyAuth
+  const canSeeSettings = usingLegacyAuth || profile?.role !== 'teacher'
+
   useLayoutEffect(() => {
-    if (!hasPw) return
+    if (!isAuthenticated) return
     const link = navRef.current?.querySelector<HTMLAnchorElement>('[data-active="true"]')
     if (link) setPill({ top: link.offsetTop, height: link.offsetHeight })
-  }, [pathname, hasPw, collapsed])
+  }, [pathname, isAuthenticated, collapsed])
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode)
     localStorage.setItem('sds-theme', darkMode ? 'dark' : 'light')
   }, [darkMode])
 
-  if (!hasPw) return <LoginPage />
+  async function handleLogout() {
+    await signOut()
+    setConfig({ org: 'sollentunadans', pw: '' })
+  }
+
+  if (authLoading) return <FullPageLoader />
+  if (!isAuthenticated) return <LoginPage />
 
   return (
     <div className="flex h-screen bg-white dark:bg-[var(--dark-page)] overflow-hidden">
@@ -82,7 +101,6 @@ function AppShell() {
 
         {/* Nav */}
         <nav ref={navRef} className="flex-1 p-3 space-y-0.5 relative">
-          {/* Sliding pill */}
           {pill.height > 0 && (
             <div
               className="sds-sidebar-pill absolute left-3 right-3 bg-brand-mint rounded-xl transition-all duration-200 ease-out pointer-events-none"
@@ -108,8 +126,23 @@ function AppShell() {
           })}
         </nav>
 
-        {/* Collapse toggle + Settings + Logout */}
+        {/* Användarmeny + kontroller */}
         <div className="p-3 border-t border-slate-100 space-y-0.5">
+          {/* Användarbadge */}
+          {!collapsed && (
+            <div className="px-3 py-2 mb-1">
+              {usingLegacyAuth ? (
+                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">
+                  Tillfälligt läge
+                </span>
+              ) : profile ? (
+                <p className="text-xs font-medium text-brand-dark truncate" title={profile.full_name}>
+                  {profile.full_name}
+                </p>
+              ) : null}
+            </div>
+          )}
+
           <button
             onClick={() => setCollapsed(c => !c)}
             title={collapsed ? 'Expandera meny' : 'Minimera meny'}
@@ -118,39 +151,35 @@ function AppShell() {
             <PanelLeft className={`w-4 h-4 shrink-0 transition-transform duration-250 ${collapsed ? 'rotate-180' : ''}`} />
             {!collapsed && 'Minimera'}
           </button>
-          <button
-            onClick={() => setSettingsOpen(true)}
-            title={collapsed ? 'Inställningar' : undefined}
-            className={`w-full flex items-center gap-3 rounded-xl text-sm font-medium transition-colors ${collapsed ? 'justify-center px-0 py-2.5' : 'px-3 py-2.5'} ${
-              hasPw
-                ? 'text-slate-500 hover:bg-slate-50 hover:text-brand-dark'
-                : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
-            }`}
-          >
-            <Settings className="w-4 h-4 shrink-0" />
-            {!collapsed && (hasPw ? 'Inställningar' : 'Ange API-nyckel')}
-          </button>
-          {hasPw && (
+
+          {canSeeSettings && (
             <button
-              onClick={() => setConfig({ org: 'sollentunadans', pw: '' })}
-              title={collapsed ? 'Logga ut' : undefined}
-              className={`w-full flex items-center gap-3 rounded-xl text-sm font-medium text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors ${collapsed ? 'justify-center px-0 py-2.5' : 'px-3 py-2.5'}`}
+              onClick={() => setSettingsOpen(true)}
+              title={collapsed ? 'Inställningar' : undefined}
+              className={`w-full flex items-center gap-3 rounded-xl text-sm font-medium transition-colors ${collapsed ? 'justify-center px-0 py-2.5' : 'px-3 py-2.5'} ${
+                hasPw
+                  ? 'text-slate-500 hover:bg-slate-50 hover:text-brand-dark'
+                  : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+              }`}
             >
-              <LogOut className="w-4 h-4 shrink-0" />
-              {!collapsed && 'Logga ut'}
+              <Settings className="w-4 h-4 shrink-0" />
+              {!collapsed && (hasPw ? 'Inställningar' : 'Ange API-nyckel')}
             </button>
           )}
+
+          <button
+            onClick={handleLogout}
+            title={collapsed ? 'Logga ut' : undefined}
+            className={`w-full flex items-center gap-3 rounded-xl text-sm font-medium text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors ${collapsed ? 'justify-center px-0 py-2.5' : 'px-3 py-2.5'}`}
+          >
+            <LogOut className="w-4 h-4 shrink-0" />
+            {!collapsed && 'Logga ut'}
+          </button>
         </div>
       </aside>
 
       {/* ── Main ── */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-        {!hasPw && (
-          <div className="bg-amber-50 border-b border-amber-100 px-4 md:px-6 py-2.5 text-sm text-amber-700 flex items-center gap-2">
-            <span className="font-semibold">API-nyckel saknas</span>
-            <span className="font-light hidden sm:inline">— klicka på "Inställningar" för att se data.</span>
-          </div>
-        )}
         {/* extra bottom padding on mobile so content isn't hidden behind bottom nav */}
         <main className="flex-1 overflow-y-auto px-4 py-4 md:px-6 md:py-6 pb-24 md:pb-6">
           <Suspense fallback={<PageLoader />}>
@@ -169,7 +198,7 @@ function AppShell() {
         </main>
       </div>
 
-      {/* ── Bottom nav (mobile) ── */}
+      {/* ── Bottenmeny (mobil) ── */}
       {(() => {
         const BOTTOM: { to: string; label: string; Icon: React.ElementType }[] = [
           { to: '/',            label: 'Översikt',    Icon: LayoutDashboard },
@@ -261,6 +290,20 @@ function AppShell() {
               <div className="flex justify-center pt-3 pb-2">
                 <div className="w-10 h-1 bg-gray-300 rounded-full" />
               </div>
+
+              {/* Användarbadge i drawer */}
+              {usingLegacyAuth ? (
+                <div className="px-6 pb-2">
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">
+                    Tillfälligt läge
+                  </span>
+                </div>
+              ) : profile && (
+                <div className="px-6 pb-2">
+                  <p className="text-xs font-medium text-slate-500 truncate">{profile.full_name}</p>
+                </div>
+              )}
+
               {MORE.map(({ to, label, Icon }) => {
                 const active = isActive(to)
                 return (
@@ -281,26 +324,28 @@ function AppShell() {
                 )
               })}
               <div className="mx-6 my-1 h-px bg-gray-100" />
-              <button
-                onClick={() => { setSettingsOpen(true); setDrawerOpen(false) }}
-                aria-label="Inställningar"
-                className="w-full flex items-center gap-4 px-6 hover:bg-slate-50 transition-colors text-[#374151] dark:text-[var(--dark-text-primary)]"
-                style={{ minHeight: 56 }}
-              >
-                <Settings className="w-5 h-5 shrink-0" />
-                <span className="text-sm font-medium">Inställningar</span>
-              </button>
-              {hasPw && (
+
+              {canSeeSettings && (
                 <button
-                  onClick={() => { setConfig({ org: 'sollentunadans', pw: '' }); setDrawerOpen(false) }}
-                  aria-label="Logga ut"
-                  className="w-full flex items-center gap-4 px-6 hover:bg-red-50 transition-colors mb-2 text-brand-pinkDark dark:text-[var(--dark-warning)]"
+                  onClick={() => { setSettingsOpen(true); setDrawerOpen(false) }}
+                  aria-label="Inställningar"
+                  className="w-full flex items-center gap-4 px-6 hover:bg-slate-50 transition-colors text-[#374151] dark:text-[var(--dark-text-primary)]"
                   style={{ minHeight: 56 }}
                 >
-                  <LogOut className="w-5 h-5 shrink-0" />
-                  <span className="text-sm font-medium">Logga ut</span>
+                  <Settings className="w-5 h-5 shrink-0" />
+                  <span className="text-sm font-medium">Inställningar</span>
                 </button>
               )}
+
+              <button
+                onClick={() => { handleLogout(); setDrawerOpen(false) }}
+                aria-label="Logga ut"
+                className="w-full flex items-center gap-4 px-6 hover:bg-red-50 transition-colors mb-2 text-brand-pinkDark dark:text-[var(--dark-warning)]"
+                style={{ minHeight: 56 }}
+              >
+                <LogOut className="w-5 h-5 shrink-0" />
+                <span className="text-sm font-medium">Logga ut</span>
+              </button>
             </div>
           </>
         )
@@ -314,7 +359,9 @@ function AppShell() {
 export default function App() {
   return (
     <ApiProvider>
-      <AppShell />
+      <AuthProvider>
+        <AppShell />
+      </AuthProvider>
     </ApiProvider>
   )
 }

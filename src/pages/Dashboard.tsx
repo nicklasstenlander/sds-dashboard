@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { format } from 'date-fns'
 import { sv } from 'date-fns/locale'
 import { Users, UserCheck, CreditCard, Clock, BookOpen, TrendingUp, Banknote, Search, Moon, Sun } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
 import { KPICard } from '../components/KPICard'
 import { PeriodFilter } from '../components/PeriodFilter'
 import { BookingsChart } from '../components/BookingsChart'
@@ -30,6 +31,9 @@ interface DashboardProps {
 }
 
 export function Dashboard({ darkMode, onToggleDarkMode }: DashboardProps) {
+  const { usingLegacyAuth, profile } = useAuth()
+  const canSeeFinancials = usingLegacyAuth || profile?.role !== 'teacher'
+
   const [eventBlockId, setEventBlockId] = useState(() => getDefaultEventBlockId())
   const [categoryFilter, setCategoryFilter] = useState('')
   const [search, setSearch] = useState('')
@@ -273,20 +277,24 @@ export function Dashboard({ darkMode, onToggleDarkMode }: DashboardProps) {
           icon={<TrendingUp className="w-6 h-6" />}
           color="emerald"
         />
-        <KPICard
-          title="Aviserat"
-          value={revenueKpi.aviserat > 0 ? `${(revenueKpi.aviserat / 1000).toFixed(0)} tkr` : '—'}
-          subtitle={revenueKpi.aviserat > 0 ? `${revenueKpi.aviserat.toLocaleString('sv-SE')} kr` : undefined}
-          icon={<Banknote className="w-6 h-6" />}
-          color="emerald"
-        />
-        <KPICard
-          title="Mottaget"
-          value={revenueKpi.mottaget > 0 ? `${(revenueKpi.mottaget / 1000).toFixed(0)} tkr` : '—'}
-          subtitle={revenueKpi.mottaget > 0 ? `${revenueKpi.mottaget.toLocaleString('sv-SE')} kr` : undefined}
-          icon={<Banknote className="w-6 h-6" />}
-          color="dark"
-        />
+        {canSeeFinancials && (
+          <KPICard
+            title="Aviserat"
+            value={revenueKpi.aviserat > 0 ? `${(revenueKpi.aviserat / 1000).toFixed(0)} tkr` : '—'}
+            subtitle={revenueKpi.aviserat > 0 ? `${revenueKpi.aviserat.toLocaleString('sv-SE')} kr` : undefined}
+            icon={<Banknote className="w-6 h-6" />}
+            color="emerald"
+          />
+        )}
+        {canSeeFinancials && (
+          <KPICard
+            title="Mottaget"
+            value={revenueKpi.mottaget > 0 ? `${(revenueKpi.mottaget / 1000).toFixed(0)} tkr` : '—'}
+            subtitle={revenueKpi.mottaget > 0 ? `${revenueKpi.mottaget.toLocaleString('sv-SE')} kr` : undefined}
+            icon={<Banknote className="w-6 h-6" />}
+            color="dark"
+          />
+        )}
       </div>
 
       {/* Mål */}
