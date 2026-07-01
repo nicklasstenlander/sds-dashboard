@@ -55,15 +55,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return
     }
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-      if (session?.user) {
-        loadProfile(session.user.id)
-      } else {
-        setLoading(false)
-      }
-    })
-
+    // Använder enbart onAuthStateChange (inte en separat getSession()-anrop) så att
+    // vi bara har en enda källa till sessionsstate. Supabase väntar internt in sin
+    // URL-baserade sessionsdetektering (recovery-/invite-länkar) innan den emittar
+    // det första INITIAL_SESSION-eventet, så vi riskerar inte att läsa ett tomt
+    // session-state innan länken hunnit bearbetas.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'PASSWORD_RECOVERY') {
         setIsPasswordRecovery(true)
