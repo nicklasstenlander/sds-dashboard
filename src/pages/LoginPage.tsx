@@ -69,16 +69,42 @@ export function LoginPage() {
           </div>
 
           {recoveryLinkError && (
-            <div className="mb-6 bg-red-50 border border-red-100 rounded-2xl p-4 text-sm text-red-700 flex items-start justify-between gap-3">
-              <p>{recoveryLinkError}</p>
-              <button
-                type="button"
-                onClick={clearRecoveryLinkError}
-                className="text-red-400 hover:text-red-600 transition-colors shrink-0"
-                aria-label="Stäng"
-              >
-                ×
-              </button>
+            <div className="mb-6 bg-red-50 border border-red-100 rounded-2xl p-4 text-sm text-red-700 flex flex-col gap-3">
+              <div className="flex items-start justify-between gap-3">
+                <p>{recoveryLinkError}</p>
+                <button
+                  type="button"
+                  onClick={clearRecoveryLinkError}
+                  className="text-red-400 hover:text-red-600 transition-colors shrink-0"
+                  aria-label="Stäng"
+                >
+                  ×
+                </button>
+              </div>
+
+              {/* TILLFÄLLIG DIAGNOSTIK — ta bort efter felsökning */}
+              {/* TODO: Ta bort efter PKCE-felsökning */}
+              <details className="text-xs opacity-70">
+                <summary>Teknisk information (tillfällig)</summary>
+                <pre className="whitespace-pre-wrap break-all mt-1">
+                  {JSON.stringify(
+                    {
+                      urlHasCode: new URLSearchParams(window.location.search).has('code'),
+                      urlHasToken: new URLSearchParams(window.location.search).has('token'),
+                      localStorageKeys: Object.keys(localStorage).filter(
+                        (k) => k.includes('supabase') || k.includes('sb-'),
+                      ),
+                      codeVerifierPresent: Object.keys(localStorage).some(
+                        (k) => k.includes('code-verifier') || k.includes('code_verifier'),
+                      ),
+                      userAgent: navigator.userAgent,
+                      referrer: document.referrer,
+                    },
+                    null,
+                    2,
+                  )}
+                </pre>
+              </details>
             </div>
           )}
 
