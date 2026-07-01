@@ -22,6 +22,11 @@ export function ForgotPasswordPage() {
     const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
       redirectTo: window.location.origin,
     })
+    // TODO: Ta bort efter PKCE-felsökning
+    console.log('[DEBUG] Efter resetPasswordForEmail:', {
+      localStorageKeys: Object.keys(localStorage).filter((k) => k.includes('supabase') || k.includes('sb-')),
+      timestamp: new Date().toISOString(),
+    })
     setLoading(false)
     if (error) {
       setError('Kunde inte skicka återställningslänken just nu. Försök igen om en stund.')
