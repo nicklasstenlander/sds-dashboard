@@ -8,7 +8,7 @@ import { AuthBrandPanel } from '../components/AuthBrandPanel'
 
 export function LoginPage() {
   const { setConfig } = useApiConfig()
-  const { signIn, setLegacyAuth, recoveryLinkError, clearRecoveryLinkError } = useAuth()
+  const { signIn, setLegacyAuth, recoveryLinkError, clearRecoveryLinkError, pkceDiagnostics } = useAuth()
 
   // Supabase-läge
   const [email, setEmail] = useState('')
@@ -84,19 +84,16 @@ export function LoginPage() {
 
               {/* TILLFÄLLIG DIAGNOSTIK — ta bort efter felsökning */}
               {/* TODO: Ta bort efter PKCE-felsökning */}
+              {/* pkceDiagnostics är en ögonblicksbild från sidladdningen (se supabase.ts) -
+                  Supabase hinner rensa code-verifier och ?code= ur URL:en innan detta
+                  felmeddelande hinner renderas, så en live-avläsning här skulle alltid
+                  visa codeVerifierPresent: false oavsett vad som faktiskt hände. */}
               <details className="text-xs opacity-70">
                 <summary>Teknisk information (tillfällig)</summary>
                 <pre className="whitespace-pre-wrap break-all mt-1">
                   {JSON.stringify(
                     {
-                      urlHasCode: new URLSearchParams(window.location.search).has('code'),
-                      urlHasToken: new URLSearchParams(window.location.search).has('token'),
-                      localStorageKeys: Object.keys(localStorage).filter(
-                        (k) => k.includes('supabase') || k.includes('sb-'),
-                      ),
-                      codeVerifierPresent: Object.keys(localStorage).some(
-                        (k) => k.includes('code-verifier') || k.includes('code_verifier'),
-                      ),
+                      ...pkceDiagnostics,
                       userAgent: navigator.userAgent,
                       referrer: document.referrer,
                     },

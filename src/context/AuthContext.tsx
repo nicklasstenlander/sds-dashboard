@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
-import { supabase, type UserProfile } from '../lib/supabase'
+import { supabase, pkceDiagnosticsAtLoad, type PkceDiagnosticsSnapshot, type UserProfile } from '../lib/supabase'
 import { useApiConfig } from './ApiContext'
 import { verifyCogworkPassword } from '../api/cogwork'
 
@@ -13,6 +13,8 @@ interface AuthContextValue {
   usingLegacyAuth: boolean
   isPasswordRecovery: boolean
   recoveryLinkError: string | null
+  // TODO: Ta bort efter PKCE-felsökning
+  pkceDiagnostics: PkceDiagnosticsSnapshot
   signIn: (email: string, password: string) => Promise<{ error: string | null }>
   signOut: () => Promise<void>
   setLegacyAuth: (active: boolean) => void
@@ -173,6 +175,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       usingLegacyAuth,
       isPasswordRecovery,
       recoveryLinkError,
+      pkceDiagnostics: pkceDiagnosticsAtLoad,
       signIn,
       signOut,
       setLegacyAuth,
