@@ -51,7 +51,7 @@ jobs:
           VITE_WORKER_SECRET: ${{ secrets.VITE_WORKER_SECRET }}
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-        
+          VITE_COGWORK_SHARED_PW: ${{ secrets.VITE_COGWORK_SHARED_PW }}
 
       - uses: actions/upload-pages-artifact@v3
         with:
