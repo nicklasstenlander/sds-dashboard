@@ -15,8 +15,12 @@ export function ForgotPasswordPage() {
     if (!email.trim()) return
     setLoading(true)
     setError('')
+    // redirectTo måste peka på roten UTAN hash-sökväg, annars hamnar Supabases
+    // ?code=...&type=recovery inuti hash-fragmentet istället för i den vanliga
+    // query-strängen, och PKCE-detekteringen hittar aldrig koden. SetPasswordPage
+    // visas ändå oavsett landningssida via isPasswordRecovery i AuthContext.
     const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: `${window.location.origin}/#/set-password`,
+      redirectTo: window.location.origin,
     })
     setLoading(false)
     if (error) {
