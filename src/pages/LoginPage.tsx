@@ -1,9 +1,10 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Eye, EyeOff, ArrowRight, Loader2, ChevronDown } from 'lucide-react'
 import { useApiConfig } from '../context/ApiContext'
 import { useAuth } from '../context/AuthContext'
-import { supabase } from '../lib/supabase'
 import { verifyCogworkPassword } from '../api/cogwork'
+import { AuthBrandPanel } from '../components/AuthBrandPanel'
 
 export function LoginPage() {
   const { setConfig } = useApiConfig()
@@ -15,8 +16,6 @@ export function LoginPage() {
   const [sbShowPw, setSbShowPw] = useState(false)
   const [sbLoading, setSbLoading] = useState(false)
   const [sbError, setSbError] = useState('')
-  const [resetLoading, setResetLoading] = useState(false)
-  const [resetSent, setResetSent] = useState(false)
 
   // Legacy-läge
   const [showLegacy, setShowLegacy] = useState(false)
@@ -35,17 +34,6 @@ export function LoginPage() {
       setSbError('Felaktig e-post eller lösenord. Försök igen.')
     }
     setSbLoading(false)
-  }
-
-  async function handleResetPassword() {
-    if (!email.trim()) {
-      setSbError('Ange din e-postadress ovan för att återställa lösenordet.')
-      return
-    }
-    setResetLoading(true)
-    await supabase.auth.resetPasswordForEmail(email.trim())
-    setResetLoading(false)
-    setResetSent(true)
   }
 
   async function handleLegacySubmit(e: React.FormEvent) {
@@ -68,41 +56,7 @@ export function LoginPage() {
   return (
     <div className="min-h-screen flex flex-col md:flex-row">
 
-      {/* ── Vänster varumärkespanel ── */}
-      <div
-        className="relative md:w-[45%] flex flex-col justify-between overflow-hidden px-10 py-12 md:px-14 md:py-16"
-        style={{ background: 'linear-gradient(145deg, #007a80 0%, #009399 40%, #45aba5 100%)' }}
-      >
-        <div className="absolute -top-24 -right-24 w-80 h-80 rounded-full opacity-10"
-          style={{ background: '#cfded2' }} />
-        <div className="absolute bottom-10 -left-20 w-64 h-64 rounded-full opacity-10"
-          style={{ background: '#dd5c86' }} />
-        <div className="absolute top-1/2 right-0 w-40 h-40 rounded-full opacity-[0.07]"
-          style={{ background: '#fff' }} />
-
-        <div className="relative z-10 flex items-center gap-4">
-          <img src="logo.png" alt="SDS" className="w-10 h-10 object-contain brightness-0 invert opacity-90" />
-          <div>
-            <p className="text-white/60 text-xs font-medium tracking-[0.2em] uppercase">Sollentuna Dans & Scenskola</p>
-          </div>
-        </div>
-
-        <div className="relative z-10 flex-1 flex flex-col justify-center py-12 md:py-0">
-          <h1
-            className="text-white font-bold tracking-[0.25em] leading-none"
-            style={{ fontSize: 'clamp(4rem, 8vw, 6.5rem)' }}
-          >
-            CORE
-          </h1>
-          <p className="mt-4 text-white/70 text-lg md:text-xl font-light leading-snug max-w-xs">
-            Kärnan i<br />varje steg.
-          </p>
-        </div>
-
-        <div className="relative z-10">
-          <p className="text-white/40 text-xs tracking-wide">© {new Date().getFullYear()} Sollentuna Dans & Scenskola</p>
-        </div>
-      </div>
+      <AuthBrandPanel />
 
       {/* ── Höger inloggningspanel ── */}
       <div className="flex-1 flex items-center justify-center bg-white px-8 py-16 md:py-0">
@@ -125,7 +79,7 @@ export function LoginPage() {
               <input
                 type="email"
                 value={email}
-                onChange={(e) => { setEmail(e.target.value); setSbError(''); setResetSent(false) }}
+                onChange={(e) => { setEmail(e.target.value); setSbError('') }}
                 placeholder="namn@sollentunadans.se"
                 autoFocus
                 autoComplete="email"
@@ -174,18 +128,12 @@ export function LoginPage() {
                   </p>
                 )}
                 {!sbError && <span />}
-                {resetSent ? (
-                  <p className="text-xs text-emerald-600 font-medium">Mejl skickat ✓</p>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={handleResetPassword}
-                    disabled={resetLoading}
-                    className="text-xs text-slate-400 hover:text-brand-forest transition-colors disabled:opacity-50"
-                  >
-                    {resetLoading ? 'Skickar…' : 'Glömt lösenord?'}
-                  </button>
-                )}
+                <Link
+                  to="/forgot-password"
+                  className="text-xs text-slate-400 hover:text-brand-forest transition-colors"
+                >
+                  Glömt lösenord?
+                </Link>
               </div>
             </div>
 

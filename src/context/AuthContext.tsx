@@ -11,9 +11,11 @@ interface AuthContextValue {
   loading: boolean
   preparingApi: boolean
   usingLegacyAuth: boolean
+  isPasswordRecovery: boolean
   signIn: (email: string, password: string) => Promise<{ error: string | null }>
   signOut: () => Promise<void>
   setLegacyAuth: (active: boolean) => void
+  clearPasswordRecovery: () => void
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
@@ -43,6 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
   const [usingLegacyAuth, setUsingLegacyAuth] = useState<boolean>(detectLegacyAuth)
   const [preparingApi, setPreparingApi] = useState(false)
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState(false)
   const { config, setConfig } = useApiConfig()
   const apiPrepAttempted = useRef(false)
 
@@ -61,7 +64,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     })
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setIsPasswordRecovery(true)
+      }
       setSession(session)
       if (session?.user) {
         loadProfile(session.user.id)
@@ -116,6 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUsingLegacyAuth(false)
     setSession(null)
     setProfile(null)
+    setIsPasswordRecovery(false)
     apiPrepAttempted.current = false
   }
 
@@ -128,6 +135,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUsingLegacyAuth(active)
   }
 
+  function clearPasswordRecovery() {
+    setIsPasswordRecovery(false)
+  }
+
   return (
     <AuthContext.Provider value={{
       session,
@@ -136,9 +147,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loading,
       preparingApi,
       usingLegacyAuth,
+      isPasswordRecovery,
       signIn,
       signOut,
       setLegacyAuth,
+      clearPasswordRecovery,
     }}>
       {children}
     </AuthContext.Provider>
