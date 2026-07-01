@@ -3,21 +3,7 @@ import { Eye, EyeOff, ArrowRight, Loader2, ChevronDown } from 'lucide-react'
 import { useApiConfig } from '../context/ApiContext'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
-
-const BASE = 'https://dans.se/api/public'
-
-type VerifyResult = 'ok' | 'rejected' | 'error'
-
-async function verifyPassword(pw: string): Promise<VerifyResult> {
-  try {
-    const res = await fetch(`${BASE}/events/?org=sollentunadans&pw=${encodeURIComponent(pw)}&maxRows=1`)
-    if (res.ok) return 'ok'
-    if (res.status === 401 || res.status === 403) return 'rejected'
-    return 'error'
-  } catch {
-    return 'error'
-  }
-}
+import { verifyCogworkPassword } from '../api/cogwork'
 
 export function LoginPage() {
   const { setConfig } = useApiConfig()
@@ -67,7 +53,7 @@ export function LoginPage() {
     if (!pw.trim()) return
     setLoading(true)
     setError('')
-    const result = await verifyPassword(pw.trim())
+    const result = await verifyCogworkPassword(pw.trim())
     if (result === 'ok') {
       setLegacyAuth(true)
       setConfig({ org: 'sollentunadans', pw: pw.trim() })

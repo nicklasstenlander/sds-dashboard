@@ -11,6 +11,20 @@ function buildParams(config: ApiConfig, extra: Record<string, string> = {}): str
   return params.toString()
 }
 
+export type VerifyPasswordResult = 'ok' | 'rejected' | 'error'
+
+/** Validerar ett CogWork-lösenord genom att göra ett minimalt anrop mot events-endpointen. */
+export async function verifyCogworkPassword(pw: string): Promise<VerifyPasswordResult> {
+  try {
+    const res = await fetch(`${BASE}/events/?org=sollentunadans&pw=${encodeURIComponent(pw)}&maxRows=1`)
+    if (res.ok) return 'ok'
+    if (res.status === 401 || res.status === 403) return 'rejected'
+    return 'error'
+  } catch {
+    return 'error'
+  }
+}
+
 export async function fetchEvents(
   config: ApiConfig,
   extra: Record<string, string> = {},

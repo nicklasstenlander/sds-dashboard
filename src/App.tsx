@@ -31,6 +31,18 @@ function FullPageLoader() {
   )
 }
 
+function PreparingLoader() {
+  return (
+    <div
+      className="min-h-screen flex flex-col items-center justify-center gap-4"
+      style={{ background: 'linear-gradient(145deg, #007a80 0%, #009399 40%, #45aba5 100%)' }}
+    >
+      <Loader2 className="w-6 h-6 animate-spin text-white" />
+      <p className="text-white/80 text-sm font-light tracking-wide">Förbereder CORE …</p>
+    </div>
+  )
+}
+
 const NAV = [
   { to: '/',            label: 'Översikt',    Icon: LayoutDashboard },
   { to: '/anmalningar', label: 'Anmälningar', Icon: ClipboardList   },
@@ -43,7 +55,7 @@ const NAV = [
 ]
 
 function AppShell() {
-  const { session, loading: authLoading, usingLegacyAuth, profile, signOut } = useAuth()
+  const { session, loading: authLoading, usingLegacyAuth, profile, signOut, preparingApi } = useAuth()
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -80,6 +92,7 @@ function AppShell() {
 
   if (authLoading) return <FullPageLoader />
   if (!isAuthenticated) return <LoginPage />
+  if (preparingApi) return <PreparingLoader />
 
   return (
     <div className="flex h-screen bg-white dark:bg-[var(--dark-page)] overflow-hidden">

@@ -1,12 +1,15 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
 import { supabase, type UserProfile } from '../lib/supabase'
+import { useApiConfig } from './ApiContext'
+import { verifyCogworkPassword } from '../api/cogwork'
 
 interface AuthContextValue {
   session: Session | null
   user: User | null
   profile: UserProfile | null
   loading: boolean
+  preparingApi: boolean
   usingLegacyAuth: boolean
   signIn: (email: string, password: string) => Promise<{ error: string | null }>
   signOut: () => Promise<void>
@@ -16,6 +19,7 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 const LEGACY_AUTH_KEY = 'sds_legacy_auth_active'
 const COGWORK_CONFIG_KEY = 'sds_api_config'
+const SHARED_COGWORK_PW = import.meta.env.VITE_COGWORK_SHARED_PW as string
 
 function detectLegacyAuth(): boolean {
   if (localStorage.getItem(LEGACY_AUTH_KEY) === 'true') return true
@@ -38,6 +42,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [usingLegacyAuth, setUsingLegacyAuth] = useState<boolean>(detectLegacyAuth)
+  const [preparingApi, setPreparingApi] = useState(false)
+  const { config, setConfig } = useApiConfig()
+  const apiPrepAttempted = useRef(false)
 
   useEffect(() => {
     if (usingLegacyAuth) {
@@ -67,6 +74,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe()
   }, [usingLegacyAuth])
 
+  // Sätter CogWork-uppkopplingen tyst i bakgrunden efter lyckad Supabase-inloggning,
+  // så användaren aldrig behöver se det gamla API-nyckel-steget separat.
+  useEffect(() => {
+    if (usingLegacyAuth || !session || !profile) return
+    if (config.pw || apiPrepAttempted.current) return
+
+    apiPrepAttempted.current = true
+    setPreparingApi(true)
+    verifyCogworkPassword(SHARED_COGWORK_PW).then((result) => {
+      if (result === 'ok') {
+        setConfig({ org: 'sollentunadans', pw: SHARED_COGWORK_PW })
+      }
+      setPreparingApi(false)
+    })
+  }, [session, profile, usingLegacyAuth, config.pw, setConfig])
+
   async function loadProfile(userId: string) {
     const { data } = await supabase
       .from('user_profiles')
@@ -88,6 +111,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUsingLegacyAuth(false)
     setSession(null)
     setProfile(null)
+    apiPrepAttempted.current = false
   }
 
   function setLegacyAuth(active: boolean) {
@@ -105,6 +129,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user: session?.user ?? null,
       profile,
       loading,
+      preparingApi,
       usingLegacyAuth,
       signIn,
       signOut,
