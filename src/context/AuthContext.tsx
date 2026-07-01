@@ -85,6 +85,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     verifyCogworkPassword(SHARED_COGWORK_PW).then((result) => {
       if (result === 'ok') {
         setConfig({ org: 'sollentunadans', pw: SHARED_COGWORK_PW })
+      } else {
+        console.error(
+          `CogWork auto-konfigurering misslyckades (${result}). ` +
+          'Kontrollera att GitHub-secreten VITE_COGWORK_SHARED_PW är satt till rätt värde.',
+        )
       }
       setPreparingApi(false)
     })
