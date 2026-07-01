@@ -12,10 +12,17 @@ interface AuthContextValue {
   preparingApi: boolean
   usingLegacyAuth: boolean
   isPasswordRecovery: boolean
+  recoveryLinkError: string | null
   signIn: (email: string, password: string) => Promise<{ error: string | null }>
   signOut: () => Promise<void>
   setLegacyAuth: (active: boolean) => void
   clearPasswordRecovery: () => void
+  clearRecoveryLinkError: () => void
+}
+
+function hasRecoveryParams(): boolean {
+  const params = new URLSearchParams(window.location.search)
+  return params.has('code') || params.get('type') === 'recovery' || params.get('type') === 'invite'
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
@@ -46,14 +53,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [usingLegacyAuth, setUsingLegacyAuth] = useState<boolean>(detectLegacyAuth)
   const [preparingApi, setPreparingApi] = useState(false)
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(false)
+  const [recoveryLinkError, setRecoveryLinkError] = useState<string | null>(null)
   const { config, setConfig } = useApiConfig()
   const apiPrepAttempted = useRef(false)
+  const recoveryAttemptRef = useRef(false)
 
   useEffect(() => {
     if (usingLegacyAuth) {
       setLoading(false)
       return
     }
+
+    recoveryAttemptRef.current = hasRecoveryParams()
 
     // Använder enbart onAuthStateChange (inte en separat getSession()-anrop) så att
     // vi bara har en enda källa till sessionsstate. Supabase väntar internt in sin
@@ -64,6 +75,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (event === 'PASSWORD_RECOVERY') {
         setIsPasswordRecovery(true)
       }
+      // INITIAL_SESSION är det första eventet som emitteras, och Supabase har då redan
+      // försökt växla in en eventuell ?code=-parameter i URL:en. Om länken innehöll ett
+      // återställnings-/inbjudningsförsök men vi fortfarande saknar session, kunde koden
+      // inte växlas in — vanligtvis för att den PKCE-verifierare som sparades lokalt när
+      // länken begärdes saknas (t.ex. öppnad i en annan webbläsare/enhet, eller för gammal).
+      if (event === 'INITIAL_SESSION' && recoveryAttemptRef.current && !session) {
+        setRecoveryLinkError(
+          'Länken kunde inte användas. Den kan ha öppnats i en annan webbläsare eller enhet än ' +
+          'den du begärde återställningen från, redan ha använts, eller ha gått ut. Begär en ny länk.',
+        )
+      }
+      recoveryAttemptRef.current = false
       setSession(session)
       if (session?.user) {
         loadProfile(session.user.id)
@@ -119,6 +142,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(null)
     setProfile(null)
     setIsPasswordRecovery(false)
+    setRecoveryLinkError(null)
     apiPrepAttempted.current = false
   }
 
@@ -135,6 +159,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsPasswordRecovery(false)
   }
 
+  function clearRecoveryLinkError() {
+    setRecoveryLinkError(null)
+  }
+
   return (
     <AuthContext.Provider value={{
       session,
@@ -144,10 +172,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       preparingApi,
       usingLegacyAuth,
       isPasswordRecovery,
+      recoveryLinkError,
       signIn,
       signOut,
       setLegacyAuth,
       clearPasswordRecovery,
+      clearRecoveryLinkError,
     }}>
       {children}
     </AuthContext.Provider>
