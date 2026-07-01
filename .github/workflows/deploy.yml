@@ -49,6 +49,8 @@ jobs:
           VITE_PROXY_URL: ${{ secrets.VITE_PROXY_URL }}
           VITE_WORKER_URL: ${{ secrets.VITE_WORKER_URL }}
           VITE_WORKER_SECRET: ${{ secrets.VITE_WORKER_SECRET }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         
 
       - uses: actions/upload-pages-artifact@v3
