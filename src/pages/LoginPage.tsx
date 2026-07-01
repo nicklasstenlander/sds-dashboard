@@ -8,7 +8,7 @@ import { AuthBrandPanel } from '../components/AuthBrandPanel'
 
 export function LoginPage() {
   const { setConfig } = useApiConfig()
-  const { signIn, setLegacyAuth } = useAuth()
+  const { signIn, setLegacyAuth, recoveryLinkError, clearRecoveryLinkError } = useAuth()
 
   // Supabase-läge
   const [email, setEmail] = useState('')
@@ -67,6 +67,20 @@ export function LoginPage() {
             <h2 className="text-2xl font-bold text-brand-dark tracking-tight">Välkommen tillbaka</h2>
             <p className="text-slate-400 text-sm mt-1.5 font-light">Logga in med din e-post och ditt lösenord.</p>
           </div>
+
+          {recoveryLinkError && (
+            <div className="mb-6 bg-red-50 border border-red-100 rounded-2xl p-4 text-sm text-red-700 flex items-start justify-between gap-3">
+              <p>{recoveryLinkError}</p>
+              <button
+                type="button"
+                onClick={clearRecoveryLinkError}
+                className="text-red-400 hover:text-red-600 transition-colors shrink-0"
+                aria-label="Stäng"
+              >
+                ×
+              </button>
+            </div>
+          )}
 
           {/* ── Supabase-formulär (primärt) ── */}
           <form onSubmit={handleSupabaseSubmit} className="space-y-5">
