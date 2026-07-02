@@ -68,27 +68,25 @@ export function Forms() {
   const formsQuery = useForms()
   const forms = formsQuery.data ?? []
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [isCreatingNew, setIsCreatingNew] = useState(false)
   const [activeTab, setActiveTab] = useState<ActiveTab>('responses')
-  const bundleQuery = useFormBundle(selectedId)
-  const submissionsQuery = useFormSubmissions(selectedId)
+  const activeFormId = isCreatingNew ? null : selectedId
+  const bundleQuery = useFormBundle(activeFormId)
+  const submissionsQuery = useFormSubmissions(activeFormId)
   const saveForm = useSaveForm()
   const [copied, setCopied] = useState(false)
   const [search, setSearch] = useState('')
   const [courseFilter, setCourseFilter] = useState('')
-  const [formDraft, setFormDraft] = useState({
-    title: 'Öppet hus',
-    slug: 'oppet-hus',
-    description: '',
-    status: 'draft' as FormStatus,
-  })
+  const [formDraft, setFormDraft] = useState(() => newFormDraft())
   const [fields, setFields] = useState<EditorField[]>(() => defaultOpenHouseFields())
   const canManageForms = Boolean(session) && !usingLegacyAuth
 
   useEffect(() => {
-    if (!selectedId && forms.length > 0) setSelectedId(forms[0].id)
-  }, [forms, selectedId])
+    if (!isCreatingNew && !selectedId && forms.length > 0) setSelectedId(forms[0].id)
+  }, [forms, isCreatingNew, selectedId])
 
   useEffect(() => {
+    if (isCreatingNew) return
     if (!bundleQuery.data) return
     setFormDraft({
       title: bundleQuery.data.form.title,
@@ -97,9 +95,9 @@ export function Forms() {
       status: bundleQuery.data.form.status,
     })
     setFields(toEditorFields(bundleQuery.data.fields, bundleQuery.data.options))
-  }, [bundleQuery.data])
+  }, [bundleQuery.data, isCreatingNew])
 
-  const selectedForm = bundleQuery.data?.form ?? forms.find((form) => form.id === selectedId) ?? null
+  const selectedForm = isCreatingNew ? null : bundleQuery.data?.form ?? forms.find((form) => form.id === selectedId) ?? null
   const publicUrl = selectedForm ? `${window.location.origin}${window.location.pathname}#/f/${selectedForm.slug}` : ''
 
   const optionsByKey = useMemo(() => {
@@ -129,11 +127,12 @@ export function Forms() {
   }, [courseFilter, search, submissions])
 
   function startNewForm() {
+    setIsCreatingNew(true)
     setSelectedId(null)
     setActiveTab('builder')
     setSearch('')
     setCourseFilter('')
-    setFormDraft({ title: 'Öppet hus', slug: 'oppet-hus', description: '', status: 'draft' })
+    setFormDraft(newFormDraft())
     setFields(defaultOpenHouseFields())
   }
 
@@ -142,12 +141,13 @@ export function Forms() {
 
     try {
       const saved = await saveForm.mutateAsync({
-        formId: selectedId ?? undefined,
+        formId: isCreatingNew ? undefined : selectedId ?? undefined,
         input: {
           form: { ...formDraft, slug: slugify(formDraft.slug || formDraft.title) },
           fields,
         },
       })
+      setIsCreatingNew(false)
       setSelectedId(saved.id)
       setActiveTab('responses')
     } catch (error) {
@@ -215,10 +215,11 @@ export function Forms() {
                 <button
                   key={form.id}
                   onClick={() => {
+                    setIsCreatingNew(false)
                     setSelectedId(form.id)
                     setActiveTab('responses')
                   }}
-                  className={`w-full px-4 py-3 text-left transition-colors ${selectedId === form.id ? 'bg-brand-mint' : 'hover:bg-slate-50'}`}
+                  className={`w-full px-4 py-3 text-left transition-colors ${!isCreatingNew && selectedId === form.id ? 'bg-brand-mint' : 'hover:bg-slate-50'}`}
                 >
                   <span className="block truncate text-sm font-bold text-brand-dark">{form.title}</span>
                   <span className="mt-1 flex items-center justify-between gap-3 text-xs text-slate-500">
@@ -717,6 +718,16 @@ function defaultOpenHouseFields(): EditorField[] {
     },
     { ...createField('long_text'), key: 'notes', label: 'Övrigt', required: false },
   ]
+}
+
+function newFormDraft() {
+  const suffix = Math.random().toString(36).slice(2, 7)
+  return {
+    title: 'Nytt formulär',
+    slug: `nytt-formular-${suffix}`,
+    description: '',
+    status: 'draft' as FormStatus,
+  }
 }
 
 function toEditorFields(fields: FormField[], options: FormOption[]): EditorField[] {
