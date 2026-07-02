@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useLayoutEffect, lazy, Suspense } from 'react'
 import { Routes, Route, Navigate, NavLink, useLocation } from 'react-router-dom'
-import { LayoutDashboard, ClipboardList, Users, Settings, LogOut, ShoppingBag, PanelLeft, Phone, ClipboardCheck, Monitor, CalendarDays, MoreHorizontal, Loader2 } from 'lucide-react'
+import { LayoutDashboard, ClipboardList, Users, Settings, LogOut, ShoppingBag, PanelLeft, Phone, ClipboardCheck, Monitor, CalendarDays, MoreHorizontal, Loader2, FileText } from 'lucide-react'
 import { ApiProvider, useApiConfig } from './context/ApiContext'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { LoginPage } from './pages/LoginPage'
@@ -16,6 +16,8 @@ const Calls = lazy(() => import('./pages/Calls').then(m => ({ default: m.Calls }
 const Narvaro = lazy(() => import('./pages/Narvaro').then(m => ({ default: m.Narvaro })))
 const Signage = lazy(() => import('./pages/Signage').then(m => ({ default: m.Signage })))
 const Schema = lazy(() => import('./pages/Schema').then(m => ({ default: m.Schema })))
+const Forms = lazy(() => import('./pages/Forms').then(m => ({ default: m.Forms })))
+const PublicForm = lazy(() => import('./pages/PublicForm').then(m => ({ default: m.PublicForm })))
 
 function PageLoader() {
   return (
@@ -54,6 +56,7 @@ const NAV = [
   { to: '/narvaro',     label: 'Närvaro',       Icon: ClipboardCheck  },
   { to: '/skyltning',   label: 'Skyltning',     Icon: Monitor         },
   { to: '/schema',      label: 'Schema',        Icon: CalendarDays    },
+  { to: '/formular',    label: 'Formulär',      Icon: FileText        },
 ]
 
 function AppShell() {
@@ -71,6 +74,7 @@ function AppShell() {
   const navRef = useRef<HTMLElement>(null)
   const [pill, setPill] = useState({ top: 0, height: 0 })
   const { pathname } = useLocation()
+  const isPublicForm = pathname.startsWith('/f/')
   const isActive = (to: string) => (to === '/' ? pathname === '/' : pathname.startsWith(to))
 
   const isAuthenticated = Boolean(session) || usingLegacyAuth
@@ -90,6 +94,17 @@ function AppShell() {
   async function handleLogout() {
     await signOut()
     setConfig({ org: 'sollentunadans', pw: '' })
+  }
+
+  if (isPublicForm) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <Routes>
+          <Route path="/f/:slug" element={<PublicForm />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Suspense>
+    )
   }
 
   if (authLoading) return <FullPageLoader />
@@ -215,6 +230,7 @@ function AppShell() {
               <Route path="/narvaro" element={<Narvaro />} />
               <Route path="/skyltning" element={<Signage />} />
               <Route path="/schema" element={<Schema />} />
+              <Route path="/formular" element={<Forms />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Suspense>
@@ -234,6 +250,7 @@ function AppShell() {
           { to: '/narvaro',   label: 'Närvaro',   Icon: ClipboardCheck },
           { to: '/skyltning', label: 'Skyltning', Icon: Monitor       },
           { to: '/schema',    label: 'Schema',    Icon: CalendarDays  },
+          { to: '/formular',  label: 'Formulär',  Icon: FileText      },
         ]
         const isMoreActive = MORE.some(m => isActive(m.to))
 
