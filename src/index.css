@@ -147,6 +147,23 @@
   color: var(--dark-text-primary);
 }
 
+.dark .core-login {
+  background: #ffffff;
+  color: #000000;
+}
+
+.dark .core-login input {
+  background: #ffffff;
+  color: #000000;
+  color-scheme: light;
+}
+
+@media (max-width: 639px) {
+  .core-login-panel {
+    transform: translateX(-3.5rem);
+  }
+}
+
 .dark .card {
   background-color: var(--dark-card);
   border-color: var(--dark-border-card);
