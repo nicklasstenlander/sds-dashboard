@@ -5,7 +5,6 @@ import { ApiProvider, useApiConfig } from './context/ApiContext'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { LoginPage } from './pages/LoginPage'
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
-import { SetPasswordPage } from './pages/SetPasswordPage'
 import { SettingsModal } from './components/SettingsModal'
 
 const Dashboard = lazy(() => import('./pages/Dashboard').then(m => ({ default: m.Dashboard })))
@@ -60,7 +59,7 @@ const NAV = [
 ]
 
 function AppShell() {
-  const { session, loading: authLoading, usingLegacyAuth, profile, signOut, preparingApi, isPasswordRecovery } = useAuth()
+  const { session, loading: authLoading, usingLegacyAuth, profile, signOut, preparingApi } = useAuth()
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -108,7 +107,6 @@ function AppShell() {
   }
 
   if (authLoading) return <FullPageLoader />
-  if (isPasswordRecovery) return <SetPasswordPage />
   if (!isAuthenticated) {
     return (
       <Routes>

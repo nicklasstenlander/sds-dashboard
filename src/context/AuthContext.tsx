@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
-import { supabase, pkceDiagnosticsAtLoad, type PkceDiagnosticsSnapshot, type UserProfile } from '../lib/supabase'
+import { supabase, type UserProfile } from '../lib/supabase'
 import { useApiConfig } from './ApiContext'
 import { verifyCogworkPassword } from '../api/cogwork'
 
@@ -11,20 +11,9 @@ interface AuthContextValue {
   loading: boolean
   preparingApi: boolean
   usingLegacyAuth: boolean
-  isPasswordRecovery: boolean
-  recoveryLinkError: string | null
-  // TODO: Ta bort efter PKCE-felsökning
-  pkceDiagnostics: PkceDiagnosticsSnapshot
   signIn: (email: string, password: string) => Promise<{ error: string | null }>
   signOut: () => Promise<void>
   setLegacyAuth: (active: boolean) => void
-  clearPasswordRecovery: () => void
-  clearRecoveryLinkError: () => void
-}
-
-function hasRecoveryParams(): boolean {
-  const params = new URLSearchParams(window.location.search)
-  return params.has('code') || params.get('type') === 'recovery' || params.get('type') === 'invite'
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
@@ -54,11 +43,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
   const [usingLegacyAuth, setUsingLegacyAuth] = useState<boolean>(detectLegacyAuth)
   const [preparingApi, setPreparingApi] = useState(false)
-  const [isPasswordRecovery, setIsPasswordRecovery] = useState(false)
-  const [recoveryLinkError, setRecoveryLinkError] = useState<string | null>(null)
   const { config, setConfig } = useApiConfig()
   const apiPrepAttempted = useRef(false)
-  const recoveryAttemptRef = useRef(false)
 
   useEffect(() => {
     if (usingLegacyAuth) {
@@ -66,29 +52,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return
     }
 
-    recoveryAttemptRef.current = hasRecoveryParams()
-
     // Använder enbart onAuthStateChange (inte en separat getSession()-anrop) så att
-    // vi bara har en enda källa till sessionsstate. Supabase väntar internt in sin
-    // URL-baserade sessionsdetektering (recovery-/invite-länkar) innan den emittar
-    // det första INITIAL_SESSION-eventet, så vi riskerar inte att läsa ett tomt
-    // session-state innan länken hunnit bearbetas.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'PASSWORD_RECOVERY') {
-        setIsPasswordRecovery(true)
-      }
-      // INITIAL_SESSION är det första eventet som emitteras, och Supabase har då redan
-      // försökt växla in en eventuell ?code=-parameter i URL:en. Om länken innehöll ett
-      // återställnings-/inbjudningsförsök men vi fortfarande saknar session, kunde koden
-      // inte växlas in — vanligtvis för att den PKCE-verifierare som sparades lokalt när
-      // länken begärdes saknas (t.ex. öppnad i en annan webbläsare/enhet, eller för gammal).
-      if (event === 'INITIAL_SESSION' && recoveryAttemptRef.current && !session) {
-        setRecoveryLinkError(
-          'Länken kunde inte användas. Den kan ha öppnats i en annan webbläsare eller enhet än ' +
-          'den du begärde återställningen från, redan ha använts, eller ha gått ut. Begär en ny länk.',
-        )
-      }
-      recoveryAttemptRef.current = false
+    // vi bara har en enda källa till sessionsstate. Lösenordsåterställning sker via
+    // verifyOtp med en 6-siffrig kod (ForgotPasswordPage) som sätter sessionen direkt
+    // i samma anrop - inget separat auth-state-event från en klickad länk behöver
+    // hanteras här, det räcker att reagera på session/profile som vanligt.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session)
       if (session?.user) {
         loadProfile(session.user.id)
@@ -143,8 +112,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUsingLegacyAuth(false)
     setSession(null)
     setProfile(null)
-    setIsPasswordRecovery(false)
-    setRecoveryLinkError(null)
     apiPrepAttempted.current = false
   }
 
@@ -157,14 +124,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUsingLegacyAuth(active)
   }
 
-  function clearPasswordRecovery() {
-    setIsPasswordRecovery(false)
-  }
-
-  function clearRecoveryLinkError() {
-    setRecoveryLinkError(null)
-  }
-
   return (
     <AuthContext.Provider value={{
       session,
@@ -173,14 +132,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loading,
       preparingApi,
       usingLegacyAuth,
-      isPasswordRecovery,
-      recoveryLinkError,
-      pkceDiagnostics: pkceDiagnosticsAtLoad,
       signIn,
       signOut,
       setLegacyAuth,
-      clearPasswordRecovery,
-      clearRecoveryLinkError,
     }}>
       {children}
     </AuthContext.Provider>
