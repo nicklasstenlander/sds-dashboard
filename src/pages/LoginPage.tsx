@@ -7,7 +7,7 @@ import { verifyCogworkPassword } from '../api/cogwork'
 
 export function LoginPage() {
   const { setConfig } = useApiConfig()
-  const { signIn, setLegacyAuth, recoveryLinkError, clearRecoveryLinkError, pkceDiagnostics } = useAuth()
+  const { signIn, setLegacyAuth } = useAuth()
 
   // Supabase-läge
   const [email, setEmail] = useState('')
@@ -83,43 +83,6 @@ export function LoginPage() {
                 Logga in med din e-post och ditt lösenord.
               </p>
             </div>
-
-          {recoveryLinkError && (
-            <div className="mb-6 flex flex-col gap-3 rounded-lg border border-red-100 bg-red-50 p-4 text-left text-sm text-red-700">
-              <div className="flex items-start justify-between gap-3">
-                <p>{recoveryLinkError}</p>
-                <button
-                  type="button"
-                  onClick={clearRecoveryLinkError}
-                  className="text-red-400 hover:text-red-600 transition-colors shrink-0"
-                  aria-label="Stäng"
-                >
-                  ×
-                </button>
-              </div>
-
-              {/* TILLFÄLLIG DIAGNOSTIK — ta bort efter felsökning */}
-              {/* TODO: Ta bort efter PKCE-felsökning */}
-              {/* pkceDiagnostics är en ögonblicksbild från sidladdningen (se supabase.ts) -
-                  Supabase hinner rensa code-verifier och ?code= ur URL:en innan detta
-                  felmeddelande hinner renderas, så en live-avläsning här skulle alltid
-                  visa codeVerifierPresent: false oavsett vad som faktiskt hände. */}
-              <details className="text-xs opacity-70">
-                <summary>Teknisk information (tillfällig)</summary>
-                <pre className="whitespace-pre-wrap break-all mt-1">
-                  {JSON.stringify(
-                    {
-                      ...pkceDiagnostics,
-                      userAgent: navigator.userAgent,
-                      referrer: document.referrer,
-                    },
-                    null,
-                    2,
-                  )}
-                </pre>
-              </details>
-            </div>
-          )}
 
           {/* ── Supabase-formulär (primärt) ── */}
           <form onSubmit={handleSupabaseSubmit} className="mx-auto w-full max-w-[280px] space-y-2 text-left sm:max-w-none">

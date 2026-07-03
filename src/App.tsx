@@ -5,7 +5,6 @@ import { ApiProvider, useApiConfig } from './context/ApiContext'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { LoginPage } from './pages/LoginPage'
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
-import { SetPasswordPage } from './pages/SetPasswordPage'
 import { SettingsModal } from './components/SettingsModal'
 
 const Dashboard = lazy(() => import('./pages/Dashboard').then(m => ({ default: m.Dashboard })))
@@ -60,7 +59,7 @@ const NAV = [
 ]
 
 function AppShell() {
-  const { session, loading: authLoading, usingLegacyAuth, profile, signOut, preparingApi, isPasswordRecovery } = useAuth()
+  const { session, loading: authLoading, usingLegacyAuth, profile, signOut, preparingApi, recoveryInProgress } = useAuth()
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -108,12 +107,17 @@ function AppShell() {
   }
 
   if (authLoading) return <FullPageLoader />
-  if (isPasswordRecovery) return <SetPasswordPage />
-  if (!isAuthenticated) {
+  // verifyOtp sätter en giltig session INNAN updateUser hunnit spara det nya
+  // lösenordet, vilket annars gör isAuthenticated true mitt i återställningsflödet
+  // och byter till huvudappen medan lösenordsbytet fortfarande pågår - om det sedan
+  // misslyckas syns aldrig felet. recoveryInProgress håller kvar samma <Routes>-gren
+  // (och därmed samma ForgotPasswordPage-instans, utan att montera om den och tappa
+  // ifyllda fält) tills flödet är klart, oavsett att isAuthenticated redan blivit true.
+  if (!isAuthenticated || recoveryInProgress) {
     return (
       <Routes>
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-        <Route path="*" element={<LoginPage />} />
+        <Route path="*" element={recoveryInProgress ? <Navigate to="/forgot-password" replace /> : <LoginPage />} />
       </Routes>
     )
   }
