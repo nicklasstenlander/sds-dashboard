@@ -53,15 +53,15 @@ export function LoginPage() {
   }
 
   return (
-    <div className="core-login fixed inset-0 overflow-y-auto overflow-x-hidden bg-[#fff] text-black">
+    <div className="core-login fixed inset-0 w-dvw overflow-y-auto overflow-x-hidden bg-[#fff] text-black">
       <img
         src="/core-dancer.png"
         alt=""
         aria-hidden="true"
-        className="pointer-events-none fixed bottom-0 right-0 z-0 w-[42vw] min-w-[150px] max-w-[760px] object-contain sm:w-[38vw] sm:min-w-[260px]"
+        className="pointer-events-none fixed bottom-0 right-0 z-0 w-[30vw] min-w-[110px] max-w-[180px] object-contain sm:w-[38vw] sm:min-w-[260px] sm:max-w-[760px]"
       />
 
-      <main className="relative z-10 flex min-h-screen w-full max-w-[100vw] items-center justify-center overflow-hidden px-6 py-10 sm:px-10">
+      <main className="relative z-10 flex min-h-dvh w-dvw max-w-none items-center justify-center overflow-hidden px-4 py-10 sm:px-10">
         <div className="core-login-panel flex w-full max-w-[330px] flex-col items-center text-center sm:max-w-[360px]">
           <img
             src="/core-circle-logo.png"
@@ -122,7 +122,7 @@ export function LoginPage() {
           )}
 
           {/* ── Supabase-formulär (primärt) ── */}
-          <form onSubmit={handleSupabaseSubmit} className="space-y-2 text-left">
+          <form onSubmit={handleSupabaseSubmit} className="mx-auto w-full max-w-[280px] space-y-2 text-left sm:max-w-none">
 
             {/* E-post */}
             <div>
@@ -209,7 +209,7 @@ export function LoginPage() {
           </p>
 
           {/* ── Legacy-fallback (dold som standard) ── */}
-          <div className="mt-5 border-t border-slate-100 pt-4 text-left">
+          <div className="mx-auto mt-5 w-full max-w-[280px] border-t border-slate-100 pt-4 text-left sm:max-w-none">
             <button
               type="button"
               onClick={() => setShowLegacy(s => !s)}

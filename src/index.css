@@ -158,12 +158,6 @@
   color-scheme: light;
 }
 
-@media (max-width: 639px) {
-  .core-login-panel {
-    transform: translateX(-3.5rem);
-  }
-}
-
 .dark .card {
   background-color: var(--dark-card);
   border-color: var(--dark-border-card);
