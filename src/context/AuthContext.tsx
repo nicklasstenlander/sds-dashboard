@@ -11,9 +11,11 @@ interface AuthContextValue {
   loading: boolean
   preparingApi: boolean
   usingLegacyAuth: boolean
+  recoveryInProgress: boolean
   signIn: (email: string, password: string) => Promise<{ error: string | null }>
   signOut: () => Promise<void>
   setLegacyAuth: (active: boolean) => void
+  setRecoveryInProgress: (active: boolean) => void
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
@@ -38,6 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
   const [usingLegacyAuth, setUsingLegacyAuth] = useState<boolean>(detectLegacyAuth)
   const [preparingApi, setPreparingApi] = useState(false)
+  const [recoveryInProgress, setRecoveryInProgress] = useState(false)
   const { config, setConfig } = useApiConfig()
   const apiPrepAttempted = useRef(false)
 
@@ -107,6 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUsingLegacyAuth(false)
     setSession(null)
     setProfile(null)
+    setRecoveryInProgress(false)
     apiPrepAttempted.current = false
   }
 
@@ -127,9 +131,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loading,
       preparingApi,
       usingLegacyAuth,
+      recoveryInProgress,
       signIn,
       signOut,
       setLegacyAuth,
+      setRecoveryInProgress,
     }}>
       {children}
     </AuthContext.Provider>

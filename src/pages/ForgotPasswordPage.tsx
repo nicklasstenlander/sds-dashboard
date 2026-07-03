@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Eye, EyeOff, Loader2 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../context/AuthContext'
 
 const MIN_PASSWORD_LENGTH = 8
 const CODE_LENGTH = 6
@@ -10,6 +11,7 @@ type Step = 'email' | 'code'
 
 export function ForgotPasswordPage() {
   const navigate = useNavigate()
+  const { setRecoveryInProgress } = useAuth()
   const [step, setStep] = useState<Step>('email')
 
   const [email, setEmail] = useState('')
@@ -23,6 +25,7 @@ export function ForgotPasswordPage() {
   const [showPw, setShowPw] = useState(false)
   const [submitLoading, setSubmitLoading] = useState(false)
   const [submitError, setSubmitError] = useState('')
+  const [otpVerified, setOtpVerified] = useState(false)
 
   async function sendCode() {
     setSendLoading(true)
@@ -76,25 +79,43 @@ export function ForgotPasswordPage() {
     }
 
     setSubmitLoading(true)
+    // verifyOtp sätter en giltig Supabase-session direkt, INNAN lösenordet faktiskt
+    // är sparat. Utan denna spärr skulle App.tsx tolka den nya sessionen som "fullt
+    // inloggad" och byta till huvudappen medan updateUser fortfarande pågår - om det
+    // sedan misslyckas syns aldrig felet och användaren hamnar i appen med sitt gamla
+    // lösenord kvar. Spärren släpps bara vid lyckat byte (eller om koden var fel och
+    // ingen session någonsin sattes).
+    setRecoveryInProgress(true)
 
-    const { error: verifyError } = await supabase.auth.verifyOtp({
-      email: email.trim(),
-      token: code,
-      type: 'recovery',
-    })
-    if (verifyError) {
-      setSubmitLoading(false)
-      setSubmitError('Fel kod eller koden har gått ut. Kontrollera att du skrivit rätt, eller begär en ny kod.')
-      return
+    // Koden är engångsgiltig - om den redan verifierats en gång (t.ex. vid en
+    // omförsök efter att updateUser misslyckats) ska den inte skickas in igen, då
+    // skulle den bara avvisas som ogiltig trots att sessionen redan är giltig.
+    if (!otpVerified) {
+      const { error: verifyError } = await supabase.auth.verifyOtp({
+        email: email.trim(),
+        token: code,
+        type: 'recovery',
+      })
+      if (verifyError) {
+        setSubmitLoading(false)
+        setRecoveryInProgress(false)
+        setSubmitError('Fel kod eller koden har gått ut. Kontrollera att du skrivit rätt, eller begär en ny kod.')
+        return
+      }
+      setOtpVerified(true)
     }
 
     const { error: updateError } = await supabase.auth.updateUser({ password })
     setSubmitLoading(false)
     if (updateError) {
+      // Sessionen är redan giltig här (verifyOtp lyckades), så vi håller kvar spärren
+      // och stannar på den här vyn tills lösenordet faktiskt är satt - annars skulle
+      // felet aldrig synas för användaren.
       setSubmitError('Kunde inte spara lösenordet. Försök igen.')
       return
     }
 
+    setRecoveryInProgress(false)
     navigate('/', { replace: true })
   }
 
