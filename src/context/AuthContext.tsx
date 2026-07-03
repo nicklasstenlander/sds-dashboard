@@ -18,23 +18,18 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 const LEGACY_AUTH_KEY = 'sds_legacy_auth_active'
-const COGWORK_CONFIG_KEY = 'sds_api_config'
 const SHARED_COGWORK_PW = import.meta.env.VITE_COGWORK_SHARED_PW as string
 
+// usingLegacyAuth får ENDAST bli true via setLegacyAuth(true), dvs. när användaren
+// aktivt skickar in formuläret för tillfälligt lösenord i LoginPage. Det fanns
+// tidigare en engångsmigrering här som slog på legacy-läge om "sds_api_config" hade
+// ett sparat lösenord - men den nyckeln delas även av den automatiska
+// CogWork-konfigureringen som körs efter en helt vanlig Supabase-inloggning (se
+// useEffect nedan). Det gjorde att VARJE Supabase-användare permanent kapades över
+// till legacy-läge så fort auto-konfigureringen lyckats en gång och sidan laddades
+// om, oavsett om deras Supabase-session fortfarande var giltig.
 function detectLegacyAuth(): boolean {
-  if (localStorage.getItem(LEGACY_AUTH_KEY) === 'true') return true
-  // Migrera befintliga användare som redan har ett CogWork-lösenord sparat
-  try {
-    const raw = localStorage.getItem(COGWORK_CONFIG_KEY)
-    if (raw) {
-      const c = JSON.parse(raw) as { pw?: string }
-      if (c.pw) {
-        localStorage.setItem(LEGACY_AUTH_KEY, 'true')
-        return true
-      }
-    }
-  } catch {}
-  return false
+  return localStorage.getItem(LEGACY_AUTH_KEY) === 'true'
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
