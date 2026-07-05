@@ -25,6 +25,22 @@ export function isAcceptedBooking(booking: Booking): boolean {
   return booking.status?.code?.toUpperCase() === 'ACCEPTED'
 }
 
+/** Måste mata in en all-time (ofiltrerad) bokningslista, annars blir "ny elev" fel per period. */
+export function countBookingsByParticipant(bookings: Booking[]): Map<string, number> {
+  const countByParticipant = new Map<string, number>()
+  for (const booking of bookings) {
+    const key = booking.participant?.key
+    if (key) countByParticipant.set(key, (countByParticipant.get(key) ?? 0) + 1)
+  }
+  return countByParticipant
+}
+
+/** En elev räknas som ny om detta är dennes enda bokning, någonsin. */
+export function isNewStudentBooking(booking: Booking, countByParticipant: Map<string, number>): boolean {
+  const key = booking.participant?.key
+  return Boolean(key) && (countByParticipant.get(key ?? '') ?? 0) === 1
+}
+
 export function bookingTicketQuantity(booking: Booking): number {
   const structuredQuantity = ticketQuantityFromFormResponses(booking)
   if (structuredQuantity != null) return structuredQuantity

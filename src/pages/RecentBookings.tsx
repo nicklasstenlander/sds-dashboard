@@ -4,10 +4,11 @@ import { format, parseISO } from 'date-fns'
 import { sv } from 'date-fns/locale'
 import { Search, RefreshCw, DatabaseZap } from 'lucide-react'
 import { useBookings } from '../hooks/useBookings'
+import { useAllData } from '../hooks/useAllData'
 import { useApiConfig } from '../context/ApiContext'
 import { purgeProxyCache } from '../services/proxyService'
 import { isPeriodCode, matchesPeriodCode } from '../utils/periods'
-import type { AllDataResponse } from '../services/proxyService'
+import { countBookingsByParticipant, isNewStudentBooking } from '../utils/courseMetrics'
 import { PeriodFilter } from '../components/PeriodFilter'
 import { ParticipantPanel } from '../components/ParticipantPanel'
 import { formatBookingStatus } from '../lib/status'
@@ -95,9 +96,12 @@ export function RecentBookings() {
   const queryEventBlockId = clientPeriodCode ? '' : eventBlockId
 
   // Server-side period filter; client-side for payment + search
-  const { data: bookingsData, isLoading, isError, error, refetch } = useBookings({
+  const { data: bookingsData, isLoading, isFetching, isError, error, refetch } = useBookings({
     eventBlockId: queryEventBlockId,
   })
+
+  // Visa aldrig "Inga anmälningar hittades" medan en bakgrundsuppdatering ännu kan ge tomt→fyllt
+  const isSettling = isLoading || (isFetching && (bookingsData?.bookings.length ?? 0) === 0)
 
   async function handleCacheRefresh() {
     setIsManualRefreshing(true)
@@ -119,18 +123,13 @@ export function RecentBookings() {
       setIsDirectRefreshing(false)
     }
   }
-  // Hämta alla bokningar (ofiltrerade) för "Ny elev"-beräkning
-  const cachedAllData = queryClient.getQueryData<AllDataResponse>(['allData', ''])
-  const allBookingsUnfiltered = cachedAllData?.bookings.bookings ?? bookingsData?.bookings ?? []
-
-  const bookingCountByParticipant = useMemo(() => {
-    const map = new Map<string, number>()
-    allBookingsUnfiltered.forEach(b => {
-      const key = b.participant?.key ?? ''
-      if (key) map.set(key, (map.get(key) ?? 0) + 1)
-    })
-    return map
-  }, [allBookingsUnfiltered])
+  // Ofiltrerad, alla-terminer-data för "Ny elev" — samma källa som Översiktens new_students-mål
+  const allDataQuery = useAllData('')
+  const allBookingsUnfiltered = allDataQuery.data?.bookings.bookings ?? []
+  const bookingCountByParticipant = useMemo(
+    () => countBookingsByParticipant(allBookingsUnfiltered),
+    [allBookingsUnfiltered],
+  )
 
   const allBookings = bookingsData?.bookings ?? []
   const bookings = clientPeriodCode
@@ -195,10 +194,10 @@ export function RecentBookings() {
             Alla
           </Pill>
           <Pill active={payFilter === 'paid'} onClick={() => setPayFilter('paid')}>
-            Betalda {!isLoading && `(${paidCount})`}
+            Betalda {!isSettling && `(${paidCount})`}
           </Pill>
           <Pill active={payFilter === 'unpaid'} onClick={() => setPayFilter('unpaid')}>
-            Obetalda {!isLoading && `(${unpaidCount})`}
+            Obetalda {!isSettling && `(${unpaidCount})`}
           </Pill>
           {partialCount > 0 && (
             <Pill active={payFilter === 'partial'} onClick={() => setPayFilter('partial')}>
@@ -225,13 +224,13 @@ export function RecentBookings() {
         <div className="px-5 py-4 border-b border-slate-50 flex items-center justify-between gap-6">
           <div className="flex items-center gap-6">
             <h2 className="text-sm font-bold text-brand-dark">
-              {isLoading ? 'Hämtar…' : (
+              {isSettling ? 'Hämtar…' : (
                 filtered.length < bookings.length
                   ? `${filtered.length.toLocaleString('sv-SE')} av ${bookingsTotal.toLocaleString('sv-SE')} anmälningar`
                   : `${bookingsTotal.toLocaleString('sv-SE')} anmälningar`
               )}
             </h2>
-          {!isLoading && bookings.length > 0 && (
+          {!isSettling && bookings.length > 0 && (
             <div className="flex gap-4 text-xs text-slate-500">
               <span>
                 <span className="font-semibold text-brand-forest">{paidCount}</span> betalda
@@ -270,7 +269,7 @@ export function RecentBookings() {
           </div>
         </div>
 
-        {isLoading ? (
+        {isSettling ? (
           <div className="divide-y divide-slate-50">
             {Array.from({ length: 8 }).map((_, i) => (
               <div key={i} className="px-5 py-4 flex gap-4">
@@ -315,7 +314,7 @@ export function RecentBookings() {
                             {b.participant.name}
                           </button>
                         ) : '—'}
-                        {b.participant?.key && (bookingCountByParticipant.get(b.participant.key) ?? 0) === 1 && (
+                        {isNewStudentBooking(b, bookingCountByParticipant) && (
                           <span className="text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap" style={{ background: '#CDDCD1', color: '#1e4025' }}>
                             Ny elev
                           </span>

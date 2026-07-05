@@ -5,7 +5,10 @@ import {
 } from '../services/goalsService'
 import { EVENT_BLOCK_IDS_BY_CODE } from '../config/cogwork'
 import { matchesPeriodCode } from '../utils/periods'
-import { bookingTicketQuantity, buildCourseMetrics, isAcceptedBooking, metricsForEvent } from '../utils/courseMetrics'
+import {
+  bookingTicketQuantity, buildCourseMetrics, countBookingsByParticipant,
+  isAcceptedBooking, isNewStudentBooking, metricsForEvent,
+} from '../utils/courseMetrics'
 import type { Booking, Event } from '../types/cogwork'
 
 // ---------------------------------------------------------------------------
@@ -50,14 +53,8 @@ export function computeCurrentValue(goal: Goal, bookings: Booking[], events: Eve
     }
 
     case 'new_students': {
-      const countByParticipant = new Map<string, number>()
-      bookings.forEach(b => {
-        const key = b.participant?.key
-        if (key) countByParticipant.set(key, (countByParticipant.get(key) ?? 0) + 1)
-      })
-      return scopedBookings.filter(b =>
-        (countByParticipant.get(b.participant?.key ?? '') ?? 0) === 1
-      ).length
+      const countByParticipant = countBookingsByParticipant(bookings)
+      return scopedBookings.filter(b => isNewStudentBooking(b, countByParticipant)).length
     }
 
     default:
