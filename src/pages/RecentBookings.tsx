@@ -4,7 +4,7 @@ import { format, parseISO } from 'date-fns'
 import { sv } from 'date-fns/locale'
 import { Search, RefreshCw, DatabaseZap } from 'lucide-react'
 import { useBookings } from '../hooks/useBookings'
-import { useAllData } from '../hooks/useAllData'
+import { useAllTermsBookings } from '../hooks/useAllTermsBookings'
 import { useApiConfig } from '../context/ApiContext'
 import { purgeProxyCache } from '../services/proxyService'
 import { isPeriodCode, matchesPeriodCode } from '../utils/periods'
@@ -123,9 +123,8 @@ export function RecentBookings() {
       setIsDirectRefreshing(false)
     }
   }
-  // Ofiltrerad, alla-terminer-data för "Ny elev" — samma källa som Översiktens new_students-mål
-  const allDataQuery = useAllData('')
-  const allBookingsUnfiltered = allDataQuery.data?.bookings.bookings ?? []
+  // Bokningar från VARJE känd termin (VT/HT) för "Ny elev" — samma källa som Översiktens new_students-mål
+  const { bookings: allBookingsUnfiltered } = useAllTermsBookings()
   const bookingCountByParticipant = useMemo(
     () => countBookingsByParticipant(allBookingsUnfiltered),
     [allBookingsUnfiltered],

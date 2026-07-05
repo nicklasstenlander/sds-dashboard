@@ -25,12 +25,51 @@ export function isAcceptedBooking(booking: Booking): boolean {
   return booking.status?.code?.toUpperCase() === 'ACCEPTED'
 }
 
-/** Måste mata in en all-time (ofiltrerad) bokningslista, annars blir "ny elev" fel per period. */
+/**
+ * Måste mata in en all-time (ofiltrerad) bokningslista, annars blir "ny elev" fel per period.
+ *
+ * CogWork kan skapa ett separat participant.key/id för samma fysiska person om en annan
+ * kontakt-e-post används vid anmälan (bekräftat på riktig data). Bokningar som delar exakt
+ * namn OCH födelsedatum slås därför ihop till samma identitet innan vi räknar.
+ */
 export function countBookingsByParticipant(bookings: Booking[]): Map<string, number> {
-  const countByParticipant = new Map<string, number>()
+  const canonicalKeyOf = new Map<string, string>()
+  const keyByNameAndBirth = new Map<string, string>()
+
   for (const booking of bookings) {
     const key = booking.participant?.key
-    if (key) countByParticipant.set(key, (countByParticipant.get(key) ?? 0) + 1)
+    if (!key || canonicalKeyOf.has(key)) continue
+
+    const name = booking.participant?.name?.trim().toLowerCase()
+    const dateOfBirth = booking.participant?.dateOfBirth
+    if (!name || !dateOfBirth) {
+      canonicalKeyOf.set(key, key)
+      continue
+    }
+
+    const identity = `${name}|${dateOfBirth}`
+    const existingKey = keyByNameAndBirth.get(identity)
+    if (existingKey) {
+      canonicalKeyOf.set(key, existingKey)
+    } else {
+      keyByNameAndBirth.set(identity, key)
+      canonicalKeyOf.set(key, key)
+    }
+  }
+
+  const countByCanonicalKey = new Map<string, number>()
+  for (const booking of bookings) {
+    const key = booking.participant?.key
+    if (!key) continue
+    const canonicalKey = canonicalKeyOf.get(key) ?? key
+    countByCanonicalKey.set(canonicalKey, (countByCanonicalKey.get(canonicalKey) ?? 0) + 1)
+  }
+
+  // Exponera räkningen under varje ursprunglig nyckel, så anrop kan slå upp med
+  // booking.participant.key rakt av utan att känna till den kanoniska identiteten.
+  const countByParticipant = new Map<string, number>()
+  for (const [key, canonicalKey] of canonicalKeyOf) {
+    countByParticipant.set(key, countByCanonicalKey.get(canonicalKey) ?? 0)
   }
   return countByParticipant
 }
