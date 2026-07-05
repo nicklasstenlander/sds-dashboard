@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 
 const MIN_PASSWORD_LENGTH = 8
-const CODE_LENGTH = 6
+const CODE_LENGTH = 8
 
 type Step = 'email' | 'code'
 
@@ -65,7 +65,7 @@ export function ForgotPasswordPage() {
     e.preventDefault()
     setSubmitError('')
 
-    if (!/^\d{6}$/.test(code)) {
+    if (!/^\d{8}$/.test(code)) {
       setSubmitError(`Koden måste vara ${CODE_LENGTH} siffror.`)
       return
     }
@@ -193,7 +193,7 @@ export function ForgotPasswordPage() {
                 <div className="mb-8">
                   <h2 className="text-base font-bold text-black">Ange kod och nytt lösenord</h2>
                   <p className="mt-3 text-[15px] font-normal leading-snug text-black sm:text-base">
-                    Vi har skickat en 6-siffrig kod till {email.trim()}. Koden är giltig i en timme.
+                    Vi har skickat en 8-siffrig kod till {email.trim()}. Koden är giltig i en timme.
                     Du kan begära en ny kod om en minut har gått.
                   </p>
                 </div>
@@ -201,7 +201,7 @@ export function ForgotPasswordPage() {
                 <form onSubmit={handleVerifyAndSetPassword} className="mx-auto w-full max-w-[280px] space-y-2 text-left sm:max-w-none">
                   <div>
                     <label className="mb-1 block text-sm font-normal text-black">
-                      6-siffrig kod
+                      8-siffrig kod
                     </label>
                     <input
                       type="text"
@@ -210,7 +210,7 @@ export function ForgotPasswordPage() {
                       maxLength={CODE_LENGTH}
                       value={code}
                       onChange={(e) => { setCode(e.target.value.replace(/\D/g, '').slice(0, CODE_LENGTH)); setSubmitError('') }}
-                      placeholder="000000"
+                      placeholder="00000000"
                       autoFocus
                       className={`h-10 w-full rounded-full border bg-[#fff] px-4 text-center text-lg tracking-[0.5em] text-black outline-none transition-colors focus:ring-2 ${
                         submitError

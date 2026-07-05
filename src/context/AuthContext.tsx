@@ -52,7 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Använder enbart onAuthStateChange (inte en separat getSession()-anrop) så att
     // vi bara har en enda källa till sessionsstate. Lösenordsåterställning sker via
-    // verifyOtp med en 6-siffrig kod (ForgotPasswordPage) som sätter sessionen direkt
+    // verifyOtp med en 8-siffrig kod (ForgotPasswordPage) som sätter sessionen direkt
     // i samma anrop - inget separat auth-state-event från en klickad länk behöver
     // hanteras här, det räcker att reagera på session/profile som vanligt.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
