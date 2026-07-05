@@ -130,6 +130,8 @@ export interface Booking {
     name?: string
     firstName?: string
     lastName?: string
+    /** Personnummer-liknande fält från CogWork, t.ex. "SE.201402041006" */
+    dateOfBirth?: string
   }
   status?: {
     name?: string
