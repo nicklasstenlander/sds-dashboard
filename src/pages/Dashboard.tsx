@@ -17,6 +17,7 @@ import { GoalCard } from '../components/GoalCard'
 import { GoalModal } from '../components/GoalModal'
 import { useEventBlocks } from '../hooks/useEvents'
 import { useAllData } from '../hooks/useAllData'
+import { useAllTermsBookings } from '../hooks/useAllTermsBookings'
 import { useAlerts } from '../hooks/useAlerts'
 import { useGoals, computeCurrentValue } from '../hooks/useGoals'
 import { purgeProxyCache } from '../services/proxyService'
@@ -58,8 +59,10 @@ export function Dashboard({ darkMode, onToggleDarkMode }: DashboardProps) {
   const rawEvents = allDataQuery.data?.events.events ?? []
   const rawBookings = allDataQuery.data?.bookings.bookings ?? []
   const goalEvents = goalsDataQuery.data?.events.events ?? rawEvents
-  const goalBookings = goalsDataQuery.data?.bookings.bookings ?? rawBookings
-  const goalsLoading = goalsDataQuery.isLoading && !goalsDataQuery.data
+  // Bokningar från VARJE känd termin (VT/HT) — behövs för new_students-målet,
+  // som annars bara ser den aktuella periodens historik (se useAllTermsBookings).
+  const { bookings: goalBookings, isLoading: goalBookingsLoading } = useAllTermsBookings()
+  const goalsLoading = goalBookingsLoading && goalBookings.length === 0
   const allEvents = useMemo(
     () => clientPeriodCode
       ? buildEventsFromPeriod(rawEvents, rawBookings, clientPeriodCode)
