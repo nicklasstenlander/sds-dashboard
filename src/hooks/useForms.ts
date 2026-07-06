@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  checkInSubmission,
   fetchFormBundle,
   fetchForms,
   fetchFormSubmissions,
@@ -59,5 +60,16 @@ export function useSubmitForm() {
   return useMutation({
     mutationFn: ({ formId, answers, fields }: { formId: string; answers: Record<string, unknown>; fields: FormField[] }) =>
       submitForm(formId, answers, fields),
+  })
+}
+
+export function useCheckInSubmission(formId: string | null) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ submissionId, checkedIn, checkedInBy }: { submissionId: string; checkedIn: boolean; checkedInBy: string }) =>
+      checkInSubmission(submissionId, checkedIn, checkedInBy),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['form-submissions', formId] })
+    },
   })
 }

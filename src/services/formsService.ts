@@ -59,6 +59,8 @@ export interface FormSubmission {
   respondent_phone: string | null
   answers: Record<string, unknown>
   selected_option_keys: string[]
+  checked_in_at: string | null
+  checked_in_by: string | null
 }
 
 export interface FormBundle {
@@ -226,6 +228,22 @@ export async function submitForm(formId: string, answers: Record<string, unknown
     answers,
     selected_option_keys: selectedOptionKeys,
   })
+
+  if (error) throw error
+}
+
+export async function checkInSubmission(
+  submissionId: string,
+  checkedIn: boolean,
+  checkedInBy: string
+) {
+  const { error } = await supabase
+    .from('form_submissions')
+    .update({
+      checked_in_at: checkedIn ? new Date().toISOString() : null,
+      checked_in_by: checkedIn ? checkedInBy : null,
+    })
+    .eq('id', submissionId)
 
   if (error) throw error
 }

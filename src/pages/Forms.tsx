@@ -3,6 +3,7 @@ import { format, parseISO } from 'date-fns'
 import { sv } from 'date-fns/locale'
 import {
   Check,
+  CheckCircle2,
   Copy,
   ExternalLink,
   FileDown,
@@ -14,11 +15,12 @@ import {
   Trash2,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
-import { useFormBundle, useForms, useFormSubmissions, useSaveForm } from '../hooks/useForms'
+import { useCheckInSubmission, useFormBundle, useForms, useFormSubmissions, useSaveForm } from '../hooks/useForms'
 import { downloadCsv } from '../utils/csv'
 import { slugify, type FormField, type FormFieldType, type FormOption, type FormStatus } from '../services/formsService'
 
 type ActiveTab = 'responses' | 'builder'
+type CheckInFilter = 'all' | 'checked_in' | 'not_checked_in'
 
 interface EditorOption {
   id?: string
@@ -64,7 +66,7 @@ const STATUS_LABELS: Record<FormStatus, string> = {
 }
 
 export function Forms() {
-  const { session, usingLegacyAuth } = useAuth()
+  const { session, user, usingLegacyAuth } = useAuth()
   const formsQuery = useForms()
   const forms = formsQuery.data ?? []
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -74,9 +76,11 @@ export function Forms() {
   const bundleQuery = useFormBundle(activeFormId)
   const submissionsQuery = useFormSubmissions(activeFormId)
   const saveForm = useSaveForm()
+  const checkInSubmission = useCheckInSubmission(activeFormId)
   const [copied, setCopied] = useState(false)
   const [search, setSearch] = useState('')
   const [courseFilter, setCourseFilter] = useState('')
+  const [checkInFilter, setCheckInFilter] = useState<CheckInFilter>('all')
   const [formDraft, setFormDraft] = useState(() => newFormDraft())
   const [fields, setFields] = useState<EditorField[]>(() => defaultOpenHouseFields())
   const canManageForms = Boolean(session) && !usingLegacyAuth
@@ -116,6 +120,8 @@ export function Forms() {
     const q = search.trim().toLowerCase()
     return submissions.filter((submission) => {
       if (courseFilter && !submission.selected_option_keys.includes(courseFilter)) return false
+      if (checkInFilter === 'checked_in' && !submission.checked_in_at) return false
+      if (checkInFilter === 'not_checked_in' && submission.checked_in_at) return false
       if (!q) return true
       return [
         submission.respondent_name,
@@ -124,7 +130,7 @@ export function Forms() {
         ...Object.values(submission.answers).flatMap((value) => Array.isArray(value) ? value : [value]),
       ].some((value) => String(value ?? '').toLowerCase().includes(q))
     })
-  }, [courseFilter, search, submissions])
+  }, [checkInFilter, courseFilter, search, submissions])
 
   function startNewForm() {
     setIsCreatingNew(true)
@@ -155,6 +161,14 @@ export function Forms() {
     }
   }
 
+  async function handleCheckIn(submissionId: string, checkedIn: boolean) {
+    try {
+      await checkInSubmission.mutateAsync({ submissionId, checkedIn, checkedInBy: user?.email ?? '' })
+    } catch (error) {
+      console.error('Kunde inte uppdatera incheckning:', error)
+    }
+  }
+
   function handleExport() {
     const rows = filteredSubmissions.map((submission) => {
       const row: Record<string, string> = {
@@ -166,6 +180,8 @@ export function Forms() {
           .map((key) => optionsByKey.get(key)?.label ?? key)
           .filter(Boolean)
           .join(', '),
+        Incheckad: submission.checked_in_at ? 'Ja' : 'Nej',
+        'Incheckad kl': submission.checked_in_at ? formatDateTime(submission.checked_in_at) : '',
       }
 
       ;(bundleQuery.data?.fields ?? []).forEach((field) => {
@@ -280,8 +296,12 @@ export function Forms() {
                 search={search}
                 courseFilter={courseFilter}
                 courseOptions={courseOptions}
+                checkInFilter={checkInFilter}
+                checkingInId={checkInSubmission.isLoading ? checkInSubmission.variables?.submissionId ?? null : null}
                 onSearchChange={setSearch}
                 onCourseFilterChange={setCourseFilter}
+                onCheckInFilterChange={setCheckInFilter}
+                onCheckIn={handleCheckIn}
                 onExport={handleExport}
               />
             )}
@@ -539,8 +559,12 @@ function Responses({
   search,
   courseFilter,
   courseOptions,
+  checkInFilter,
+  checkingInId,
   onSearchChange,
   onCourseFilterChange,
+  onCheckInFilterChange,
+  onCheckIn,
   onExport,
 }: {
   loading: boolean
@@ -550,8 +574,12 @@ function Responses({
   search: string
   courseFilter: string
   courseOptions: FormOption[]
+  checkInFilter: CheckInFilter
+  checkingInId: string | null
   onSearchChange: (value: string) => void
   onCourseFilterChange: (value: string) => void
+  onCheckInFilterChange: (value: CheckInFilter) => void
+  onCheckIn: (submissionId: string, checkedIn: boolean) => void
   onExport: () => void
 }) {
   const rows = submissions ?? []
@@ -576,6 +604,15 @@ function Responses({
           >
             <option value="">Alla kurser</option>
             {courseOptions.map((option) => <option key={option.key} value={option.key}>{option.label}</option>)}
+          </select>
+          <select
+            value={checkInFilter}
+            onChange={(event) => onCheckInFilterChange(event.target.value as CheckInFilter)}
+            className="rounded-full border border-slate-200 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-mint"
+          >
+            <option value="all">Visa: Alla</option>
+            <option value="checked_in">Visa: Incheckade</option>
+            <option value="not_checked_in">Visa: Ej incheckade</option>
           </select>
         </div>
         <button
@@ -606,6 +643,7 @@ function Responses({
                 <Th>Namn</Th>
                 <Th>Kontakt</Th>
                 <Th>Valda kurser</Th>
+                <Th>Incheckad</Th>
                 {fields.filter((field) => !['course_choice', 'email', 'phone'].includes(field.type)).map((field) => <Th key={field.key}>{field.label}</Th>)}
               </tr>
             </thead>
@@ -622,6 +660,28 @@ function Responses({
                     {submission.selected_option_keys.length > 0
                       ? submission.selected_option_keys.map((key) => optionsByKey.get(key)?.label ?? key).join(', ')
                       : '—'}
+                  </td>
+                  <td className="whitespace-nowrap px-5 py-3 text-sm">
+                    {submission.checked_in_at ? (
+                      <button
+                        onClick={() => onCheckIn(submission.id, false)}
+                        disabled={checkingInId === submission.id}
+                        className="inline-flex items-center gap-1.5 text-brand-forest hover:underline disabled:opacity-50"
+                        title="Klicka för att checka ut"
+                      >
+                        <CheckCircle2 className="h-4 w-4" />
+                        {formatTime(submission.checked_in_at)}
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => onCheckIn(submission.id, true)}
+                        disabled={checkingInId === submission.id}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-3 py-1 text-xs font-medium text-slate-600 transition-colors hover:border-brand-forest hover:text-brand-dark disabled:opacity-50"
+                      >
+                        {checkingInId === submission.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                        Checka in
+                      </button>
+                    )}
                   </td>
                   {fields.filter((field) => !['course_choice', 'email', 'phone'].includes(field.type)).map((field) => (
                     <td key={field.key} className="max-w-[260px] px-5 py-3 text-sm text-slate-600">
@@ -761,6 +821,14 @@ function answerLabel(field: FormField, value: unknown, optionsByKey: Map<string,
 function formatDateTime(value: string): string {
   try {
     return format(parseISO(value), 'd MMM yyyy HH:mm', { locale: sv })
+  } catch {
+    return value
+  }
+}
+
+function formatTime(value: string): string {
+  try {
+    return format(parseISO(value), 'HH:mm', { locale: sv })
   } catch {
     return value
   }
