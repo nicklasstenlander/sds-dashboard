@@ -19,6 +19,7 @@ export interface DynamicForm {
   slug: string
   description: string | null
   status: FormStatus
+  enable_checkin: boolean
   created_at: string
   updated_at: string
 }
@@ -70,7 +71,7 @@ export interface FormBundle {
 }
 
 export interface FormEditorInput {
-  form: Pick<DynamicForm, 'title' | 'slug' | 'description' | 'status'>
+  form: Pick<DynamicForm, 'title' | 'slug' | 'description' | 'status' | 'enable_checkin'>
   fields: Array<Omit<FormField, 'id' | 'form_id'> & { id?: string; options?: Array<Omit<FormOption, 'id' | 'form_id' | 'field_id'> & { id?: string }> }>
 }
 
@@ -134,6 +135,7 @@ export async function saveForm(input: FormEditorInput, formId?: string): Promise
     slug: normalizedSlug,
     description: input.form.description?.trim() || null,
     status: input.form.status,
+    enable_checkin: input.form.enable_checkin,
   }
 
   const { data: form, error: formError } = formId

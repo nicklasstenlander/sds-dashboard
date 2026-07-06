@@ -22,6 +22,14 @@ import { slugify, type FormField, type FormFieldType, type FormOption, type Form
 type ActiveTab = 'responses' | 'builder'
 type CheckInFilter = 'all' | 'checked_in' | 'not_checked_in'
 
+interface FormDraft {
+  title: string
+  slug: string
+  description: string
+  status: FormStatus
+  enable_checkin: boolean
+}
+
 interface EditorOption {
   id?: string
   key: string
@@ -81,6 +89,7 @@ export function Forms() {
   const [search, setSearch] = useState('')
   const [courseFilter, setCourseFilter] = useState('')
   const [checkInFilter, setCheckInFilter] = useState<CheckInFilter>('all')
+  const [checkInError, setCheckInError] = useState<string | null>(null)
   const [formDraft, setFormDraft] = useState(() => newFormDraft())
   const [fields, setFields] = useState<EditorField[]>(() => defaultOpenHouseFields())
   const canManageForms = Boolean(session) && !usingLegacyAuth
@@ -97,11 +106,13 @@ export function Forms() {
       slug: bundleQuery.data.form.slug,
       description: bundleQuery.data.form.description ?? '',
       status: bundleQuery.data.form.status,
+      enable_checkin: bundleQuery.data.form.enable_checkin ?? false,
     })
     setFields(toEditorFields(bundleQuery.data.fields, bundleQuery.data.options))
   }, [bundleQuery.data, isCreatingNew])
 
   const selectedForm = isCreatingNew ? null : bundleQuery.data?.form ?? forms.find((form) => form.id === selectedId) ?? null
+  const enableCheckIn = selectedForm?.enable_checkin === true
   const publicUrl = selectedForm ? `${window.location.origin}${window.location.pathname}#/f/${selectedForm.slug}` : ''
 
   const optionsByKey = useMemo(() => {
@@ -120,8 +131,8 @@ export function Forms() {
     const q = search.trim().toLowerCase()
     return submissions.filter((submission) => {
       if (courseFilter && !submission.selected_option_keys.includes(courseFilter)) return false
-      if (checkInFilter === 'checked_in' && !submission.checked_in_at) return false
-      if (checkInFilter === 'not_checked_in' && submission.checked_in_at) return false
+      if (enableCheckIn && checkInFilter === 'checked_in' && !submission.checked_in_at) return false
+      if (enableCheckIn && checkInFilter === 'not_checked_in' && submission.checked_in_at) return false
       if (!q) return true
       return [
         submission.respondent_name,
@@ -130,7 +141,7 @@ export function Forms() {
         ...Object.values(submission.answers).flatMap((value) => Array.isArray(value) ? value : [value]),
       ].some((value) => String(value ?? '').toLowerCase().includes(q))
     })
-  }, [checkInFilter, courseFilter, search, submissions])
+  }, [checkInFilter, courseFilter, enableCheckIn, search, submissions])
 
   function startNewForm() {
     setIsCreatingNew(true)
@@ -162,10 +173,14 @@ export function Forms() {
   }
 
   async function handleCheckIn(submissionId: string, checkedIn: boolean) {
+    if (!enableCheckIn) return
+
     try {
+      setCheckInError(null)
       await checkInSubmission.mutateAsync({ submissionId, checkedIn, checkedInBy: user?.email ?? '' })
     } catch (error) {
       console.error('Kunde inte uppdatera incheckning:', error)
+      setCheckInError(errorMessage(error) ?? 'Kunde inte uppdatera incheckningen. Försök igen.')
     }
   }
 
@@ -180,8 +195,11 @@ export function Forms() {
           .map((key) => optionsByKey.get(key)?.label ?? key)
           .filter(Boolean)
           .join(', '),
-        Incheckad: submission.checked_in_at ? 'Ja' : 'Nej',
-        'Incheckad kl': submission.checked_in_at ? formatDateTime(submission.checked_in_at) : '',
+      }
+
+      if (enableCheckIn) {
+        row.Incheckad = submission.checked_in_at ? 'Ja' : 'Nej'
+        row['Incheckad kl'] = submission.checked_in_at ? formatDateTime(submission.checked_in_at) : ''
       }
 
       ;(bundleQuery.data?.fields ?? []).forEach((field) => {
@@ -293,11 +311,13 @@ export function Forms() {
                 fields={bundleQuery.data?.fields ?? []}
                 submissions={filteredSubmissions}
                 optionsByKey={optionsByKey}
+                enableCheckIn={enableCheckIn}
                 search={search}
                 courseFilter={courseFilter}
                 courseOptions={courseOptions}
                 checkInFilter={checkInFilter}
                 checkingInId={checkInSubmission.isLoading ? checkInSubmission.variables?.submissionId ?? null : null}
+                checkInError={checkInError}
                 onSearchChange={setSearch}
                 onCourseFilterChange={setCourseFilter}
                 onCheckInFilterChange={setCheckInFilter}
@@ -322,12 +342,12 @@ function Builder({
   onFieldsChange,
   onSave,
 }: {
-  formDraft: { title: string; slug: string; description: string; status: FormStatus }
+  formDraft: FormDraft
   fields: EditorField[]
   saving: boolean
   error: string | null
   canManageForms: boolean
-  onFormChange: (value: { title: string; slug: string; description: string; status: FormStatus }) => void
+  onFormChange: (value: FormDraft) => void
   onFieldsChange: (value: EditorField[]) => void
   onSave: () => void
 }) {
@@ -364,6 +384,15 @@ function Builder({
             <option value="published">Publicerad</option>
             <option value="closed">Stängd</option>
           </select>
+        </label>
+        <label className="mt-6 flex items-center gap-2 text-sm text-slate-600">
+          <input
+            type="checkbox"
+            checked={formDraft.enable_checkin}
+            onChange={(event) => onFormChange({ ...formDraft, enable_checkin: event.target.checked })}
+            className="h-4 w-4 rounded border-slate-300 text-brand-forest focus:ring-brand-mint"
+          />
+          Aktivera incheckning för detta formulär
         </label>
       </div>
 
@@ -556,11 +585,13 @@ function Responses({
   fields,
   submissions,
   optionsByKey,
+  enableCheckIn,
   search,
   courseFilter,
   courseOptions,
   checkInFilter,
   checkingInId,
+  checkInError,
   onSearchChange,
   onCourseFilterChange,
   onCheckInFilterChange,
@@ -571,11 +602,13 @@ function Responses({
   fields: FormField[]
   submissions: ReturnType<typeof useFormSubmissions>['data']
   optionsByKey: Map<string, FormOption | EditorOption>
+  enableCheckIn: boolean
   search: string
   courseFilter: string
   courseOptions: FormOption[]
   checkInFilter: CheckInFilter
   checkingInId: string | null
+  checkInError: string | null
   onSearchChange: (value: string) => void
   onCourseFilterChange: (value: string) => void
   onCheckInFilterChange: (value: CheckInFilter) => void
@@ -585,6 +618,11 @@ function Responses({
   const rows = submissions ?? []
   return (
     <div>
+      {enableCheckIn && checkInError && (
+        <div className="border-b border-red-100 bg-red-50 px-5 py-3 text-sm text-status-critical">
+          {checkInError}
+        </div>
+      )}
       <div className="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex flex-1 flex-col gap-3 sm:flex-row">
           <div className="relative max-w-sm flex-1">
@@ -605,15 +643,17 @@ function Responses({
             <option value="">Alla kurser</option>
             {courseOptions.map((option) => <option key={option.key} value={option.key}>{option.label}</option>)}
           </select>
-          <select
-            value={checkInFilter}
-            onChange={(event) => onCheckInFilterChange(event.target.value as CheckInFilter)}
-            className="rounded-full border border-slate-200 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-mint"
-          >
-            <option value="all">Visa: Alla</option>
-            <option value="checked_in">Visa: Incheckade</option>
-            <option value="not_checked_in">Visa: Ej incheckade</option>
-          </select>
+          {enableCheckIn && (
+            <select
+              value={checkInFilter}
+              onChange={(event) => onCheckInFilterChange(event.target.value as CheckInFilter)}
+              className="rounded-full border border-slate-200 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-mint"
+            >
+              <option value="all">Visa: Alla</option>
+              <option value="checked_in">Visa: Incheckade</option>
+              <option value="not_checked_in">Visa: Ej incheckade</option>
+            </select>
+          )}
         </div>
         <button
           onClick={onExport}
@@ -643,7 +683,7 @@ function Responses({
                 <Th>Namn</Th>
                 <Th>Kontakt</Th>
                 <Th>Valda kurser</Th>
-                <Th>Incheckad</Th>
+                {enableCheckIn && <Th>Incheckad</Th>}
                 {fields.filter((field) => !['course_choice', 'email', 'phone'].includes(field.type)).map((field) => <Th key={field.key}>{field.label}</Th>)}
               </tr>
             </thead>
@@ -661,28 +701,30 @@ function Responses({
                       ? submission.selected_option_keys.map((key) => optionsByKey.get(key)?.label ?? key).join(', ')
                       : '—'}
                   </td>
-                  <td className="whitespace-nowrap px-5 py-3 text-sm">
-                    {submission.checked_in_at ? (
-                      <button
-                        onClick={() => onCheckIn(submission.id, false)}
-                        disabled={checkingInId === submission.id}
-                        className="inline-flex items-center gap-1.5 text-brand-forest hover:underline disabled:opacity-50"
-                        title="Klicka för att checka ut"
-                      >
-                        <CheckCircle2 className="h-4 w-4" />
-                        {formatTime(submission.checked_in_at)}
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => onCheckIn(submission.id, true)}
-                        disabled={checkingInId === submission.id}
-                        className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-3 py-1 text-xs font-medium text-slate-600 transition-colors hover:border-brand-forest hover:text-brand-dark disabled:opacity-50"
-                      >
-                        {checkingInId === submission.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-                        Checka in
-                      </button>
-                    )}
-                  </td>
+                  {enableCheckIn && (
+                    <td className="whitespace-nowrap px-5 py-3 text-sm">
+                      {submission.checked_in_at ? (
+                        <button
+                          onClick={() => onCheckIn(submission.id, false)}
+                          disabled={checkingInId === submission.id}
+                          className="inline-flex items-center gap-1.5 text-brand-forest hover:underline disabled:opacity-50"
+                          title="Klicka för att checka ut"
+                        >
+                          <CheckCircle2 className="h-4 w-4" />
+                          {formatTime(submission.checked_in_at)}
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => onCheckIn(submission.id, true)}
+                          disabled={checkingInId === submission.id}
+                          className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-3 py-1 text-xs font-medium text-slate-600 transition-colors hover:border-brand-forest hover:text-brand-dark disabled:opacity-50"
+                        >
+                          {checkingInId === submission.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                          Checka in
+                        </button>
+                      )}
+                    </td>
+                  )}
                   {fields.filter((field) => !['course_choice', 'email', 'phone'].includes(field.type)).map((field) => (
                     <td key={field.key} className="max-w-[260px] px-5 py-3 text-sm text-slate-600">
                       <span className="line-clamp-2">{answerLabel(field, submission.answers[field.key], optionsByKey) || '—'}</span>
@@ -787,6 +829,7 @@ function newFormDraft() {
     slug: `nytt-formular-${suffix}`,
     description: '',
     status: 'draft' as FormStatus,
+    enable_checkin: false,
   }
 }
 
