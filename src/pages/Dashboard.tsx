@@ -21,8 +21,8 @@ import { useAllTermsBookings } from '../hooks/useAllTermsBookings'
 import { useAlerts } from '../hooks/useAlerts'
 import { useGoals, computeCurrentValue } from '../hooks/useGoals'
 import { purgeProxyCache } from '../services/proxyService'
-import { blockNameToCode, isPeriodCode, matchesPeriodCode } from '../utils/periods'
-import { bookingTicketQuantity, buildCourseMetrics, isAcceptedBooking, metricsForEvent } from '../utils/courseMetrics'
+import { blockNameToCode, dateToPeriodCode, isPeriodCode, matchesPeriodCode } from '../utils/periods'
+import { bookingTicketQuantity, buildCourseChangeInfoByParticipant, buildCourseMetrics, countBookingsByParticipant, isAcceptedBooking, metricsForEvent } from '../utils/courseMetrics'
 import { getDefaultEventBlockId } from '../config/cogwork'
 import type { Booking, Event } from '../types/cogwork'
 
@@ -63,6 +63,15 @@ export function Dashboard({ darkMode, onToggleDarkMode }: DashboardProps) {
   // som annars bara ser den aktuella periodens historik (se useAllTermsBookings).
   const { bookings: goalBookings, isLoading: goalBookingsLoading } = useAllTermsBookings()
   const goalsLoading = goalBookingsLoading && goalBookings.length === 0
+  const bookingCountByParticipant = useMemo(
+    () => countBookingsByParticipant(goalBookings),
+    [goalBookings],
+  )
+  const selectedEventPeriodCode = selectedEvent ? eventPeriodCode(selectedEvent) : ''
+  const courseChangeByParticipant = useMemo(
+    () => buildCourseChangeInfoByParticipant(goalBookings, selectedEventPeriodCode),
+    [goalBookings, selectedEventPeriodCode],
+  )
   const allEvents = useMemo(
     () => clientPeriodCode
       ? buildEventsFromPeriod(rawEvents, rawBookings, clientPeriodCode)
@@ -342,7 +351,12 @@ export function Dashboard({ darkMode, onToggleDarkMode }: DashboardProps) {
       />
 
       {/* Course detail slide-in */}
-      <CourseDetailPanel event={selectedEvent} onClose={() => setSelectedEvent(null)} />
+      <CourseDetailPanel
+        event={selectedEvent}
+        bookingCountByParticipant={bookingCountByParticipant}
+        courseChangeByParticipant={courseChangeByParticipant}
+        onClose={() => setSelectedEvent(null)}
+      />
 
       {/* Booking list slide-in for KPI cards */}
       <BookingListPanel
@@ -478,6 +492,17 @@ function eventMatchesPeriod(event: Event, periodCode: string): boolean {
     event.schedule?.start?.date && `${event.schedule.start.date} ${event.schedule.start.time ?? ''}`,
     event.grouping?.eventBlock?.name,
   ])
+}
+
+function eventPeriodCode(event: Event): string {
+  const blockName = event.grouping?.eventBlock?.name
+  if (blockName) {
+    const code = blockNameToCode(blockName)
+    if (isPeriodCode(code)) return code
+  }
+
+  if (isPeriodCode(event.code)) return event.code
+  return dateToPeriodCode(event.schedule?.start?.date)
 }
 
 function bookingMatchesPeriod(booking: Booking, periodCode: string): boolean {

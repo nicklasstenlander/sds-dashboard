@@ -1,10 +1,15 @@
 import type { Booking, Event } from '../types/cogwork'
+import { blockNameToCode, dateToPeriodCode, isPeriodCode } from './periods'
 
 export interface CourseMetrics {
   registered: number
   accepted: number
   revenue: number
   price?: number
+}
+
+export interface CourseChangeInfo {
+  fromCourses: string[]
 }
 
 export const EMPTY_COURSE_METRICS: CourseMetrics = {
@@ -80,6 +85,71 @@ export function isNewStudentBooking(booking: Booking, countByParticipant: Map<st
   return Boolean(key) && (countByParticipant.get(key ?? '') ?? 0) === 1
 }
 
+export function buildCourseChangeInfoByParticipant(
+  bookings: Booking[],
+  currentPeriodCode: string,
+): Map<string, CourseChangeInfo> {
+  const previousPeriodCode = previousPeriod(currentPeriodCode)
+  if (!previousPeriodCode) return new Map()
+
+  const canonicalKeyOf = buildCanonicalParticipantKeys(bookings)
+  const lookupKeysByCanonicalKey = new Map<string, Set<string>>()
+  const coursesByCanonicalKey = new Map<string, {
+    current: Map<string, string>
+    previous: Map<string, string>
+  }>()
+
+  for (const booking of bookings) {
+    const baseKey = participantBaseKey(booking)
+    if (!baseKey) continue
+
+    const canonicalKey = canonicalKeyOf.get(baseKey) ?? baseKey
+    const lookupKeys = lookupKeysByCanonicalKey.get(canonicalKey) ?? new Set<string>()
+    participantLookupKeys(booking).forEach((key) => lookupKeys.add(key))
+    lookupKeysByCanonicalKey.set(canonicalKey, lookupKeys)
+
+    const periodCode = bookingPeriodCode(booking)
+    if (periodCode !== currentPeriodCode && periodCode !== previousPeriodCode) continue
+
+    const courseName = booking.event?.name?.trim()
+    const normalizedName = normalizeCourseName(courseName)
+    if (!courseName || !normalizedName) continue
+
+    const courses = coursesByCanonicalKey.get(canonicalKey) ?? { current: new Map(), previous: new Map() }
+    if (periodCode === currentPeriodCode) courses.current.set(normalizedName, courseName)
+    if (periodCode === previousPeriodCode) courses.previous.set(normalizedName, courseName)
+    coursesByCanonicalKey.set(canonicalKey, courses)
+  }
+
+  const result = new Map<string, CourseChangeInfo>()
+  for (const [canonicalKey, courses] of coursesByCanonicalKey) {
+    if (courses.current.size === 0 || courses.previous.size === 0) continue
+
+    const continuesCourse = Array.from(courses.current.keys())
+      .some((courseName) => courses.previous.has(courseName))
+    if (continuesCourse) continue
+
+    const info = {
+      fromCourses: Array.from(courses.previous.values()).sort((a, b) => a.localeCompare(b, 'sv')),
+    }
+    const lookupKeys = lookupKeysByCanonicalKey.get(canonicalKey) ?? new Set([canonicalKey])
+    lookupKeys.forEach((key) => result.set(key, info))
+  }
+
+  return result
+}
+
+export function courseChangeInfoForBooking(
+  booking: Booking,
+  changeInfoByParticipant: Map<string, CourseChangeInfo>,
+): CourseChangeInfo | undefined {
+  for (const key of participantLookupKeys(booking)) {
+    const info = changeInfoByParticipant.get(key)
+    if (info) return info
+  }
+  return undefined
+}
+
 export function bookingTicketQuantity(booking: Booking): number {
   const structuredQuantity = ticketQuantityFromFormResponses(booking)
   if (structuredQuantity != null) return structuredQuantity
@@ -145,6 +215,85 @@ export function metricsForEvent(
     price,
     revenue: accepted * (price ?? 0),
   }
+}
+
+function buildCanonicalParticipantKeys(bookings: Booking[]): Map<string, string> {
+  const canonicalKeyOf = new Map<string, string>()
+  const keyByNameAndBirth = new Map<string, string>()
+
+  for (const booking of bookings) {
+    const baseKey = participantBaseKey(booking)
+    if (!baseKey || canonicalKeyOf.has(baseKey)) continue
+
+    const identity = participantNameAndBirthKey(booking)
+    if (!identity) {
+      canonicalKeyOf.set(baseKey, baseKey)
+      continue
+    }
+
+    const existingKey = keyByNameAndBirth.get(identity)
+    if (existingKey) {
+      canonicalKeyOf.set(baseKey, existingKey)
+    } else {
+      keyByNameAndBirth.set(identity, baseKey)
+      canonicalKeyOf.set(baseKey, baseKey)
+    }
+  }
+
+  return canonicalKeyOf
+}
+
+function participantLookupKeys(booking: Booking): string[] {
+  return [
+    booking.participant?.key,
+    participantNameAndBirthKey(booking),
+    participantNameKey(booking),
+  ].filter((key): key is string => Boolean(key))
+}
+
+function participantBaseKey(booking: Booking): string {
+  return booking.participant?.key
+    ?? participantNameAndBirthKey(booking)
+    ?? participantNameKey(booking)
+    ?? ''
+}
+
+function participantNameAndBirthKey(booking: Booking): string {
+  const name = booking.participant?.name?.trim().toLowerCase()
+  const dateOfBirth = booking.participant?.dateOfBirth
+  return name && dateOfBirth ? `name-birth:${name}|${dateOfBirth}` : ''
+}
+
+function participantNameKey(booking: Booking): string {
+  const name = booking.participant?.name?.trim().toLowerCase()
+  return name ? `name:${name}` : ''
+}
+
+function bookingPeriodCode(booking: Booking): string {
+  const blockName = booking.event?.grouping?.eventBlock?.name
+  if (blockName) {
+    const code = blockNameToCode(blockName).toUpperCase()
+    if (isPeriodCode(code)) return code
+  }
+
+  const eventCode = booking.event?.code?.toUpperCase()
+  if (eventCode && isPeriodCode(eventCode)) return eventCode
+
+  return dateToPeriodCode(booking.event?.startDate ?? booking.event?.startDateTime)
+}
+
+function previousPeriod(periodCode: string): string {
+  const match = periodCode.match(/^(HT|VT)(\d{2})$/)
+  if (!match) return ''
+
+  const year = Number(match[2])
+  return match[1] === 'HT'
+    ? `VT${String(year).padStart(2, '0')}`
+    : `HT${String(year - 1).padStart(2, '0')}`
+}
+
+function normalizeCourseName(name?: string): string {
+  return name?.trim().replace(/\s+/g, ' ').toLowerCase() ?? ''
 }
 
 function ticketQuantityFromFormResponses(booking: Booking): number | null {

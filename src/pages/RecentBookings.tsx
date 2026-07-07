@@ -5,6 +5,7 @@ import { sv } from 'date-fns/locale'
 import { Search, RefreshCw, DatabaseZap } from 'lucide-react'
 import { useBookings } from '../hooks/useBookings'
 import { useAllTermsBookings } from '../hooks/useAllTermsBookings'
+import { useEvents } from '../hooks/useEvents'
 import { useApiConfig } from '../context/ApiContext'
 import { purgeProxyCache } from '../services/proxyService'
 import { isPeriodCode, matchesPeriodCode } from '../utils/periods'
@@ -12,7 +13,7 @@ import { countBookingsByParticipant, isNewStudentBooking } from '../utils/course
 import { PeriodFilter } from '../components/PeriodFilter'
 import { ParticipantPanel } from '../components/ParticipantPanel'
 import { formatBookingStatus } from '../lib/status'
-import type { Booking, BookingPayment } from '../types/cogwork'
+import type { Booking, BookingPayment, Event } from '../types/cogwork'
 
 // ---------------------------------------------------------------------------
 // Payment helpers
@@ -99,6 +100,7 @@ export function RecentBookings() {
   const { data: bookingsData, isLoading, isFetching, isError, error, refetch } = useBookings({
     eventBlockId: queryEventBlockId,
   })
+  const { data: events = [] } = useEvents({ eventBlockId: queryEventBlockId })
 
   // Visa aldrig "Inga anmälningar hittades" medan en bakgrundsuppdatering ännu kan ge tomt→fyllt
   const isSettling = isLoading || (isFetching && (bookingsData?.bookings.length ?? 0) === 0)
@@ -129,6 +131,10 @@ export function RecentBookings() {
     () => countBookingsByParticipant(allBookingsUnfiltered),
     [allBookingsUnfiltered],
   )
+  const eventById = useMemo(
+    () => new Map(events.map((event) => [String(event.id), event])),
+    [events],
+  )
 
   const allBookings = bookingsData?.bookings ?? []
   const bookings = clientPeriodCode
@@ -143,15 +149,17 @@ export function RecentBookings() {
           if (payFilter && paymentStatus(b) !== payFilter) return false
           if (search) {
             const q = search.toLowerCase()
+            const schedule = bookingScheduleDisplay(b, eventById).toLowerCase()
             return (
               b.participant?.name?.toLowerCase().includes(q) ||
-              b.event?.name?.toLowerCase().includes(q)
+              b.event?.name?.toLowerCase().includes(q) ||
+              schedule.includes(q)
             )
           }
           return true
         })
         .sort((a, b) => b.created.localeCompare(a.created)),
-    [bookings, payFilter, search],
+    [bookings, eventById, payFilter, search],
   )
 
   const paidCount    = bookings.filter((b) => paymentStatus(b) === 'paid').length
@@ -291,6 +299,7 @@ export function RecentBookings() {
                   <Th>Anmäld</Th>
                   <Th>Deltagare</Th>
                   <Th>Kurs</Th>
+                  <Th>Dag / tid</Th>
                   <Th>Pris</Th>
                   <Th>Betalning</Th>
                   <Th>Status</Th>
@@ -322,6 +331,11 @@ export function RecentBookings() {
                     </td>
                     <td className="py-3 px-5 text-sm text-slate-700 max-w-[280px]">
                       <span className="line-clamp-1">{b.event?.name ?? '—'}</span>
+                    </td>
+                    <td className="py-3 px-5 text-sm text-slate-600 max-w-[180px]">
+                      <span className="line-clamp-1" title={bookingScheduleDisplay(b, eventById)}>
+                        {bookingScheduleDisplay(b, eventById)}
+                      </span>
                     </td>
                     <td className="py-3 px-5 text-sm text-slate-600 tabular-nums whitespace-nowrap">
                       {priceDisplay(b.payment)}
@@ -363,6 +377,37 @@ function formatDate(dt: string): string {
     return format(parseISO(dt.replace(' ', 'T')), 'd MMM yyyy', { locale: sv })
   } catch {
     return dt
+  }
+}
+
+function bookingScheduleDisplay(booking: Booking, eventById: Map<string, Event>): string {
+  const event = booking.event?.id ? eventById.get(String(booking.event.id)) : undefined
+  const schedule = event?.schedule
+
+  if (schedule?.dayAndTimeInfo) return schedule.dayAndTimeInfo
+
+  const startDate = booking.event?.startDate ?? booking.event?.startDateTime?.slice(0, 10) ?? schedule?.start?.date
+  const startTime = booking.event?.startTime ?? booking.event?.startDateTime?.slice(11, 16) ?? schedule?.start?.time
+
+  if (startDate && startTime) return formatScheduleDateTime(startDate, startTime)
+  if (startDate) return formatScheduleDate(startDate)
+  if (startTime) return startTime
+  return '—'
+}
+
+function formatScheduleDateTime(date: string, time: string): string {
+  try {
+    return `${format(parseISO(date), 'EEEE', { locale: sv })} ${time}`
+  } catch {
+    return `${date} ${time}`
+  }
+}
+
+function formatScheduleDate(date: string): string {
+  try {
+    return format(parseISO(date), 'EEEE d MMM', { locale: sv })
+  } catch {
+    return date
   }
 }
 
