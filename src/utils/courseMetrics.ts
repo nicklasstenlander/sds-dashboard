@@ -12,6 +12,16 @@ export interface CourseChangeInfo {
   fromCourses: string[]
 }
 
+interface EventCategoryLike {
+  code?: string
+  name?: string
+  category?: { name?: string }
+  grouping?: {
+    eventBlock?: unknown
+    primaryEventGroup?: { name?: string }
+  }
+}
+
 export const EMPTY_COURSE_METRICS: CourseMetrics = {
   registered: 0,
   accepted: 0,
@@ -28,6 +38,25 @@ export function eventId(event: Event): string {
 
 export function isAcceptedBooking(booking: Booking): boolean {
   return booking.status?.code?.toUpperCase() === 'ACCEPTED'
+}
+
+export function isPerformanceEvent(event?: EventCategoryLike): boolean {
+  return isPerformanceCategoryName(event?.grouping?.primaryEventGroup?.name)
+    || isPerformanceCategoryName(event?.category?.name)
+    || isPerformanceText(event?.code)
+    || isPerformanceText(event?.name)
+}
+
+export function isPerformanceBooking(booking: Booking): boolean {
+  return isPerformanceEvent(booking.event)
+}
+
+export function isStatisticalEvent(event: Event): boolean {
+  return !isPerformanceEvent(event)
+}
+
+export function isStatisticalBooking(booking: Booking): boolean {
+  return !isPerformanceBooking(booking)
 }
 
 /**
@@ -294,6 +323,15 @@ function previousPeriod(periodCode: string): string {
 
 function normalizeCourseName(name?: string): string {
   return name?.trim().replace(/\s+/g, ' ').toLowerCase() ?? ''
+}
+
+function isPerformanceCategoryName(name?: string): boolean {
+  return name?.trim().toLowerCase() === 'föreställningar'
+}
+
+function isPerformanceText(value?: string): boolean {
+  const normalized = value?.trim().toLowerCase()
+  return Boolean(normalized?.includes('föreställning') || normalized?.includes('forestallning'))
 }
 
 function ticketQuantityFromFormResponses(booking: Booking): number | null {

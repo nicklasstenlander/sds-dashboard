@@ -7,7 +7,7 @@ import { EVENT_BLOCK_IDS_BY_CODE } from '../config/cogwork'
 import { matchesPeriodCode } from '../utils/periods'
 import {
   bookingTicketQuantity, buildCourseMetrics, countBookingsByParticipant,
-  isAcceptedBooking, isNewStudentBooking, metricsForEvent,
+  isAcceptedBooking, isNewStudentBooking, isStatisticalBooking, isStatisticalEvent, metricsForEvent,
 } from '../utils/courseMetrics'
 import type { Booking, Event } from '../types/cogwork'
 
@@ -16,9 +16,11 @@ import type { Booking, Event } from '../types/cogwork'
 // ---------------------------------------------------------------------------
 
 export function computeCurrentValue(goal: Goal, bookings: Booking[], events: Event[]): number {
+  const statisticalBookings = bookings.filter(isStatisticalBooking)
+  const statisticalEvents = events.filter(isStatisticalEvent)
   const filteredBookings = goal.event_block_id
-    ? bookings.filter(b => bookingMatchesEventBlock(b, goal.event_block_id))
-    : bookings
+    ? statisticalBookings.filter(b => bookingMatchesEventBlock(b, goal.event_block_id))
+    : statisticalBookings
 
   const scopedBookings = goal.event_key
     ? filteredBookings.filter(b => b.event?.key === goal.event_key)
@@ -41,8 +43,8 @@ export function computeCurrentValue(goal: Goal, bookings: Booking[], events: Eve
     case 'occupancy': {
       const metricsByEvent = buildCourseMetrics(scopedBookings)
       const filteredEvents = goal.event_block_id
-        ? events.filter(e => eventMatchesEventBlock(e, goal.event_block_id))
-        : events
+        ? statisticalEvents.filter(e => eventMatchesEventBlock(e, goal.event_block_id))
+        : statisticalEvents
       if (filteredEvents.length === 0) return 0
       const total = filteredEvents.reduce((sum, e) => {
         const max      = e.requirements?.maxParticipants ?? 0
@@ -53,7 +55,7 @@ export function computeCurrentValue(goal: Goal, bookings: Booking[], events: Eve
     }
 
     case 'new_students': {
-      const countByParticipant = countBookingsByParticipant(bookings)
+      const countByParticipant = countBookingsByParticipant(statisticalBookings)
       return scopedBookings.filter(b => isNewStudentBooking(b, countByParticipant)).length
     }
 

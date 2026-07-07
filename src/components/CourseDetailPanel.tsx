@@ -3,7 +3,7 @@ import { X, Users, Clock, MapPin, User, Banknote, CalendarDays } from 'lucide-re
 import { useEventBookings } from '../hooks/useEventBookings'
 import { ParticipantPanel } from './ParticipantPanel'
 import { formatBookingStatus } from '../lib/status'
-import { bookingTicketQuantity, buildCourseMetrics, courseChangeInfoForBooking, isAcceptedBooking, isNewStudentBooking } from '../utils/courseMetrics'
+import { bookingTicketQuantity, buildCourseMetrics, courseChangeInfoForBooking, isAcceptedBooking, isNewStudentBooking, isPerformanceBooking } from '../utils/courseMetrics'
 import type { Event, Booking, BookingPayment } from '../types/cogwork'
 import type { CourseChangeInfo } from '../utils/courseMetrics'
 
@@ -113,6 +113,7 @@ function BookingRow({
   const parts = name.trim().split(' ')
   const initials = ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase() || '?'
   const ticketQuantity = bookingTicketQuantity(b)
+  const isTicketPurchase = isPerformanceBooking(b)
   const courseChangeLabel = courseChangeInfo
     ? `Bytt från ${courseChangeInfo.fromCourses.join(', ')}`
     : ''
@@ -133,12 +134,16 @@ function BookingRow({
           ) : (
             <p className="text-sm font-medium text-brand-dark truncate">—</p>
           )}
-          {isNewStudent && (
+          {isTicketPurchase ? (
+            <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 whitespace-nowrap">
+              Biljettköp
+            </span>
+          ) : isNewStudent && (
             <span className="text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap" style={{ background: '#CDDCD1', color: '#1e4025' }}>
               Ny elev
             </span>
           )}
-          {courseChangeLabel && (
+          {!isTicketPurchase && courseChangeLabel && (
             <span
               className="inline-block max-w-[170px] truncate text-xs font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 whitespace-nowrap align-bottom"
               title={courseChangeLabel}

@@ -9,7 +9,7 @@ import { useEvents } from '../hooks/useEvents'
 import { useApiConfig } from '../context/ApiContext'
 import { purgeProxyCache } from '../services/proxyService'
 import { isPeriodCode, matchesPeriodCode } from '../utils/periods'
-import { countBookingsByParticipant, isNewStudentBooking } from '../utils/courseMetrics'
+import { countBookingsByParticipant, isNewStudentBooking, isPerformanceBooking, isStatisticalBooking } from '../utils/courseMetrics'
 import { PeriodFilter } from '../components/PeriodFilter'
 import { ParticipantPanel } from '../components/ParticipantPanel'
 import { formatBookingStatus } from '../lib/status'
@@ -128,7 +128,7 @@ export function RecentBookings() {
   // Bokningar från VARJE känd termin (VT/HT) för "Ny elev" — samma källa som Översiktens new_students-mål
   const { bookings: allBookingsUnfiltered } = useAllTermsBookings()
   const bookingCountByParticipant = useMemo(
-    () => countBookingsByParticipant(allBookingsUnfiltered),
+    () => countBookingsByParticipant(allBookingsUnfiltered.filter(isStatisticalBooking)),
     [allBookingsUnfiltered],
   )
   const eventById = useMemo(
@@ -322,7 +322,11 @@ export function RecentBookings() {
                             {b.participant.name}
                           </button>
                         ) : '—'}
-                        {isNewStudentBooking(b, bookingCountByParticipant) && (
+                        {isPerformanceBooking(b) ? (
+                          <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 whitespace-nowrap">
+                            Biljettköp
+                          </span>
+                        ) : isNewStudentBooking(b, bookingCountByParticipant) && (
                           <span className="text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap" style={{ background: '#CDDCD1', color: '#1e4025' }}>
                             Ny elev
                           </span>
