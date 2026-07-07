@@ -170,6 +170,34 @@ function MissingBookingCustomersCard({
   loading: boolean
   onSelectName: (name: string) => void
 }) {
+  const [search, setSearch] = useState('')
+  const [termFilter, setTermFilter] = useState('')
+  const [courseFilter, setCourseFilter] = useState('')
+
+  const terms = useMemo(
+    () => Array.from(new Set(customers.map((customer) => customer.term).filter(Boolean))).sort((a, b) => b.localeCompare(a, 'sv')),
+    [customers],
+  )
+  const courses = useMemo(
+    () => Array.from(new Set(customers.map((customer) => customer.course).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'sv')),
+    [customers],
+  )
+  const filteredCustomers = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    return customers.filter((customer) => {
+      if (termFilter && customer.term !== termFilter) return false
+      if (courseFilter && customer.course !== courseFilter) return false
+      if (!q) return true
+      return (
+        customer.name.toLowerCase().includes(q) ||
+        customer.course.toLowerCase().includes(q) ||
+        customer.term.toLowerCase().includes(q) ||
+        customer.date.toLowerCase().includes(q) ||
+        customer.time.toLowerCase().includes(q)
+      )
+    })
+  }, [courseFilter, customers, search, termFilter])
+
   return (
     <div className="card overflow-hidden">
       <div className="px-5 py-4 border-b border-slate-50 flex flex-wrap items-center justify-between gap-3">
@@ -183,7 +211,9 @@ function MissingBookingCustomersCard({
         </div>
         {!loading && (
           <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-slate-100 text-slate-500">
-            {customers.length.toLocaleString('sv-SE')} kunder
+            {filteredCustomers.length < customers.length
+              ? `${filteredCustomers.length.toLocaleString('sv-SE')} av ${customers.length.toLocaleString('sv-SE')} kunder`
+              : `${customers.length.toLocaleString('sv-SE')} kunder`}
           </span>
         )}
       </div>
@@ -203,38 +233,79 @@ function MissingBookingCustomersCard({
           Inga tidigare kurskunder saknar ny kursbokning.
         </p>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-slate-50/60 border-b border-slate-100">
-              <tr>
-                <CustomerTh>Namn</CustomerTh>
-                <CustomerTh>Kurs</CustomerTh>
-                <CustomerTh>Datum</CustomerTh>
-                <CustomerTh>Tid</CustomerTh>
-                <CustomerTh>Termin</CustomerTh>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-              {customers.map((customer) => (
-                <tr key={customer.key} className="hover:bg-slate-50/60 transition-colors">
-                  <td className="py-3 px-5 text-sm font-medium whitespace-nowrap">
-                    <button
-                      onClick={() => onSelectName(customer.name)}
-                      className="text-brand-dark hover:text-brand-forest hover:underline text-left"
-                    >
-                      {customer.name}
-                    </button>
-                  </td>
-                  <td className="py-3 px-5 text-sm text-slate-700 min-w-[240px]">
-                    <span className="line-clamp-1" title={customer.course}>{customer.course}</span>
-                  </td>
-                  <td className="py-3 px-5 text-sm text-slate-500 whitespace-nowrap">{customer.date || '—'}</td>
-                  <td className="py-3 px-5 text-sm text-slate-500 whitespace-nowrap">{customer.time || '—'}</td>
-                  <td className="py-3 px-5 text-sm text-slate-500 whitespace-nowrap">{customer.term || '—'}</td>
-                </tr>
+        <div>
+          <div className="px-5 py-4 border-b border-slate-50 grid gap-3 lg:grid-cols-[minmax(180px,1fr)_minmax(160px,220px)_minmax(180px,280px)]">
+            <div className="relative">
+              <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400 pointer-events-none" />
+              <input
+                type="search"
+                placeholder="Sök namn, kurs, datum…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full text-sm border border-slate-200 rounded-full pl-9 pr-4 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-brand-mint"
+              />
+            </div>
+            <select
+              value={termFilter}
+              onChange={(e) => setTermFilter(e.target.value)}
+              className="text-sm border border-slate-200 rounded-full px-4 py-2 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-mint"
+            >
+              <option value="">Alla terminer</option>
+              {terms.map((term) => (
+                <option key={term} value={term}>{term}</option>
               ))}
-            </tbody>
-          </table>
+            </select>
+            <select
+              value={courseFilter}
+              onChange={(e) => setCourseFilter(e.target.value)}
+              className="text-sm border border-slate-200 rounded-full px-4 py-2 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-mint"
+            >
+              <option value="">Alla kurser</option>
+              {courses.map((course) => (
+                <option key={course} value={course}>{course}</option>
+              ))}
+            </select>
+          </div>
+
+          {filteredCustomers.length === 0 ? (
+            <p className="px-5 py-8 text-sm text-slate-400 text-center">
+              Inga kunder matchar filtreringen.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-slate-50/60 border-b border-slate-100">
+                  <tr>
+                    <CustomerTh>Namn</CustomerTh>
+                    <CustomerTh>Kurs</CustomerTh>
+                    <CustomerTh>Datum</CustomerTh>
+                    <CustomerTh>Tid</CustomerTh>
+                    <CustomerTh>Termin</CustomerTh>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {filteredCustomers.map((customer) => (
+                    <tr key={customer.key} className="hover:bg-slate-50/60 transition-colors">
+                      <td className="py-3 px-5 text-sm font-medium whitespace-nowrap">
+                        <button
+                          onClick={() => onSelectName(customer.name)}
+                          className="text-brand-dark hover:text-brand-forest hover:underline text-left"
+                        >
+                          {customer.name}
+                        </button>
+                      </td>
+                      <td className="py-3 px-5 text-sm text-slate-700 min-w-[240px]">
+                        <span className="line-clamp-1" title={customer.course}>{customer.course}</span>
+                      </td>
+                      <td className="py-3 px-5 text-sm text-slate-500 whitespace-nowrap">{customer.date || '—'}</td>
+                      <td className="py-3 px-5 text-sm text-slate-500 whitespace-nowrap">{customer.time || '—'}</td>
+                      <td className="py-3 px-5 text-sm text-slate-500 whitespace-nowrap">{customer.term || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
     </div>
