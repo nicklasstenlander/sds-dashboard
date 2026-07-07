@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Search, Mail, Phone, MapPin, Calendar, Hash, User, BookOpen, MessageSquare } from 'lucide-react'
+import { Search, Mail, Phone, MapPin, Calendar, Hash, User, BookOpen, MessageSquare, ChevronDown } from 'lucide-react'
 import { useUsers } from '../hooks/useUsers'
 import { useUserBookings } from '../hooks/useUserBookings'
 import { useAllTermsBookings } from '../hooks/useAllTermsBookings'
@@ -172,7 +172,8 @@ function MissingBookingCustomersCard({
 }) {
   const [search, setSearch] = useState('')
   const [termFilter, setTermFilter] = useState('')
-  const [courseFilter, setCourseFilter] = useState('')
+  const [selectedCourses, setSelectedCourses] = useState<Set<string>>(() => new Set())
+  const [courseMenuOpen, setCourseMenuOpen] = useState(false)
 
   const terms = useMemo(
     () => Array.from(new Set(customers.map((customer) => customer.term).filter(Boolean))).sort((a, b) => b.localeCompare(a, 'sv')),
@@ -186,7 +187,7 @@ function MissingBookingCustomersCard({
     const q = search.trim().toLowerCase()
     return customers.filter((customer) => {
       if (termFilter && customer.term !== termFilter) return false
-      if (courseFilter && customer.course !== courseFilter) return false
+      if (selectedCourses.size > 0 && !selectedCourses.has(customer.course)) return false
       if (!q) return true
       return (
         customer.name.toLowerCase().includes(q) ||
@@ -196,7 +197,16 @@ function MissingBookingCustomersCard({
         customer.time.toLowerCase().includes(q)
       )
     })
-  }, [courseFilter, customers, search, termFilter])
+  }, [customers, search, selectedCourses, termFilter])
+
+  function toggleCourse(course: string) {
+    setSelectedCourses((current) => {
+      const next = new Set(current)
+      if (next.has(course)) next.delete(course)
+      else next.add(course)
+      return next
+    })
+  }
 
   return (
     <div className="card overflow-hidden">
@@ -234,7 +244,7 @@ function MissingBookingCustomersCard({
         </p>
       ) : (
         <div>
-          <div className="px-5 py-4 border-b border-slate-50 grid gap-3 lg:grid-cols-[minmax(180px,1fr)_minmax(160px,220px)_minmax(180px,280px)]">
+          <div className="px-5 py-4 border-b border-slate-50 grid gap-3 lg:grid-cols-[minmax(180px,1fr)_minmax(160px,220px)_minmax(220px,320px)]">
             <div className="relative">
               <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400 pointer-events-none" />
               <input
@@ -255,16 +265,55 @@ function MissingBookingCustomersCard({
                 <option key={term} value={term}>{term}</option>
               ))}
             </select>
-            <select
-              value={courseFilter}
-              onChange={(e) => setCourseFilter(e.target.value)}
-              className="text-sm border border-slate-200 rounded-full px-4 py-2 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-mint"
-            >
-              <option value="">Alla kurser</option>
-              {courses.map((course) => (
-                <option key={course} value={course}>{course}</option>
-              ))}
-            </select>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setCourseMenuOpen((open) => !open)}
+                className="w-full flex items-center justify-between gap-2 text-sm border border-slate-200 rounded-full px-4 py-2 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-mint"
+              >
+                <span className="truncate">
+                  {selectedCourses.size === 0
+                    ? 'Alla kurser'
+                    : `${selectedCourses.size} ${selectedCourses.size === 1 ? 'kurs' : 'kurser'}`}
+                </span>
+                <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
+              </button>
+
+              {courseMenuOpen && (
+                <div className="absolute right-0 z-20 mt-2 w-full min-w-[280px] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
+                  <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-3 py-2">
+                    <span className="text-xs font-semibold text-slate-500">
+                      {selectedCourses.size === 0 ? 'Alla kurser visas' : `${selectedCourses.size} valda`}
+                    </span>
+                    {selectedCourses.size > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedCourses(new Set())}
+                        className="text-xs font-medium text-brand-forest hover:underline"
+                      >
+                        Rensa
+                      </button>
+                    )}
+                  </div>
+                  <div className="max-h-72 overflow-y-auto py-1">
+                    {courses.map((course) => (
+                      <label
+                        key={course}
+                        className="flex cursor-pointer items-start gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedCourses.has(course)}
+                          onChange={() => toggleCourse(course)}
+                          className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-forest focus:ring-brand-mint"
+                        />
+                        <span className="leading-snug">{course}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           {filteredCustomers.length === 0 ? (
