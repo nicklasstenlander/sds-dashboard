@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useLayoutEffect, lazy, Suspense } from 'react'
 import { Routes, Route, Navigate, NavLink, useLocation } from 'react-router-dom'
-import { LayoutDashboard, ClipboardList, Users, Settings, LogOut, ShoppingBag, PanelLeft, Phone, ClipboardCheck, Monitor, CalendarDays, MoreHorizontal, Loader2, FileText } from 'lucide-react'
+import { LayoutDashboard, ClipboardList, Users, Settings, LogOut, ShoppingBag, PanelLeft, Phone, ClipboardCheck, Monitor, CalendarDays, MoreHorizontal, Loader2, FileText, Newspaper } from 'lucide-react'
 import { ApiProvider, useApiConfig } from './context/ApiContext'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { LoginPage } from './pages/LoginPage'
@@ -16,6 +16,7 @@ const Narvaro = lazy(() => import('./pages/Narvaro').then(m => ({ default: m.Nar
 const Signage = lazy(() => import('./pages/Signage').then(m => ({ default: m.Signage })))
 const Schema = lazy(() => import('./pages/Schema').then(m => ({ default: m.Schema })))
 const Forms = lazy(() => import('./pages/Forms').then(m => ({ default: m.Forms })))
+const News = lazy(() => import('./pages/News').then(m => ({ default: m.News })))
 const PublicForm = lazy(() => import('./pages/PublicForm').then(m => ({ default: m.PublicForm })))
 
 function PageLoader() {
@@ -56,6 +57,7 @@ const NAV = [
   { to: '/skyltning',   label: 'Skyltning',     Icon: Monitor         },
   { to: '/schema',      label: 'Schema',        Icon: CalendarDays    },
   { to: '/formular',    label: 'Formulär',      Icon: FileText        },
+  { to: '/nyheter',     label: 'Nyheter',       Icon: Newspaper       },
 ]
 
 function AppShell() {
@@ -235,6 +237,7 @@ function AppShell() {
               <Route path="/skyltning" element={<Signage />} />
               <Route path="/schema" element={<Schema />} />
               <Route path="/formular" element={<Forms />} />
+              <Route path="/nyheter" element={<News />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Suspense>
@@ -255,6 +258,7 @@ function AppShell() {
           { to: '/skyltning', label: 'Skyltning', Icon: Monitor       },
           { to: '/schema',    label: 'Schema',    Icon: CalendarDays  },
           { to: '/formular',  label: 'Formulär',  Icon: FileText      },
+          { to: '/nyheter',   label: 'Nyheter',   Icon: Newspaper     },
         ]
         const isMoreActive = MORE.some(m => isActive(m.to))
 
