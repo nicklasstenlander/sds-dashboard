@@ -14,10 +14,14 @@ export interface ContentCard {
   expires_at: string | null
   published: boolean
   sort_order: number
+  send_push: boolean
+  push_sent_at: string | null
   created_at: string
 }
 
-export type ContentCardInput = Omit<ContentCard, 'id' | 'created_at'>
+// push_sent_at utelämnas medvetet - det fältet skrivs ENDAST av Workern
+// (service-nyckel) när notisen faktiskt skickats, aldrig av admin-UI:t.
+export type ContentCardInput = Omit<ContentCard, 'id' | 'created_at' | 'push_sent_at'>
 
 export async function fetchContentCards(): Promise<ContentCard[]> {
   const { data, error } = await supabase

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { format, parseISO } from 'date-fns'
 import { sv } from 'date-fns/locale'
-import { Loader2, Plus, Save, Trash2, X } from 'lucide-react'
+import { CheckCircle, Loader2, Plus, Save, Trash2, X } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useContentCards, useCreateContentCard, useDeleteContentCard, useUpdateContentCard } from '../hooks/useContentCards'
 import type { ContentCard, ContentCardInput, ContentCardType } from '../services/contentCardsService'
@@ -48,6 +48,7 @@ interface CardDraft {
   noEndDate: boolean
   published: boolean
   sort_order: string
+  send_push: boolean
 }
 
 export function News() {
@@ -119,6 +120,7 @@ export function News() {
                   <Th>Visas från</Th>
                   <Th>Visas till</Th>
                   <Th>Publicerad</Th>
+                  <Th>Notis</Th>
                   <Th />
                 </tr>
               </thead>
@@ -145,6 +147,9 @@ export function News() {
                       {card.expires_at ? formatDateTime(card.expires_at) : 'Visas för alltid'}
                     </td>
                     <td className="whitespace-nowrap px-5 py-3 text-sm text-slate-600">{card.published ? 'Ja' : 'Nej'}</td>
+                    <td className="whitespace-nowrap px-5 py-3 text-sm">
+                      <PushIndicator card={card} />
+                    </td>
                     <td className="whitespace-nowrap px-5 py-3 text-right text-sm">
                       <button
                         onClick={(event) => handleDelete(card, event)}
@@ -219,6 +224,7 @@ function CardModal({
       expires_at: draft.noEndDate ? null : fromDatetimeLocal(draft.expires_at),
       published: draft.published,
       sort_order: Number(draft.sort_order) || 0,
+      send_push: draft.send_push,
     }
 
     try {
@@ -368,6 +374,29 @@ function CardModal({
             </label>
           </div>
 
+          <div>
+            <label className="flex items-center gap-2 text-sm text-slate-600">
+              <input
+                type="checkbox"
+                checked={card?.push_sent_at ? true : draft.send_push}
+                disabled={Boolean(card?.push_sent_at)}
+                onChange={(event) => setDraft({ ...draft, send_push: event.target.checked })}
+                className="h-4 w-4 rounded border-slate-300 text-brand-forest focus:ring-brand-mint disabled:opacity-60"
+              />
+              Skicka pushnotis när kortet publiceras
+            </label>
+            {card?.push_sent_at ? (
+              <p className="mt-1.5 flex items-center gap-1 text-xs font-medium text-brand-forest">
+                <CheckCircle className="h-3.5 w-3.5" />
+                Notis skickad {formatTime(card.push_sent_at)}
+              </p>
+            ) : (
+              <p className="mt-1.5 text-xs text-slate-400">
+                Notisen skickas automatiskt inom ~15 minuter efter att kortet publiceras, till alla som har notiser för nyheter aktiverat.
+              </p>
+            )}
+          </div>
+
           <button
             onClick={handleSave}
             disabled={!canManageCards || saving}
@@ -397,6 +426,25 @@ function Input({ label, value, onChange }: { label: string; value: string; onCha
 
 function Th({ children }: { children?: React.ReactNode }) {
   return <th className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold text-slate-600">{children}</th>
+}
+
+function PushIndicator({ card }: { card: ContentCard }) {
+  if (!card.send_push) return <span className="text-xs text-slate-300">—</span>
+
+  if (card.push_sent_at) {
+    return (
+      <span className="inline-flex items-center gap-1 text-xs font-semibold text-brand-forest">
+        <CheckCircle className="h-3.5 w-3.5" />
+        Skickad
+      </span>
+    )
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-identity-sky px-2.5 py-0.5 text-xs font-semibold text-brand-dark">
+      🔔 Push
+    </span>
+  )
 }
 
 function StatusBadge({ status }: { status: CardStatus }) {
@@ -434,6 +482,7 @@ function toDraft(card: ContentCard | null): CardDraft {
       noEndDate: true,
       published: false,
       sort_order: '0',
+      send_push: false,
     }
   }
 
@@ -449,6 +498,7 @@ function toDraft(card: ContentCard | null): CardDraft {
     noEndDate: !card.expires_at,
     published: card.published,
     sort_order: String(card.sort_order),
+    send_push: card.send_push,
   }
 }
 
@@ -466,6 +516,14 @@ function fromDatetimeLocal(value: string): string {
 function formatDateTime(value: string): string {
   try {
     return format(parseISO(value), 'd MMM yyyy HH:mm', { locale: sv })
+  } catch {
+    return value
+  }
+}
+
+function formatTime(value: string): string {
+  try {
+    return format(parseISO(value), 'HH:mm', { locale: sv })
   } catch {
     return value
   }
