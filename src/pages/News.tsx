@@ -49,6 +49,8 @@ interface CardDraft {
   published: boolean
   sort_order: string
   send_push: boolean
+  show_on_web: boolean
+  show_on_app: boolean
 }
 
 export function News() {
@@ -121,6 +123,7 @@ export function News() {
                   <Th>Visas till</Th>
                   <Th>Publicerad</Th>
                   <Th>Notis</Th>
+                  <Th>Plattform</Th>
                   <Th />
                 </tr>
               </thead>
@@ -149,6 +152,9 @@ export function News() {
                     <td className="whitespace-nowrap px-5 py-3 text-sm text-slate-600">{card.published ? 'Ja' : 'Nej'}</td>
                     <td className="whitespace-nowrap px-5 py-3 text-sm">
                       <PushIndicator card={card} />
+                    </td>
+                    <td className="whitespace-nowrap px-5 py-3 text-sm">
+                      <PlatformIndicator card={card} />
                     </td>
                     <td className="whitespace-nowrap px-5 py-3 text-right text-sm">
                       <button
@@ -225,6 +231,8 @@ function CardModal({
       published: draft.published,
       sort_order: Number(draft.sort_order) || 0,
       send_push: draft.send_push,
+      show_on_web: draft.show_on_web,
+      show_on_app: draft.show_on_app,
     }
 
     try {
@@ -374,6 +382,27 @@ function CardModal({
             </label>
           </div>
 
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="flex items-center gap-2 text-sm text-slate-600">
+              <input
+                type="checkbox"
+                checked={draft.show_on_web}
+                onChange={(event) => setDraft({ ...draft, show_on_web: event.target.checked })}
+                className="h-4 w-4 rounded border-slate-300 text-brand-forest focus:ring-brand-mint"
+              />
+              Visa på webben
+            </label>
+            <label className="flex items-center gap-2 text-sm text-slate-600">
+              <input
+                type="checkbox"
+                checked={draft.show_on_app}
+                onChange={(event) => setDraft({ ...draft, show_on_app: event.target.checked })}
+                className="h-4 w-4 rounded border-slate-300 text-brand-forest focus:ring-brand-mint"
+              />
+              Visa i appen
+            </label>
+          </div>
+
           <div>
             <label className="flex items-center gap-2 text-sm text-slate-600">
               <input
@@ -447,6 +476,19 @@ function PushIndicator({ card }: { card: ContentCard }) {
   )
 }
 
+function PlatformIndicator({ card }: { card: ContentCard }) {
+  return (
+    <span className="inline-flex items-center gap-2">
+      <span className={card.show_on_web ? 'text-slate-600' : 'text-slate-300'} title={card.show_on_web ? 'Visas på webben' : 'Visas inte på webben'}>
+        🌐 Webb
+      </span>
+      <span className={card.show_on_app ? 'text-slate-600' : 'text-slate-300'} title={card.show_on_app ? 'Visas i appen' : 'Visas inte i appen'}>
+        📱 App
+      </span>
+    </span>
+  )
+}
+
 function StatusBadge({ status }: { status: CardStatus }) {
   const config = STATUS_CONFIG[status]
   return (
@@ -483,6 +525,8 @@ function toDraft(card: ContentCard | null): CardDraft {
       published: false,
       sort_order: '0',
       send_push: false,
+      show_on_web: true,
+      show_on_app: true,
     }
   }
 
@@ -499,6 +543,8 @@ function toDraft(card: ContentCard | null): CardDraft {
     published: card.published,
     sort_order: String(card.sort_order),
     send_push: card.send_push,
+    show_on_web: card.show_on_web,
+    show_on_app: card.show_on_app,
   }
 }
 

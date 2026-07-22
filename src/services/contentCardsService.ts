@@ -16,6 +16,8 @@ export interface ContentCard {
   sort_order: number
   send_push: boolean
   push_sent_at: string | null
+  show_on_web: boolean
+  show_on_app: boolean
   created_at: string
 }
 
