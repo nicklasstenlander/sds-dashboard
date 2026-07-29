@@ -1,12 +1,22 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { format, parseISO } from 'date-fns'
 import { sv } from 'date-fns/locale'
 import { CheckCircle, Loader2, Plus, Save, Trash2, X } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useContentCards, useCreateContentCard, useDeleteContentCard, useUpdateContentCard } from '../hooks/useContentCards'
+import { useEvents } from '../hooks/useEvents'
 import type { ContentCard, ContentCardInput, ContentCardType } from '../services/contentCardsService'
 
 type CardStatus = 'active' | 'draft' | 'upcoming' | 'expired'
+
+type LinkType = 'external' | 'kurser' | 'schema' | 'course'
+
+const LINK_TYPE_OPTIONS: Array<{ type: LinkType; label: string }> = [
+  { type: 'external', label: 'Extern länk' },
+  { type: 'kurser', label: 'Kurser-fliken (app)' },
+  { type: 'schema', label: 'Schema-fliken (app)' },
+  { type: 'course', label: 'En specifik kurs (app)' },
+]
 
 const TYPE_OPTIONS: Array<{ type: ContentCardType; label: string }> = [
   { type: 'news', label: 'Nyhet' },
@@ -43,6 +53,8 @@ interface CardDraft {
   image_url: string
   link_url: string
   link_label: string
+  link_type: LinkType
+  course_event_id: string
   starts_at: string
   expires_at: string
   noEndDate: boolean
@@ -203,10 +215,18 @@ function CardModal({
   const isEditing = Boolean(card)
   const [draft, setDraft] = useState<CardDraft>(() => toDraft(card))
   const [titleError, setTitleError] = useState<string | null>(null)
+  const [destinationError, setDestinationError] = useState<string | null>(null)
+
+  const eventsQuery = useEvents()
+  const courseOptions = useMemo(
+    () => [...(eventsQuery.data ?? [])].sort((a, b) => a.name.localeCompare(b.name, 'sv')),
+    [eventsQuery.data],
+  )
 
   useEffect(() => {
     setDraft(toDraft(card))
     setTitleError(null)
+    setDestinationError(null)
   }, [card])
 
   const saving = createCard.isLoading || updateCard.isLoading
@@ -219,13 +239,27 @@ function CardModal({
     }
     setTitleError(null)
 
+    if (draft.link_type === 'course' && !draft.course_event_id) {
+      setDestinationError('Välj vilken kurs kortet ska länka till')
+      return
+    }
+    setDestinationError(null)
+
+    const appDestination =
+      draft.link_type === 'external'
+        ? null
+        : draft.link_type === 'course'
+          ? `course:${draft.course_event_id}`
+          : draft.link_type
+
     const input: ContentCardInput = {
       type: draft.type,
       title: draft.title.trim(),
       body: draft.body.trim() || null,
       image_url: draft.image_url.trim() || null,
-      link_url: draft.link_url.trim() || null,
+      link_url: draft.link_type === 'external' ? draft.link_url.trim() || null : null,
       link_label: draft.link_label.trim() || null,
+      app_destination: appDestination,
       starts_at: fromDatetimeLocal(draft.starts_at),
       expires_at: draft.noEndDate ? null : fromDatetimeLocal(draft.expires_at),
       published: draft.published,
@@ -323,8 +357,48 @@ function CardModal({
             )}
           </div>
 
+          <div className="space-y-2">
+            <label className="block">
+              <span className="text-xs font-semibold text-slate-600">Länk-typ</span>
+              <select
+                value={draft.link_type}
+                onChange={(event) => setDraft({ ...draft, link_type: event.target.value as LinkType })}
+                className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-mint"
+              >
+                {LINK_TYPE_OPTIONS.map((option) => (
+                  <option key={option.type} value={option.type}>{option.label}</option>
+                ))}
+              </select>
+            </label>
+            <p className="text-xs text-slate-400">
+              Detta styr vad som händer när kortet trycks i appen. Påverkar inte hemsidans nyhetsflöde.
+            </p>
+          </div>
+
+          {draft.link_type === 'course' && (
+            <div>
+              <label className="block">
+                <span className="text-xs font-semibold text-slate-600">Kurs</span>
+                <select
+                  value={draft.course_event_id}
+                  onChange={(event) => setDraft({ ...draft, course_event_id: event.target.value })}
+                  disabled={eventsQuery.isLoading}
+                  className={`mt-1 w-full rounded-xl border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-mint disabled:bg-slate-50 disabled:text-slate-400 ${destinationError ? 'border-red-400' : 'border-slate-200'}`}
+                >
+                  <option value="">{eventsQuery.isLoading ? 'Hämtar kurser…' : 'Välj kurs…'}</option>
+                  {courseOptions.map((event) => (
+                    <option key={event.id} value={event.id}>{event.name}</option>
+                  ))}
+                </select>
+              </label>
+              {destinationError && <p className="mt-1 text-xs text-status-critical">{destinationError}</p>}
+            </div>
+          )}
+
           <div className="grid gap-4 sm:grid-cols-2">
-            <Input label="Länk-URL" value={draft.link_url} onChange={(link_url) => setDraft({ ...draft, link_url })} />
+            {draft.link_type === 'external' && (
+              <Input label="Länk-URL" value={draft.link_url} onChange={(link_url) => setDraft({ ...draft, link_url })} />
+            )}
             <Input label="Länktext" value={draft.link_label} onChange={(link_label) => setDraft({ ...draft, link_label })} />
           </div>
 
@@ -519,6 +593,8 @@ function toDraft(card: ContentCard | null): CardDraft {
       image_url: '',
       link_url: '',
       link_label: '',
+      link_type: 'external',
+      course_event_id: '',
       starts_at: toDatetimeLocal(new Date().toISOString()),
       expires_at: '',
       noEndDate: true,
@@ -530,6 +606,8 @@ function toDraft(card: ContentCard | null): CardDraft {
     }
   }
 
+  const { link_type, course_event_id } = parseAppDestination(card.app_destination)
+
   return {
     type: card.type,
     title: card.title,
@@ -537,6 +615,8 @@ function toDraft(card: ContentCard | null): CardDraft {
     image_url: card.image_url ?? '',
     link_url: card.link_url ?? '',
     link_label: card.link_label ?? '',
+    link_type,
+    course_event_id,
     starts_at: toDatetimeLocal(card.starts_at),
     expires_at: card.expires_at ? toDatetimeLocal(card.expires_at) : '',
     noEndDate: !card.expires_at,
@@ -546,6 +626,12 @@ function toDraft(card: ContentCard | null): CardDraft {
     show_on_web: card.show_on_web,
     show_on_app: card.show_on_app,
   }
+}
+
+function parseAppDestination(value: string | null): { link_type: LinkType; course_event_id: string } {
+  if (value === 'kurser' || value === 'schema') return { link_type: value, course_event_id: '' }
+  if (value?.startsWith('course:')) return { link_type: 'course', course_event_id: value.slice('course:'.length) }
+  return { link_type: 'external', course_event_id: '' }
 }
 
 function toDatetimeLocal(iso: string): string {

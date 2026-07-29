@@ -10,6 +10,7 @@ export interface ContentCard {
   image_url: string | null
   link_url: string | null
   link_label: string | null
+  app_destination: string | null
   starts_at: string
   expires_at: string | null
   published: boolean
