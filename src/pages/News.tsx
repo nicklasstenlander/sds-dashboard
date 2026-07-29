@@ -12,7 +12,7 @@ type CardStatus = 'active' | 'draft' | 'upcoming' | 'expired'
 type LinkType = 'external' | 'kurser' | 'schema' | 'course'
 
 const LINK_TYPE_OPTIONS: Array<{ type: LinkType; label: string }> = [
-  { type: 'external', label: 'Extern länk' },
+  { type: 'external', label: 'Ingen — använd endast länk-URL' },
   { type: 'kurser', label: 'Kurser-fliken (app)' },
   { type: 'schema', label: 'Schema-fliken (app)' },
   { type: 'course', label: 'En specifik kurs (app)' },
@@ -257,7 +257,7 @@ function CardModal({
       title: draft.title.trim(),
       body: draft.body.trim() || null,
       image_url: draft.image_url.trim() || null,
-      link_url: draft.link_type === 'external' ? draft.link_url.trim() || null : null,
+      link_url: draft.link_url.trim() || null,
       link_label: draft.link_label.trim() || null,
       app_destination: appDestination,
       starts_at: fromDatetimeLocal(draft.starts_at),
@@ -357,9 +357,14 @@ function CardModal({
             )}
           </div>
 
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Input label="Länk-URL" value={draft.link_url} onChange={(link_url) => setDraft({ ...draft, link_url })} />
+            <Input label="Länktext" value={draft.link_label} onChange={(link_label) => setDraft({ ...draft, link_label })} />
+          </div>
+
           <div className="space-y-2">
             <label className="block">
-              <span className="text-xs font-semibold text-slate-600">Länk-typ</span>
+              <span className="text-xs font-semibold text-slate-600">Appnavigering</span>
               <select
                 value={draft.link_type}
                 onChange={(event) => setDraft({ ...draft, link_type: event.target.value as LinkType })}
@@ -371,7 +376,8 @@ function CardModal({
               </select>
             </label>
             <p className="text-xs text-slate-400">
-              Detta styr vad som händer när kortet trycks i appen. Påverkar inte hemsidans nyhetsflöde.
+              Om ett appmål väljs navigerar appen dit direkt istället för att öppna länk-URL. Länk-URL används
+              ändå av andra ytor (t.ex. hemsidan) och som reserv om appen inte har något appmål satt.
             </p>
           </div>
 
@@ -394,13 +400,6 @@ function CardModal({
               {destinationError && <p className="mt-1 text-xs text-status-critical">{destinationError}</p>}
             </div>
           )}
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            {draft.link_type === 'external' && (
-              <Input label="Länk-URL" value={draft.link_url} onChange={(link_url) => setDraft({ ...draft, link_url })} />
-            )}
-            <Input label="Länktext" value={draft.link_label} onChange={(link_label) => setDraft({ ...draft, link_label })} />
-          </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="block">
