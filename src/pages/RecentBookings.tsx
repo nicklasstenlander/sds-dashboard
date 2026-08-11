@@ -8,7 +8,8 @@ import { useAllTermsBookings } from '../hooks/useAllTermsBookings'
 import { useEvents } from '../hooks/useEvents'
 import { useApiConfig } from '../context/ApiContext'
 import { purgeProxyCache } from '../services/proxyService'
-import { isPeriodCode, matchesPeriodCode } from '../utils/periods'
+import { blockIdToPeriodCode, isPeriodCode, matchesPeriodCode } from '../utils/periods'
+import { bookingMatchesEventBlockId, buildEventIdBlockIdMap } from '../utils/eventBlock'
 import { countBookingsByParticipant, isNewStudentBooking, isPerformanceBooking, isStatisticalBooking } from '../utils/courseMetrics'
 import { PeriodFilter } from '../components/PeriodFilter'
 import { ParticipantPanel } from '../components/ParticipantPanel'
@@ -94,13 +95,15 @@ export function RecentBookings() {
   const [isManualRefreshing, setIsManualRefreshing] = useState(false)
   const [isDirectRefreshing, setIsDirectRefreshing] = useState(false)
   const clientPeriodCode = isPeriodCode(eventBlockId) ? eventBlockId : ''
-  const queryEventBlockId = clientPeriodCode ? '' : eventBlockId
 
-  // Server-side period filter; client-side for payment + search
-  const { data: bookingsData, isLoading, isFetching, isError, error, refetch } = useBookings({
-    eventBlockId: queryEventBlockId,
-  })
-  const { data: events = [] } = useEvents({ eventBlockId: queryEventBlockId })
+  // Period-filtrering görs alltid klientsidan, så vi hämtar alltid hela,
+  // ofiltrerade bokningslistan — annars försvinner bokningar för kurser som
+  // saknar grouping.eventBlock (t.ex. Danskalas) tyst ur ett server-filtrerat
+  // svar. `events` (ofiltrerad) ger både dag/tid-info och den
+  // grouping-kompletta eventlistan som bokningarnas egna, grouping-lösa
+  // event-fält resolvas mot.
+  const { data: bookingsData, isLoading, isFetching, isError, error, refetch } = useBookings({})
+  const { data: events = [] } = useEvents()
 
   // Visa aldrig "Inga anmälningar hittades" medan en bakgrundsuppdatering ännu kan ge tomt→fyllt
   const isSettling = isLoading || (isFetching && (bookingsData?.bookings.length ?? 0) === 0)
@@ -135,12 +138,16 @@ export function RecentBookings() {
     () => new Map(events.map((event) => [String(event.id), event])),
     [events],
   )
+  const eventIdToBlockId = useMemo(() => buildEventIdBlockIdMap(events), [events])
 
   const allBookings = bookingsData?.bookings ?? []
-  const bookings = clientPeriodCode
-    ? allBookings.filter((booking) => bookingMatchesPeriod(booking, clientPeriodCode))
-    : allBookings
-  const bookingsTotal = clientPeriodCode ? bookings.length : (bookingsData?.total ?? bookings.length)
+  const bookings = useMemo(() => {
+    if (!eventBlockId) return allBookings
+    return clientPeriodCode
+      ? allBookings.filter((booking) => bookingMatchesPeriod(booking, clientPeriodCode))
+      : allBookings.filter((booking) => bookingMatchesEventBlockId(booking.event, eventBlockId, eventIdToBlockId, blockIdToPeriodCode(eventBlockId)))
+  }, [eventBlockId, clientPeriodCode, allBookings, eventIdToBlockId])
+  const bookingsTotal = eventBlockId ? bookings.length : (bookingsData?.total ?? bookings.length)
 
   const filtered = useMemo(
     () =>

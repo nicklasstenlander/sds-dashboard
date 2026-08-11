@@ -1,3 +1,10 @@
+import { EVENT_BLOCK_IDS_BY_CODE } from '../config/cogwork'
+
+/** Reverse-lookup: real eventBlock id ("19459") → period code ("HT26"), when known. */
+export function blockIdToPeriodCode(eventBlockId: string): string {
+  return Object.entries(EVENT_BLOCK_IDS_BY_CODE).find(([, id]) => id === eventBlockId)?.[0] ?? ''
+}
+
 /** Convert CogWork eventBlock name → short code, e.g. "Hösten 2025" → "HT25" */
 export function blockNameToCode(name: string): string {
   const ht = name.match(/[Hh]öst(?:en)?\s+(\d{4})/)
