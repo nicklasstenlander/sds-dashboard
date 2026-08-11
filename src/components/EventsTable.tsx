@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { ArrowUpDown, ChevronRight, RefreshCw, DatabaseZap, MessageSquare } from 'lucide-react'
 import { buildCourseMetrics, bookingEventId, isAcceptedBooking, metricsForEvent } from '../utils/courseMetrics'
+import { collectKnownEventBlockIds, resolveEventBlockName } from '../utils/eventBlock'
 import type { Event, Booking } from '../types/cogwork'
 
 interface EventsTableProps {
@@ -49,6 +50,7 @@ export function EventsTable({ events, bookings = [], loading, search, activePeri
   const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: 'accepted', dir: 'desc' })
 
   const metricsByEvent = useMemo(() => buildCourseMetrics(bookings), [bookings])
+  const knownEventBlockIds = useMemo(() => collectKnownEventBlockIds(events), [events])
 
   const filtered = events
     .filter((e) => !search || e.name.toLowerCase().includes(search.toLowerCase()))
@@ -191,9 +193,9 @@ export function EventsTable({ events, bookings = [], loading, search, activePeri
                         Ej publik
                       </span>
                     )}
-                    {!activePeriod && e.grouping?.eventBlock?.name && (
+                    {!activePeriod && resolveEventBlockName(e, knownEventBlockIds) && (
                       <span className="shrink-0 text-[11px] font-medium px-1.5 py-0.5 rounded bg-slate-50 text-slate-400 whitespace-nowrap">
-                        {shortPeriod(e.grouping.eventBlock.name)}
+                        {shortPeriod(resolveEventBlockName(e, knownEventBlockIds)!)}
                       </span>
                     )}
                   </div>

@@ -4,9 +4,11 @@ import { format, parseISO } from 'date-fns'
 import { sv } from 'date-fns/locale'
 import { Search, RefreshCw, DatabaseZap } from 'lucide-react'
 import { useBookings } from '../hooks/useBookings'
+import { useEvents } from '../hooks/useEvents'
 import { useApiConfig } from '../context/ApiContext'
 import { purgeProxyCache } from '../services/proxyService'
-import { isPeriodCode, matchesPeriodCode } from '../utils/periods'
+import { blockIdToPeriodCode, isPeriodCode, matchesPeriodCode } from '../utils/periods'
+import { bookingMatchesEventBlockId, buildEventIdBlockIdMap } from '../utils/eventBlock'
 import type { AllDataResponse } from '../services/proxyService'
 import { PeriodFilter } from '../components/PeriodFilter'
 import { ParticipantPanel } from '../components/ParticipantPanel'
@@ -92,12 +94,14 @@ export function RecentBookings() {
   const [isManualRefreshing, setIsManualRefreshing] = useState(false)
   const [isDirectRefreshing, setIsDirectRefreshing] = useState(false)
   const clientPeriodCode = isPeriodCode(eventBlockId) ? eventBlockId : ''
-  const queryEventBlockId = clientPeriodCode ? '' : eventBlockId
 
-  // Server-side period filter; client-side for payment + search
-  const { data: bookingsData, isLoading, isError, error, refetch } = useBookings({
-    eventBlockId: queryEventBlockId,
-  })
+  // Period-filtrering görs alltid klientsidan, så vi hämtar alltid hela,
+  // ofiltrerade bokningslistan — annars försvinner bokningar för kurser som
+  // saknar grouping.eventBlock (t.ex. Danskalas) tyst ur ett server-filtrerat
+  // svar. eventsQuery ger den fullständiga (grouping-kompletta) eventlistan
+  // som bokningarnas egna, grouping-lösa event-fält resolvas mot.
+  const { data: bookingsData, isLoading, isError, error, refetch } = useBookings({})
+  const eventsQuery = useEvents()
 
   async function handleCacheRefresh() {
     setIsManualRefreshing(true)
@@ -133,10 +137,18 @@ export function RecentBookings() {
   }, [allBookingsUnfiltered])
 
   const allBookings = bookingsData?.bookings ?? []
-  const bookings = clientPeriodCode
-    ? allBookings.filter((booking) => bookingMatchesPeriod(booking, clientPeriodCode))
-    : allBookings
-  const bookingsTotal = clientPeriodCode ? bookings.length : (bookingsData?.total ?? bookings.length)
+  const eventsForResolution = eventsQuery.data ?? cachedAllData?.events.events ?? []
+  const eventIdToBlockId = useMemo(
+    () => buildEventIdBlockIdMap(eventsForResolution),
+    [eventsForResolution],
+  )
+  const bookings = useMemo(() => {
+    if (!eventBlockId) return allBookings
+    return clientPeriodCode
+      ? allBookings.filter((booking) => bookingMatchesPeriod(booking, clientPeriodCode))
+      : allBookings.filter((booking) => bookingMatchesEventBlockId(booking.event, eventBlockId, eventIdToBlockId, blockIdToPeriodCode(eventBlockId)))
+  }, [eventBlockId, clientPeriodCode, allBookings, eventIdToBlockId])
+  const bookingsTotal = eventBlockId ? bookings.length : (bookingsData?.total ?? bookings.length)
 
   const filtered = useMemo(
     () =>

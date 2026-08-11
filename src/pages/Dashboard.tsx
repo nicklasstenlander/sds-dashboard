@@ -20,7 +20,8 @@ import { useAllData } from '../hooks/useAllData'
 import { useAlerts } from '../hooks/useAlerts'
 import { useGoals, computeCurrentValue } from '../hooks/useGoals'
 import { purgeProxyCache } from '../services/proxyService'
-import { blockNameToCode, isPeriodCode, matchesPeriodCode } from '../utils/periods'
+import { blockIdToPeriodCode, blockNameToCode, isPeriodCode, matchesPeriodCode } from '../utils/periods'
+import { bookingMatchesEventBlockId, buildEventIdBlockIdMap, collectKnownEventBlockIds, resolveEventBlockId } from '../utils/eventBlock'
 import { bookingTicketQuantity, buildCourseMetrics, isAcceptedBooking, metricsForEvent } from '../utils/courseMetrics'
 import { getDefaultEventBlockId } from '../config/cogwork'
 import type { Booking, Event } from '../types/cogwork'
@@ -46,26 +47,33 @@ export function Dashboard({ darkMode, onToggleDarkMode }: DashboardProps) {
   const [goalModal, setGoalModal] = useState<{ open: boolean; goal?: import('../services/goalsService').Goal }>({ open: false })
   const [isManualRefreshing, setIsManualRefreshing] = useState(false)
   const [isDirectRefreshing, setIsDirectRefreshing] = useState(false)
+  // Period-filtrering görs alltid klientsidan (se resolveEventBlockId) — vi
+  // hämtar därför alltid hela, ofiltrerade datasetet från proxyn. Kurser som
+  // saknar grouping.eventBlock (t.ex. Danskalas) matchas annars fel om
+  // filtreringen görs server-side på eventBlock.id, som de saknar helt.
   const clientPeriodCode = isPeriodCode(eventBlockId) ? eventBlockId : ''
-  const queryEventBlockId = clientPeriodCode ? '' : eventBlockId
 
   const queryClient   = useQueryClient()
-  const allDataQuery  = useAllData(queryEventBlockId)
-  const goalsDataQuery = useAllData('')
+  const allDataQuery  = useAllData('')
   const eventBlocks   = useEventBlocks()
   const isRefreshing  = isManualRefreshing || isDirectRefreshing
 
   const rawEvents = allDataQuery.data?.events.events ?? []
   const rawBookings = allDataQuery.data?.bookings.bookings ?? []
-  const goalEvents = goalsDataQuery.data?.events.events ?? rawEvents
-  const goalBookings = goalsDataQuery.data?.bookings.bookings ?? rawBookings
-  const goalsLoading = goalsDataQuery.isLoading && !goalsDataQuery.data
-  const allEvents = useMemo(
-    () => clientPeriodCode
-      ? buildEventsFromPeriod(rawEvents, rawBookings, clientPeriodCode)
-      : rawEvents,
-    [clientPeriodCode, rawEvents, rawBookings],
-  )
+  const goalEvents = rawEvents
+  const goalBookings = rawBookings
+  const goalsLoading = allDataQuery.isLoading && !allDataQuery.data
+  const knownEventBlockIds = useMemo(() => collectKnownEventBlockIds(rawEvents), [rawEvents])
+  // CogWork's /bookings response embeds a stripped-down event on each booking
+  // that never carries grouping — so a booking can't resolve its own termin.
+  // Look its event id up in a map built from the full (grouping-complete)
+  // events list instead.
+  const eventIdToBlockId = useMemo(() => buildEventIdBlockIdMap(rawEvents), [rawEvents])
+  const allEvents = useMemo(() => {
+    if (!eventBlockId) return rawEvents
+    if (clientPeriodCode) return buildEventsFromPeriod(rawEvents, rawBookings, clientPeriodCode)
+    return rawEvents.filter((e) => resolveEventBlockId(e, knownEventBlockIds) === eventBlockId)
+  }, [eventBlockId, clientPeriodCode, rawEvents, rawBookings, knownEventBlockIds])
 
   // Unique sorted categories from the already-loaded events
   const categories = useMemo(() => {
@@ -85,15 +93,18 @@ export function Dashboard({ darkMode, onToggleDarkMode }: DashboardProps) {
   }, [allEvents, categoryFilter])
 
   const bookings = useMemo(() => {
-    let result = clientPeriodCode
-      ? rawBookings.filter(b => bookingMatchesPeriod(b, clientPeriodCode))
-      : rawBookings
+    let result = rawBookings
+    if (eventBlockId) {
+      result = clientPeriodCode
+        ? rawBookings.filter(b => bookingMatchesPeriod(b, clientPeriodCode))
+        : rawBookings.filter(b => bookingMatchesEventBlockId(b.event, eventBlockId, eventIdToBlockId, blockIdToPeriodCode(eventBlockId)))
+    }
     if (categoryFilter) {
       const eventIds = new Set(events.map(e => String(e.id)))
       result = result.filter(b => b.event?.id != null && eventIds.has(String(b.event.id)))
     }
     return result
-  }, [clientPeriodCode, rawBookings, categoryFilter, events])
+  }, [eventBlockId, clientPeriodCode, rawBookings, categoryFilter, events, eventIdToBlockId])
 
   const kpi           = computeKPIs(events, bookings)
   const bookingKpi    = computeBookingKPIs(bookings)

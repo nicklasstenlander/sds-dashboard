@@ -72,7 +72,7 @@ export interface Event {
     accepted?: number
   }
   grouping: {
-    eventBlock: EventBlock
+    eventBlock?: EventBlock
     primaryEventGroup?: EventGroup
     additionalEventGroups?: { key: string; id: string | number; name: string }[]
   }
@@ -121,7 +121,11 @@ export interface Booking {
     startTime?: string
     category?: EventCategory
     pricing?: { currency: string; basePriceInclVat: number }
-    grouping?: { eventBlock: EventBlock }
+    grouping?: {
+      eventBlock?: EventBlock
+      primaryEventGroup?: EventGroup
+      additionalEventGroups?: { key: string; id: string | number; name: string }[]
+    }
   }
   /** The registered participant (field name from CogWork verbose API) */
   participant?: {
