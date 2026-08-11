@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { format } from 'date-fns'
 import { sv } from 'date-fns/locale'
-import { Users, UserCheck, CreditCard, Clock, BookOpen, TrendingUp, Banknote, Search, Moon, Sun } from 'lucide-react'
+import { Users, UserCheck, CreditCard, Clock, GraduationCap, TrendingUp, Banknote, Search, Moon, Sun } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { KPICard } from '../components/KPICard'
 import { PeriodFilter } from '../components/PeriodFilter'
@@ -23,7 +23,7 @@ import { useGoals, computeCurrentValue } from '../hooks/useGoals'
 import { purgeProxyCache } from '../services/proxyService'
 import { blockIdToPeriodCode, blockNameToCode, dateToPeriodCode, isPeriodCode, matchesPeriodCode } from '../utils/periods'
 import { bookingMatchesEventBlockId, buildEventIdBlockIdMap, collectKnownEventBlockIds, resolveEventBlockId } from '../utils/eventBlock'
-import { bookingTicketQuantity, buildCourseChangeInfoByParticipant, buildCourseMetrics, countBookingsByParticipant, isAcceptedBooking, isStatisticalBooking, isStatisticalEvent, metricsForEvent } from '../utils/courseMetrics'
+import { bookingTicketQuantity, buildCourseChangeInfoByParticipant, buildCourseMetrics, countActiveStudents, countBookingsByParticipant, isAcceptedBooking, isStatisticalBooking, isStatisticalEvent, metricsForEvent } from '../utils/courseMetrics'
 import { getDefaultEventBlockId } from '../config/cogwork'
 import type { Booking, Event } from '../types/cogwork'
 
@@ -135,6 +135,10 @@ export function Dashboard({ darkMode, onToggleDarkMode }: DashboardProps) {
   const bookingKpi    = computeBookingKPIs(statisticalBookings)
   const bookingsTotal = bookingKpi.total
   const revenueKpi    = computeRevenueKPIs(statisticalBookings)
+  const activeStudents = useMemo(
+    () => countActiveStudents(statisticalBookings),
+    [statisticalBookings],
+  )
   const { data: goals = [] } = useGoals()
   const { alerts, duplicateCount, pendingCount } = useAlerts(statisticalBookings)
 
@@ -303,10 +307,10 @@ export function Dashboard({ darkMode, onToggleDarkMode }: DashboardProps) {
       {/* KPI — kursstatus */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard
-          title="Aktiva kurser"
-          value={events.length}
-          subtitle={kpi.openCourses > 0 ? `${kpi.openCourses} öppna för anmälan` : undefined}
-          icon={<BookOpen className="w-6 h-6" />}
+          title="Antal elever"
+          value={activeStudents.toLocaleString('sv-SE')}
+          subtitle="unika med aktiv antagning"
+          icon={<GraduationCap className="w-6 h-6" />}
           color="sky"
         />
         <KPICard
@@ -465,17 +469,15 @@ function computeKPIs(events: Event[], bookings: Booking[]) {
   let totalAccepted = 0
   let totalMax = 0
   let estimatedRevenue = 0
-  let openCourses = 0
   for (const e of events) {
     const metrics = metricsForEvent(metricsByEvent, e, false)
     const max      = e.requirements?.maxParticipants ?? 0
     totalAccepted   += metrics.accepted
     if (max > 0) totalMax += max
     estimatedRevenue += metrics.revenue
-    if (e.registration?.open) openCourses++
   }
   const avgFill = totalMax > 0 ? Math.round((totalAccepted / totalMax) * 100) : 0
-  return { totalAccepted, avgFill, estimatedRevenue, openCourses }
+  return { totalAccepted, avgFill, estimatedRevenue }
 }
 
 function computeBookingKPIs(bookings: import('../types/cogwork').Booking[]) {
