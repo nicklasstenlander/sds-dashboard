@@ -1,11 +1,10 @@
 import { useEffect, useState, useRef, useLayoutEffect, lazy, Suspense } from 'react'
 import { Routes, Route, Navigate, NavLink, useLocation } from 'react-router-dom'
-import { LayoutDashboard, ClipboardList, Users, Settings, LogOut, ShoppingBag, PanelLeft, Phone, ClipboardCheck, Monitor, CalendarDays, MoreHorizontal, Loader2, FileText } from 'lucide-react'
+import { LayoutDashboard, ClipboardList, Users, Settings, LogOut, ShoppingBag, PanelLeft, Phone, ClipboardCheck, Monitor, CalendarDays, MoreHorizontal, Loader2, FileText, Newspaper, Bell } from 'lucide-react'
 import { ApiProvider, useApiConfig } from './context/ApiContext'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { LoginPage } from './pages/LoginPage'
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
-import { SetPasswordPage } from './pages/SetPasswordPage'
 import { SettingsModal } from './components/SettingsModal'
 
 const Dashboard = lazy(() => import('./pages/Dashboard').then(m => ({ default: m.Dashboard })))
@@ -17,6 +16,8 @@ const Narvaro = lazy(() => import('./pages/Narvaro').then(m => ({ default: m.Nar
 const Signage = lazy(() => import('./pages/Signage').then(m => ({ default: m.Signage })))
 const Schema = lazy(() => import('./pages/Schema').then(m => ({ default: m.Schema })))
 const Forms = lazy(() => import('./pages/Forms').then(m => ({ default: m.Forms })))
+const News = lazy(() => import('./pages/News').then(m => ({ default: m.News })))
+const Notifications = lazy(() => import('./pages/Notifications').then(m => ({ default: m.Notifications })))
 const PublicForm = lazy(() => import('./pages/PublicForm').then(m => ({ default: m.PublicForm })))
 
 function PageLoader() {
@@ -57,10 +58,12 @@ const NAV = [
   { to: '/skyltning',   label: 'Skyltning',     Icon: Monitor         },
   { to: '/schema',      label: 'Schema',        Icon: CalendarDays    },
   { to: '/formular',    label: 'Formulär',      Icon: FileText        },
+  { to: '/nyheter',     label: 'Nyheter',       Icon: Newspaper       },
+  { to: '/notiser',     label: 'Notiser',       Icon: Bell            },
 ]
 
 function AppShell() {
-  const { session, loading: authLoading, usingLegacyAuth, profile, signOut, preparingApi, isPasswordRecovery } = useAuth()
+  const { session, loading: authLoading, usingLegacyAuth, profile, signOut, preparingApi, recoveryInProgress } = useAuth()
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -108,12 +111,17 @@ function AppShell() {
   }
 
   if (authLoading) return <FullPageLoader />
-  if (isPasswordRecovery) return <SetPasswordPage />
-  if (!isAuthenticated) {
+  // verifyOtp sätter en giltig session INNAN updateUser hunnit spara det nya
+  // lösenordet, vilket annars gör isAuthenticated true mitt i återställningsflödet
+  // och byter till huvudappen medan lösenordsbytet fortfarande pågår - om det sedan
+  // misslyckas syns aldrig felet. recoveryInProgress håller kvar samma <Routes>-gren
+  // (och därmed samma ForgotPasswordPage-instans, utan att montera om den och tappa
+  // ifyllda fält) tills flödet är klart, oavsett att isAuthenticated redan blivit true.
+  if (!isAuthenticated || recoveryInProgress) {
     return (
       <Routes>
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-        <Route path="*" element={<LoginPage />} />
+        <Route path="*" element={recoveryInProgress ? <Navigate to="/forgot-password" replace /> : <LoginPage />} />
       </Routes>
     )
   }
@@ -231,6 +239,8 @@ function AppShell() {
               <Route path="/skyltning" element={<Signage />} />
               <Route path="/schema" element={<Schema />} />
               <Route path="/formular" element={<Forms />} />
+              <Route path="/nyheter" element={<News />} />
+              <Route path="/notiser" element={<Notifications />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Suspense>
@@ -251,6 +261,8 @@ function AppShell() {
           { to: '/skyltning', label: 'Skyltning', Icon: Monitor       },
           { to: '/schema',    label: 'Schema',    Icon: CalendarDays  },
           { to: '/formular',  label: 'Formulär',  Icon: FileText      },
+          { to: '/nyheter',   label: 'Nyheter',   Icon: Newspaper     },
+          { to: '/notiser',   label: 'Notiser',   Icon: Bell          },
         ]
         const isMoreActive = MORE.some(m => isActive(m.to))
 

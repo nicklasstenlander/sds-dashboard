@@ -17,12 +17,13 @@ import { GoalCard } from '../components/GoalCard'
 import { GoalModal } from '../components/GoalModal'
 import { useEventBlocks } from '../hooks/useEvents'
 import { useAllData } from '../hooks/useAllData'
+import { useAllTermsBookings } from '../hooks/useAllTermsBookings'
 import { useAlerts } from '../hooks/useAlerts'
 import { useGoals, computeCurrentValue } from '../hooks/useGoals'
 import { purgeProxyCache } from '../services/proxyService'
-import { blockIdToPeriodCode, blockNameToCode, isPeriodCode, matchesPeriodCode } from '../utils/periods'
+import { blockIdToPeriodCode, blockNameToCode, dateToPeriodCode, isPeriodCode, matchesPeriodCode } from '../utils/periods'
 import { bookingMatchesEventBlockId, buildEventIdBlockIdMap, collectKnownEventBlockIds, resolveEventBlockId } from '../utils/eventBlock'
-import { bookingTicketQuantity, buildCourseMetrics, isAcceptedBooking, metricsForEvent } from '../utils/courseMetrics'
+import { bookingTicketQuantity, buildCourseChangeInfoByParticipant, buildCourseMetrics, countBookingsByParticipant, isAcceptedBooking, isStatisticalBooking, isStatisticalEvent, metricsForEvent } from '../utils/courseMetrics'
 import { getDefaultEventBlockId } from '../config/cogwork'
 import type { Booking, Event } from '../types/cogwork'
 
@@ -61,8 +62,23 @@ export function Dashboard({ darkMode, onToggleDarkMode }: DashboardProps) {
   const rawEvents = allDataQuery.data?.events.events ?? []
   const rawBookings = allDataQuery.data?.bookings.bookings ?? []
   const goalEvents = rawEvents
-  const goalBookings = rawBookings
-  const goalsLoading = allDataQuery.isLoading && !allDataQuery.data
+  // Bokningar från VARJE känd termin (VT/HT) — behövs för new_students-målet,
+  // som annars bara ser den aktuella periodens historik (se useAllTermsBookings).
+  const { bookings: goalBookings, isLoading: goalBookingsLoading } = useAllTermsBookings()
+  const goalsLoading = goalBookingsLoading && goalBookings.length === 0
+  const statisticalGoalBookings = useMemo(
+    () => goalBookings.filter(isStatisticalBooking),
+    [goalBookings],
+  )
+  const bookingCountByParticipant = useMemo(
+    () => countBookingsByParticipant(statisticalGoalBookings),
+    [statisticalGoalBookings],
+  )
+  const selectedEventPeriodCode = selectedEvent ? eventPeriodCode(selectedEvent) : ''
+  const courseChangeByParticipant = useMemo(
+    () => buildCourseChangeInfoByParticipant(statisticalGoalBookings, selectedEventPeriodCode),
+    [statisticalGoalBookings, selectedEventPeriodCode],
+  )
   const knownEventBlockIds = useMemo(() => collectKnownEventBlockIds(rawEvents), [rawEvents])
   // CogWork's /bookings response embeds a stripped-down event on each booking
   // that never carries grouping — so a booking can't resolve its own termin.
@@ -106,12 +122,21 @@ export function Dashboard({ darkMode, onToggleDarkMode }: DashboardProps) {
     return result
   }, [eventBlockId, clientPeriodCode, rawBookings, categoryFilter, events, eventIdToBlockId])
 
-  const kpi           = computeKPIs(events, bookings)
-  const bookingKpi    = computeBookingKPIs(bookings)
+  const statisticalEvents = useMemo(
+    () => events.filter(isStatisticalEvent),
+    [events],
+  )
+  const statisticalBookings = useMemo(
+    () => bookings.filter(isStatisticalBooking),
+    [bookings],
+  )
+
+  const kpi           = computeKPIs(statisticalEvents, statisticalBookings)
+  const bookingKpi    = computeBookingKPIs(statisticalBookings)
   const bookingsTotal = bookingKpi.total
-  const revenueKpi    = computeRevenueKPIs(bookings)
+  const revenueKpi    = computeRevenueKPIs(statisticalBookings)
   const { data: goals = [] } = useGoals()
-  const { alerts, duplicateCount, pendingCount } = useAlerts(bookings)
+  const { alerts, duplicateCount, pendingCount } = useAlerts(statisticalBookings)
 
   async function handleCacheRefresh() {
     setIsManualRefreshing(true)
@@ -136,10 +161,10 @@ export function Dashboard({ darkMode, onToggleDarkMode }: DashboardProps) {
 
   const today = new Date().toISOString().slice(0, 10)
   const newToday = useMemo(
-    () => bookings
+    () => statisticalBookings
       .filter((b) => b.created?.startsWith(today))
       .reduce((sum, b) => sum + bookingTicketQuantity(b), 0),
-    [bookings, today],
+    [statisticalBookings, today],
   )
 
   // Period label for greeting header (e.g. "HT26")
@@ -155,11 +180,11 @@ export function Dashboard({ darkMode, onToggleDarkMode }: DashboardProps) {
 
   const filteredForPanel = useMemo(() => {
     if (!activeFilter) return []
-    if (activeFilter === 'total') return bookings
-    if (activeFilter === 'antagna') return bookings.filter(b => b.status?.code?.toUpperCase() === 'ACCEPTED')
-    if (activeFilter === 'ejBetalda') return bookings.filter(b => b.payment?.paid === false)
+    if (activeFilter === 'total') return statisticalBookings
+    if (activeFilter === 'antagna') return statisticalBookings.filter(b => b.status?.code?.toUpperCase() === 'ACCEPTED')
+    if (activeFilter === 'ejBetalda') return statisticalBookings.filter(b => b.payment?.paid === false)
     return []
-  }, [activeFilter, bookings])
+  }, [activeFilter, statisticalBookings])
 
   return (
     <div className="space-y-6">
@@ -320,7 +345,7 @@ export function Dashboard({ darkMode, onToggleDarkMode }: DashboardProps) {
               <GoalCard
                 key={goal.id}
                 goal={goal}
-                currentValue={computeCurrentValue(goal, goalBookings, goalEvents)}
+                currentValue={computeCurrentValue(goal, statisticalGoalBookings, goalEvents.filter(isStatisticalEvent))}
                 loading={goalsLoading}
                 onClick={() => setGoalModal({ open: true, goal })}
               />
@@ -331,8 +356,8 @@ export function Dashboard({ darkMode, onToggleDarkMode }: DashboardProps) {
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <BookingsChart bookings={bookings} loading={allDataQuery.isLoading} />
-        <CategoryChart events={events} bookings={bookings} loading={allDataQuery.isLoading} />
+        <BookingsChart bookings={statisticalBookings} loading={allDataQuery.isLoading} />
+        <CategoryChart events={statisticalEvents} bookings={statisticalBookings} loading={allDataQuery.isLoading} />
       </div>
 
       <EventsTable
@@ -350,7 +375,12 @@ export function Dashboard({ darkMode, onToggleDarkMode }: DashboardProps) {
       />
 
       {/* Course detail slide-in */}
-      <CourseDetailPanel event={selectedEvent} onClose={() => setSelectedEvent(null)} />
+      <CourseDetailPanel
+        event={selectedEvent}
+        bookingCountByParticipant={bookingCountByParticipant}
+        courseChangeByParticipant={courseChangeByParticipant}
+        onClose={() => setSelectedEvent(null)}
+      />
 
       {/* Booking list slide-in for KPI cards */}
       <BookingListPanel
@@ -486,6 +516,17 @@ function eventMatchesPeriod(event: Event, periodCode: string): boolean {
     event.schedule?.start?.date && `${event.schedule.start.date} ${event.schedule.start.time ?? ''}`,
     event.grouping?.eventBlock?.name,
   ])
+}
+
+function eventPeriodCode(event: Event): string {
+  const blockName = event.grouping?.eventBlock?.name
+  if (blockName) {
+    const code = blockNameToCode(blockName)
+    if (isPeriodCode(code)) return code
+  }
+
+  if (isPeriodCode(event.code)) return event.code
+  return dateToPeriodCode(event.schedule?.start?.date)
 }
 
 function bookingMatchesPeriod(booking: Booking, periodCode: string): boolean {

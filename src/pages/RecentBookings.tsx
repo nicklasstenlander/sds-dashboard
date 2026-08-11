@@ -4,16 +4,17 @@ import { format, parseISO } from 'date-fns'
 import { sv } from 'date-fns/locale'
 import { Search, RefreshCw, DatabaseZap } from 'lucide-react'
 import { useBookings } from '../hooks/useBookings'
+import { useAllTermsBookings } from '../hooks/useAllTermsBookings'
 import { useEvents } from '../hooks/useEvents'
 import { useApiConfig } from '../context/ApiContext'
 import { purgeProxyCache } from '../services/proxyService'
 import { blockIdToPeriodCode, isPeriodCode, matchesPeriodCode } from '../utils/periods'
 import { bookingMatchesEventBlockId, buildEventIdBlockIdMap } from '../utils/eventBlock'
-import type { AllDataResponse } from '../services/proxyService'
+import { countBookingsByParticipant, isNewStudentBooking, isPerformanceBooking, isStatisticalBooking } from '../utils/courseMetrics'
 import { PeriodFilter } from '../components/PeriodFilter'
 import { ParticipantPanel } from '../components/ParticipantPanel'
 import { formatBookingStatus } from '../lib/status'
-import type { Booking, BookingPayment } from '../types/cogwork'
+import type { Booking, BookingPayment, Event } from '../types/cogwork'
 
 // ---------------------------------------------------------------------------
 // Payment helpers
@@ -98,10 +99,14 @@ export function RecentBookings() {
   // Period-filtrering görs alltid klientsidan, så vi hämtar alltid hela,
   // ofiltrerade bokningslistan — annars försvinner bokningar för kurser som
   // saknar grouping.eventBlock (t.ex. Danskalas) tyst ur ett server-filtrerat
-  // svar. eventsQuery ger den fullständiga (grouping-kompletta) eventlistan
-  // som bokningarnas egna, grouping-lösa event-fält resolvas mot.
-  const { data: bookingsData, isLoading, isError, error, refetch } = useBookings({})
-  const eventsQuery = useEvents()
+  // svar. `events` (ofiltrerad) ger både dag/tid-info och den
+  // grouping-kompletta eventlistan som bokningarnas egna, grouping-lösa
+  // event-fält resolvas mot.
+  const { data: bookingsData, isLoading, isFetching, isError, error, refetch } = useBookings({})
+  const { data: events = [] } = useEvents()
+
+  // Visa aldrig "Inga anmälningar hittades" medan en bakgrundsuppdatering ännu kan ge tomt→fyllt
+  const isSettling = isLoading || (isFetching && (bookingsData?.bookings.length ?? 0) === 0)
 
   async function handleCacheRefresh() {
     setIsManualRefreshing(true)
@@ -123,25 +128,19 @@ export function RecentBookings() {
       setIsDirectRefreshing(false)
     }
   }
-  // Hämta alla bokningar (ofiltrerade) för "Ny elev"-beräkning
-  const cachedAllData = queryClient.getQueryData<AllDataResponse>(['allData', ''])
-  const allBookingsUnfiltered = cachedAllData?.bookings.bookings ?? bookingsData?.bookings ?? []
-
-  const bookingCountByParticipant = useMemo(() => {
-    const map = new Map<string, number>()
-    allBookingsUnfiltered.forEach(b => {
-      const key = b.participant?.key ?? ''
-      if (key) map.set(key, (map.get(key) ?? 0) + 1)
-    })
-    return map
-  }, [allBookingsUnfiltered])
+  // Bokningar från VARJE känd termin (VT/HT) för "Ny elev" — samma källa som Översiktens new_students-mål
+  const { bookings: allBookingsUnfiltered } = useAllTermsBookings()
+  const bookingCountByParticipant = useMemo(
+    () => countBookingsByParticipant(allBookingsUnfiltered.filter(isStatisticalBooking)),
+    [allBookingsUnfiltered],
+  )
+  const eventById = useMemo(
+    () => new Map(events.map((event) => [String(event.id), event])),
+    [events],
+  )
+  const eventIdToBlockId = useMemo(() => buildEventIdBlockIdMap(events), [events])
 
   const allBookings = bookingsData?.bookings ?? []
-  const eventsForResolution = eventsQuery.data ?? cachedAllData?.events.events ?? []
-  const eventIdToBlockId = useMemo(
-    () => buildEventIdBlockIdMap(eventsForResolution),
-    [eventsForResolution],
-  )
   const bookings = useMemo(() => {
     if (!eventBlockId) return allBookings
     return clientPeriodCode
@@ -157,15 +156,17 @@ export function RecentBookings() {
           if (payFilter && paymentStatus(b) !== payFilter) return false
           if (search) {
             const q = search.toLowerCase()
+            const schedule = bookingScheduleDisplay(b, eventById).toLowerCase()
             return (
               b.participant?.name?.toLowerCase().includes(q) ||
-              b.event?.name?.toLowerCase().includes(q)
+              b.event?.name?.toLowerCase().includes(q) ||
+              schedule.includes(q)
             )
           }
           return true
         })
         .sort((a, b) => b.created.localeCompare(a.created)),
-    [bookings, payFilter, search],
+    [bookings, eventById, payFilter, search],
   )
 
   const paidCount    = bookings.filter((b) => paymentStatus(b) === 'paid').length
@@ -207,10 +208,10 @@ export function RecentBookings() {
             Alla
           </Pill>
           <Pill active={payFilter === 'paid'} onClick={() => setPayFilter('paid')}>
-            Betalda {!isLoading && `(${paidCount})`}
+            Betalda {!isSettling && `(${paidCount})`}
           </Pill>
           <Pill active={payFilter === 'unpaid'} onClick={() => setPayFilter('unpaid')}>
-            Obetalda {!isLoading && `(${unpaidCount})`}
+            Obetalda {!isSettling && `(${unpaidCount})`}
           </Pill>
           {partialCount > 0 && (
             <Pill active={payFilter === 'partial'} onClick={() => setPayFilter('partial')}>
@@ -237,13 +238,13 @@ export function RecentBookings() {
         <div className="px-5 py-4 border-b border-slate-50 flex items-center justify-between gap-6">
           <div className="flex items-center gap-6">
             <h2 className="text-sm font-bold text-brand-dark">
-              {isLoading ? 'Hämtar…' : (
+              {isSettling ? 'Hämtar…' : (
                 filtered.length < bookings.length
                   ? `${filtered.length.toLocaleString('sv-SE')} av ${bookingsTotal.toLocaleString('sv-SE')} anmälningar`
                   : `${bookingsTotal.toLocaleString('sv-SE')} anmälningar`
               )}
             </h2>
-          {!isLoading && bookings.length > 0 && (
+          {!isSettling && bookings.length > 0 && (
             <div className="flex gap-4 text-xs text-slate-500">
               <span>
                 <span className="font-semibold text-brand-forest">{paidCount}</span> betalda
@@ -282,7 +283,7 @@ export function RecentBookings() {
           </div>
         </div>
 
-        {isLoading ? (
+        {isSettling ? (
           <div className="divide-y divide-slate-50">
             {Array.from({ length: 8 }).map((_, i) => (
               <div key={i} className="px-5 py-4 flex gap-4">
@@ -305,6 +306,7 @@ export function RecentBookings() {
                   <Th>Anmäld</Th>
                   <Th>Deltagare</Th>
                   <Th>Kurs</Th>
+                  <Th>Dag / tid</Th>
                   <Th>Pris</Th>
                   <Th>Betalning</Th>
                   <Th>Status</Th>
@@ -327,7 +329,11 @@ export function RecentBookings() {
                             {b.participant.name}
                           </button>
                         ) : '—'}
-                        {b.participant?.key && (bookingCountByParticipant.get(b.participant.key) ?? 0) === 1 && (
+                        {isPerformanceBooking(b) ? (
+                          <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 whitespace-nowrap">
+                            Biljettköp
+                          </span>
+                        ) : isNewStudentBooking(b, bookingCountByParticipant) && (
                           <span className="text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap" style={{ background: '#CDDCD1', color: '#1e4025' }}>
                             Ny elev
                           </span>
@@ -336,6 +342,11 @@ export function RecentBookings() {
                     </td>
                     <td className="py-3 px-5 text-sm text-slate-700 max-w-[280px]">
                       <span className="line-clamp-1">{b.event?.name ?? '—'}</span>
+                    </td>
+                    <td className="py-3 px-5 text-sm text-slate-600 max-w-[180px]">
+                      <span className="line-clamp-1" title={bookingScheduleDisplay(b, eventById)}>
+                        {bookingScheduleDisplay(b, eventById)}
+                      </span>
                     </td>
                     <td className="py-3 px-5 text-sm text-slate-600 tabular-nums whitespace-nowrap">
                       {priceDisplay(b.payment)}
@@ -377,6 +388,37 @@ function formatDate(dt: string): string {
     return format(parseISO(dt.replace(' ', 'T')), 'd MMM yyyy', { locale: sv })
   } catch {
     return dt
+  }
+}
+
+function bookingScheduleDisplay(booking: Booking, eventById: Map<string, Event>): string {
+  const event = booking.event?.id ? eventById.get(String(booking.event.id)) : undefined
+  const schedule = event?.schedule
+
+  if (schedule?.dayAndTimeInfo) return schedule.dayAndTimeInfo
+
+  const startDate = booking.event?.startDate ?? booking.event?.startDateTime?.slice(0, 10) ?? schedule?.start?.date
+  const startTime = booking.event?.startTime ?? booking.event?.startDateTime?.slice(11, 16) ?? schedule?.start?.time
+
+  if (startDate && startTime) return formatScheduleDateTime(startDate, startTime)
+  if (startDate) return formatScheduleDate(startDate)
+  if (startTime) return startTime
+  return '—'
+}
+
+function formatScheduleDateTime(date: string, time: string): string {
+  try {
+    return `${format(parseISO(date), 'EEEE', { locale: sv })} ${time}`
+  } catch {
+    return `${date} ${time}`
+  }
+}
+
+function formatScheduleDate(date: string): string {
+  try {
+    return format(parseISO(date), 'EEEE d MMM', { locale: sv })
+  } catch {
+    return date
   }
 }
 

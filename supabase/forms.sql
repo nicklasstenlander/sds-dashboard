@@ -51,8 +51,13 @@ create table if not exists public.form_submissions (
   respondent_phone text,
   answers jsonb not null default '{}'::jsonb,
   selected_option_keys text[] not null default '{}',
+  checked_in_at timestamptz,
+  checked_in_by text,
   created_at timestamptz not null default now()
 );
+
+alter table public.form_submissions add column if not exists checked_in_at timestamptz;
+alter table public.form_submissions add column if not exists checked_in_by text;
 
 create index if not exists forms_status_idx on public.forms(status);
 create index if not exists form_fields_form_id_idx on public.form_fields(form_id, sort_order);
@@ -71,7 +76,7 @@ grant insert on public.form_submissions to anon;
 grant select, insert, update, delete on public.forms to authenticated;
 grant select, insert, update, delete on public.form_fields to authenticated;
 grant select, insert, update, delete on public.form_options to authenticated;
-grant select, insert on public.form_submissions to authenticated;
+grant select, insert, update on public.form_submissions to authenticated;
 
 create or replace function public.set_updated_at()
 returns trigger
@@ -173,3 +178,11 @@ with check (
       and forms.status = 'published'
   )
 );
+
+drop policy if exists "Authenticated users can update submissions" on public.form_submissions;
+create policy "Authenticated users can update submissions"
+on public.form_submissions
+for update
+to authenticated
+using (true)
+with check (true);

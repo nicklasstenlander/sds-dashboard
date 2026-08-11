@@ -3,8 +3,9 @@ import { X, Users, Clock, MapPin, User, Banknote, CalendarDays } from 'lucide-re
 import { useEventBookings } from '../hooks/useEventBookings'
 import { ParticipantPanel } from './ParticipantPanel'
 import { formatBookingStatus } from '../lib/status'
-import { bookingTicketQuantity, buildCourseMetrics, isAcceptedBooking } from '../utils/courseMetrics'
+import { bookingTicketQuantity, buildCourseMetrics, courseChangeInfoForBooking, isAcceptedBooking, isNewStudentBooking, isPerformanceBooking } from '../utils/courseMetrics'
 import type { Event, Booking, BookingPayment } from '../types/cogwork'
+import type { CourseChangeInfo } from '../utils/courseMetrics'
 
 function PayBadge({ payment }: { payment?: BookingPayment }) {
   if (!payment) return null
@@ -28,10 +29,22 @@ function PayBadge({ payment }: { payment?: BookingPayment }) {
 
 interface CourseDetailPanelProps {
   event: Event | null
+  bookingCountByParticipant: Map<string, number>
+  courseChangeByParticipant: Map<string, CourseChangeInfo>
   onClose: () => void
 }
 
-function BookingSection({ bookings, onSelectParticipant }: { bookings: Booking[]; onSelectParticipant: (name: string) => void }) {
+function BookingSection({
+  bookings,
+  bookingCountByParticipant,
+  courseChangeByParticipant,
+  onSelectParticipant,
+}: {
+  bookings: Booking[]
+  bookingCountByParticipant: Map<string, number>
+  courseChangeByParticipant: Map<string, CourseChangeInfo>
+  onSelectParticipant: (name: string) => void
+}) {
   const antagna    = bookings.filter(isAcceptedBooking)
   const ejAntagna  = bookings.filter((b) => !isAcceptedBooking(b))
   const antagnaCount = antagna.reduce((sum, booking) => sum + bookingTicketQuantity(booking), 0)
@@ -44,7 +57,15 @@ function BookingSection({ bookings, onSelectParticipant }: { bookings: Booking[]
         <p className="px-5 py-3 text-sm text-slate-400">Inga antagna ännu</p>
       ) : (
         <ul className="divide-y divide-slate-50">
-          {antagna.map((b) => <BookingRow key={b.key} b={b} onSelect={onSelectParticipant} />)}
+          {antagna.map((b) => (
+            <BookingRow
+              key={b.key}
+              b={b}
+              isNewStudent={isNewStudentBooking(b, bookingCountByParticipant)}
+              courseChangeInfo={courseChangeInfoForBooking(b, courseChangeByParticipant)}
+              onSelect={onSelectParticipant}
+            />
+          ))}
         </ul>
       )}
 
@@ -53,7 +74,15 @@ function BookingSection({ bookings, onSelectParticipant }: { bookings: Booking[]
         <p className="px-5 py-3 text-sm text-slate-400">Alla anmälda är antagna</p>
       ) : (
         <ul className="divide-y divide-slate-50">
-          {ejAntagna.map((b) => <BookingRow key={b.key} b={b} onSelect={onSelectParticipant} />)}
+          {ejAntagna.map((b) => (
+            <BookingRow
+              key={b.key}
+              b={b}
+              isNewStudent={isNewStudentBooking(b, bookingCountByParticipant)}
+              courseChangeInfo={courseChangeInfoForBooking(b, courseChangeByParticipant)}
+              onSelect={onSelectParticipant}
+            />
+          ))}
         </ul>
       )}
     </div>
@@ -69,27 +98,60 @@ function SectionHeader({ label, count, color }: { label: string; count: number; 
   )
 }
 
-function BookingRow({ b, onSelect }: { b: Booking; onSelect: (name: string) => void }) {
+function BookingRow({
+  b,
+  isNewStudent,
+  courseChangeInfo,
+  onSelect,
+}: {
+  b: Booking
+  isNewStudent: boolean
+  courseChangeInfo?: CourseChangeInfo
+  onSelect: (name: string) => void
+}) {
   const name = b.participant?.name ?? ''
   const parts = name.trim().split(' ')
   const initials = ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase() || '?'
   const ticketQuantity = bookingTicketQuantity(b)
+  const isTicketPurchase = isPerformanceBooking(b)
+  const courseChangeLabel = courseChangeInfo
+    ? `Bytt från ${courseChangeInfo.fromCourses.join(', ')}`
+    : ''
   return (
     <li className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50/60">
       <div className="w-8 h-8 rounded-full bg-brand-teal flex items-center justify-center text-white text-xs font-semibold shrink-0">
         {initials}
       </div>
       <div className="min-w-0 flex-1">
-        {name ? (
-          <button
-            onClick={() => onSelect(name)}
-            className="text-sm font-medium text-brand-dark hover:text-brand-forest hover:underline truncate text-left"
-          >
-            {name}
-          </button>
-        ) : (
-          <p className="text-sm font-medium text-brand-dark truncate">—</p>
-        )}
+        <div className="flex items-center gap-2">
+          {name ? (
+            <button
+              onClick={() => onSelect(name)}
+              className="text-sm font-medium text-brand-dark hover:text-brand-forest hover:underline truncate text-left"
+            >
+              {name}
+            </button>
+          ) : (
+            <p className="text-sm font-medium text-brand-dark truncate">—</p>
+          )}
+          {isTicketPurchase ? (
+            <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 whitespace-nowrap">
+              Biljettköp
+            </span>
+          ) : isNewStudent && (
+            <span className="text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap" style={{ background: '#CDDCD1', color: '#1e4025' }}>
+              Ny elev
+            </span>
+          )}
+          {!isTicketPurchase && courseChangeLabel && (
+            <span
+              className="inline-block max-w-[170px] truncate text-xs font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 whitespace-nowrap align-bottom"
+              title={courseChangeLabel}
+            >
+              {courseChangeLabel}
+            </span>
+          )}
+        </div>
         {b.status?.name && (
           <p className="text-xs text-slate-400">{formatBookingStatus(b.status.code, b.status.name)}</p>
         )}
@@ -104,7 +166,7 @@ function BookingRow({ b, onSelect }: { b: Booking; onSelect: (name: string) => v
   )
 }
 
-export function CourseDetailPanel({ event, onClose }: CourseDetailPanelProps) {
+export function CourseDetailPanel({ event, bookingCountByParticipant, courseChangeByParticipant, onClose }: CourseDetailPanelProps) {
   const { data: bookings = [], isLoading } = useEventBookings(event?.id ?? null)
   const [selectedParticipant, setSelectedParticipant] = useState<string | null>(null)
   const metrics = useMemo(() => {
@@ -221,6 +283,8 @@ export function CourseDetailPanel({ event, onClose }: CourseDetailPanelProps) {
           ) : (
             <BookingSection
               bookings={bookings}
+              bookingCountByParticipant={bookingCountByParticipant}
+              courseChangeByParticipant={courseChangeByParticipant}
               onSelectParticipant={setSelectedParticipant}
             />
           )}

@@ -1,18 +1,34 @@
-import { useState, useEffect } from 'react'
-import { Search, Mail, Phone, MapPin, Calendar, Hash, User, BookOpen, MessageSquare } from 'lucide-react'
+import { useState, useEffect, useMemo } from 'react'
+import { Search, Mail, Phone, MapPin, Calendar, Hash, User, BookOpen, MessageSquare, ChevronDown } from 'lucide-react'
 import { useUsers } from '../hooks/useUsers'
 import { useUserBookings } from '../hooks/useUserBookings'
+import { useAllTermsBookings } from '../hooks/useAllTermsBookings'
 import { useApiConfig } from '../context/ApiContext'
 import { AgentDial } from '../components/AgentDial'
+import { ParticipantPanel } from '../components/ParticipantPanel'
 import { SmsModal } from '../components/SmsModal'
+import { EVENT_BLOCK_IDS_BY_CODE, getDefaultEventBlockId } from '../config/cogwork'
 import { formatBookingStatus } from '../lib/status'
-import type { User as UserType } from '../types/cogwork'
+import { blockNameToCode, dateToPeriodCode } from '../utils/periods'
+import { isStatisticalBooking } from '../utils/courseMetrics'
+import type { Booking, User as UserType } from '../types/cogwork'
+
+interface MissingBookingCustomer {
+  key: string
+  name: string
+  course: string
+  date: string
+  time: string
+  term: string
+  sortValue: string
+}
 
 export function Customers() {
   const { config } = useApiConfig()
   const [input, setInput] = useState('')
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState<UserType | null>(null)
+  const [selectedFollowUpName, setSelectedFollowUpName] = useState<string | null>(null)
 
   // Debounce: fire search 400 ms after user stops typing
   useEffect(() => {
@@ -21,6 +37,16 @@ export function Customers() {
   }, [input])
 
   const { data: users = [], isLoading, isFetching } = useUsers(query)
+  const { bookings: allTermBookings, isLoading: followUpLoading } = useAllTermsBookings()
+  const currentPeriodCode = useMemo(() => {
+    const defaultBlockId = getDefaultEventBlockId()
+    return Object.entries(EVENT_BLOCK_IDS_BY_CODE)
+      .find(([, id]) => id === defaultBlockId)?.[0] ?? ''
+  }, [])
+  const missingBookingCustomers = useMemo(
+    () => buildMissingBookingCustomers(allTermBookings, currentPeriodCode),
+    [allTermBookings, currentPeriodCode],
+  )
 
   if (!config.pw) {
     return (
@@ -117,8 +143,325 @@ export function Customers() {
           )}
         </div>
       </div>
+
+      <MissingBookingCustomersCard
+        customers={missingBookingCustomers}
+        currentPeriodCode={currentPeriodCode}
+        loading={followUpLoading}
+        onSelectName={setSelectedFollowUpName}
+      />
+
+      <ParticipantPanel
+        name={selectedFollowUpName}
+        onClose={() => setSelectedFollowUpName(null)}
+      />
     </div>
   )
+}
+
+function MissingBookingCustomersCard({
+  customers,
+  currentPeriodCode,
+  loading,
+  onSelectName,
+}: {
+  customers: MissingBookingCustomer[]
+  currentPeriodCode: string
+  loading: boolean
+  onSelectName: (name: string) => void
+}) {
+  const [search, setSearch] = useState('')
+  const [termFilter, setTermFilter] = useState('')
+  const [selectedCourses, setSelectedCourses] = useState<Set<string>>(() => new Set())
+  const [courseMenuOpen, setCourseMenuOpen] = useState(false)
+
+  const terms = useMemo(
+    () => Array.from(new Set(customers.map((customer) => customer.term).filter(Boolean))).sort((a, b) => b.localeCompare(a, 'sv')),
+    [customers],
+  )
+  const courses = useMemo(
+    () => Array.from(new Set(customers.map((customer) => customer.course).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'sv')),
+    [customers],
+  )
+  const filteredCustomers = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    return customers.filter((customer) => {
+      if (termFilter && customer.term !== termFilter) return false
+      if (selectedCourses.size > 0 && !selectedCourses.has(customer.course)) return false
+      if (!q) return true
+      return (
+        customer.name.toLowerCase().includes(q) ||
+        customer.course.toLowerCase().includes(q) ||
+        customer.term.toLowerCase().includes(q) ||
+        customer.date.toLowerCase().includes(q) ||
+        customer.time.toLowerCase().includes(q)
+      )
+    })
+  }, [customers, search, selectedCourses, termFilter])
+
+  function toggleCourse(course: string) {
+    setSelectedCourses((current) => {
+      const next = new Set(current)
+      if (next.has(course)) next.delete(course)
+      else next.add(course)
+      return next
+    })
+  }
+
+  return (
+    <div className="card overflow-hidden">
+      <div className="px-5 py-4 border-b border-slate-50 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-bold text-brand-dark">Kunder utan ny kursbokning</h2>
+          <p className="text-xs text-slate-400 mt-0.5">
+            {currentPeriodCode
+              ? `Tidigare kurskunder som saknar bokning ${currentPeriodCode}`
+              : 'Tidigare kurskunder som saknar bokning i aktuell termin'}
+          </p>
+        </div>
+        {!loading && (
+          <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-slate-100 text-slate-500">
+            {filteredCustomers.length < customers.length
+              ? `${filteredCustomers.length.toLocaleString('sv-SE')} av ${customers.length.toLocaleString('sv-SE')} kunder`
+              : `${customers.length.toLocaleString('sv-SE')} kunder`}
+          </span>
+        )}
+      </div>
+
+      {loading ? (
+        <div className="divide-y divide-slate-50">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="px-5 py-3 flex gap-4">
+              <div className="h-4 w-32 bg-slate-100 rounded animate-pulse" />
+              <div className="h-4 flex-1 bg-slate-100 rounded animate-pulse" />
+              <div className="h-4 w-20 bg-slate-100 rounded animate-pulse" />
+            </div>
+          ))}
+        </div>
+      ) : customers.length === 0 ? (
+        <p className="px-5 py-8 text-sm text-slate-400 text-center">
+          Inga tidigare kurskunder saknar ny kursbokning.
+        </p>
+      ) : (
+        <div>
+          <div className="px-5 py-4 border-b border-slate-50 grid gap-3 lg:grid-cols-[minmax(180px,1fr)_minmax(160px,220px)_minmax(220px,320px)]">
+            <div className="relative">
+              <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400 pointer-events-none" />
+              <input
+                type="search"
+                placeholder="Sök namn, kurs, datum…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full text-sm border border-slate-200 rounded-full pl-9 pr-4 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-brand-mint"
+              />
+            </div>
+            <select
+              value={termFilter}
+              onChange={(e) => setTermFilter(e.target.value)}
+              className="text-sm border border-slate-200 rounded-full px-4 py-2 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-mint"
+            >
+              <option value="">Alla terminer</option>
+              {terms.map((term) => (
+                <option key={term} value={term}>{term}</option>
+              ))}
+            </select>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setCourseMenuOpen((open) => !open)}
+                className="w-full flex items-center justify-between gap-2 text-sm border border-slate-200 rounded-full px-4 py-2 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-mint"
+              >
+                <span className="truncate">
+                  {selectedCourses.size === 0
+                    ? 'Alla kurser'
+                    : `${selectedCourses.size} ${selectedCourses.size === 1 ? 'kurs' : 'kurser'}`}
+                </span>
+                <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
+              </button>
+
+              {courseMenuOpen && (
+                <div className="absolute right-0 z-20 mt-2 w-full min-w-[280px] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
+                  <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-3 py-2">
+                    <span className="text-xs font-semibold text-slate-500">
+                      {selectedCourses.size === 0 ? 'Alla kurser visas' : `${selectedCourses.size} valda`}
+                    </span>
+                    {selectedCourses.size > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedCourses(new Set())}
+                        className="text-xs font-medium text-brand-forest hover:underline"
+                      >
+                        Rensa
+                      </button>
+                    )}
+                  </div>
+                  <div className="max-h-72 overflow-y-auto py-1">
+                    {courses.map((course) => (
+                      <label
+                        key={course}
+                        className="flex cursor-pointer items-start gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedCourses.has(course)}
+                          onChange={() => toggleCourse(course)}
+                          className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-forest focus:ring-brand-mint"
+                        />
+                        <span className="leading-snug">{course}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {filteredCustomers.length === 0 ? (
+            <p className="px-5 py-8 text-sm text-slate-400 text-center">
+              Inga kunder matchar filtreringen.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-slate-50/60 border-b border-slate-100">
+                  <tr>
+                    <CustomerTh>Namn</CustomerTh>
+                    <CustomerTh>Kurs</CustomerTh>
+                    <CustomerTh>Datum</CustomerTh>
+                    <CustomerTh>Tid</CustomerTh>
+                    <CustomerTh>Termin</CustomerTh>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {filteredCustomers.map((customer) => (
+                    <tr key={customer.key} className="hover:bg-slate-50/60 transition-colors">
+                      <td className="py-3 px-5 text-sm font-medium whitespace-nowrap">
+                        <button
+                          onClick={() => onSelectName(customer.name)}
+                          className="text-brand-dark hover:text-brand-forest hover:underline text-left"
+                        >
+                          {customer.name}
+                        </button>
+                      </td>
+                      <td className="py-3 px-5 text-sm text-slate-700 min-w-[240px]">
+                        <span className="line-clamp-1" title={customer.course}>{customer.course}</span>
+                      </td>
+                      <td className="py-3 px-5 text-sm text-slate-500 whitespace-nowrap">{customer.date || '—'}</td>
+                      <td className="py-3 px-5 text-sm text-slate-500 whitespace-nowrap">{customer.time || '—'}</td>
+                      <td className="py-3 px-5 text-sm text-slate-500 whitespace-nowrap">{customer.term || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function CustomerTh({ children }: { children: React.ReactNode }) {
+  return (
+    <th className="text-left text-xs font-semibold text-slate-600 py-3 px-5 whitespace-nowrap">
+      {children}
+    </th>
+  )
+}
+
+function buildMissingBookingCustomers(bookings: Booking[], currentPeriodCode: string): MissingBookingCustomer[] {
+  if (!currentPeriodCode) return []
+
+  const courseBookings = bookings
+    .filter(isStatisticalBooking)
+    .filter((booking) => booking.participant?.name && booking.event?.name)
+
+  const currentParticipantKeys = new Set<string>()
+  for (const booking of courseBookings) {
+    if (bookingPeriodCode(booking) !== currentPeriodCode) continue
+    participantKeys(booking).forEach((key) => currentParticipantKeys.add(key))
+  }
+
+  const latestPreviousByParticipant = new Map<string, MissingBookingCustomer>()
+  for (const booking of courseBookings) {
+    const periodCode = bookingPeriodCode(booking)
+    if (!periodCode || periodCode === currentPeriodCode || periodRank(periodCode) >= periodRank(currentPeriodCode)) continue
+
+    const keys = participantKeys(booking)
+    if (keys.some((key) => currentParticipantKeys.has(key))) continue
+
+    const primaryKey = keys[0]
+    if (!primaryKey) continue
+
+    const candidate = missingBookingCustomerFromBooking(booking, primaryKey)
+    if (!candidate.name || !candidate.course) continue
+
+    const existing = latestPreviousByParticipant.get(primaryKey)
+    if (!existing || candidate.sortValue > existing.sortValue) {
+      latestPreviousByParticipant.set(primaryKey, candidate)
+    }
+  }
+
+  return Array.from(latestPreviousByParticipant.values())
+    .sort((a, b) => b.sortValue.localeCompare(a.sortValue) || a.name.localeCompare(b.name, 'sv'))
+}
+
+function missingBookingCustomerFromBooking(booking: Booking, participantKey: string): MissingBookingCustomer {
+  const startDateTime = booking.event?.startDateTime ?? ''
+  const startDate = booking.event?.startDate ?? startDateTime.slice(0, 10)
+  const startTime = booking.event?.startTime ?? startDateTime.slice(11, 16)
+  const periodName = booking.event?.grouping?.eventBlock?.name ?? bookingPeriodCode(booking)
+
+  return {
+    key: participantKey,
+    name: booking.participant?.name ?? '',
+    course: booking.event?.name ?? '',
+    date: startDate ? formatCourseDate(startDate) : '',
+    time: startTime,
+    term: formatTerm(periodName),
+    sortValue: startDateTime || startDate || booking.created || '',
+  }
+}
+
+function participantKeys(booking: Booking): string[] {
+  const keys = [
+    participantNameAndBirthKey(booking),
+    booking.participant?.key,
+    booking.participant?.id != null ? `id:${booking.participant.id}` : '',
+    participantNameKey(booking),
+  ].filter((key): key is string => Boolean(key))
+  return Array.from(new Set(keys))
+}
+
+function participantNameAndBirthKey(booking: Booking): string {
+  const name = booking.participant?.name?.trim().toLowerCase()
+  const dateOfBirth = booking.participant?.dateOfBirth
+  return name && dateOfBirth ? `name-birth:${name}|${dateOfBirth}` : ''
+}
+
+function participantNameKey(booking: Booking): string {
+  const name = booking.participant?.name?.trim().toLowerCase()
+  return name ? `name:${name}` : ''
+}
+
+function bookingPeriodCode(booking: Booking): string {
+  const blockName = booking.event?.grouping?.eventBlock?.name
+  if (blockName) return blockNameToCode(blockName)
+  const eventCode = booking.event?.code
+  if (eventCode && /^(HT|VT)\d{2}$/i.test(eventCode)) return eventCode.toUpperCase()
+  return dateToPeriodCode(booking.event?.startDate ?? booking.event?.startDateTime)
+}
+
+function formatCourseDate(date: string) {
+  const [y, m, d] = date.split('-')
+  if (!y || !m || !d) return date
+  return `${d}/${m} ${y}`
+}
+
+function periodRank(periodCode: string): number {
+  const match = periodCode.match(/^(HT|VT)(\d{2})$/i)
+  if (!match) return 0
+  return Number(match[2]) * 2 + (match[1].toUpperCase() === 'HT' ? 1 : 0)
 }
 
 function Avatar({ user, size = 'md', active = false }: { user: UserType; size?: 'sm' | 'md' | 'lg'; active?: boolean }) {

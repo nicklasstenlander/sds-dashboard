@@ -5,7 +5,10 @@ import {
 } from '../services/goalsService'
 import { blockIdToPeriodCode, matchesPeriodCode } from '../utils/periods'
 import { bookingMatchesEventBlockId, buildEventIdBlockIdMap, collectKnownEventBlockIds, resolveEventBlockId } from '../utils/eventBlock'
-import { bookingTicketQuantity, buildCourseMetrics, isAcceptedBooking, metricsForEvent } from '../utils/courseMetrics'
+import {
+  bookingTicketQuantity, buildCourseMetrics, countBookingsByParticipant,
+  isAcceptedBooking, isNewStudentBooking, isStatisticalBooking, isStatisticalEvent, metricsForEvent,
+} from '../utils/courseMetrics'
 import type { Booking, Event } from '../types/cogwork'
 
 // ---------------------------------------------------------------------------
@@ -13,14 +16,16 @@ import type { Booking, Event } from '../types/cogwork'
 // ---------------------------------------------------------------------------
 
 export function computeCurrentValue(goal: Goal, bookings: Booking[], events: Event[]): number {
+  const statisticalBookings = bookings.filter(isStatisticalBooking)
+  const statisticalEvents = events.filter(isStatisticalEvent)
   const knownEventBlockIds = collectKnownEventBlockIds(events)
   // Bookings' embedded event never carries grouping — resolve via the full
   // events list instead of trying resolveEventBlockId() on the booking itself.
   const eventIdToBlockId = buildEventIdBlockIdMap(events)
   const goalEventBlockId = goal.event_block_id
   const filteredBookings = goalEventBlockId
-    ? bookings.filter(b => bookingMatchesEventBlockId(b.event, goalEventBlockId, eventIdToBlockId, blockIdToPeriodCode(goalEventBlockId)))
-    : bookings
+    ? statisticalBookings.filter(b => bookingMatchesEventBlockId(b.event, goalEventBlockId, eventIdToBlockId, blockIdToPeriodCode(goalEventBlockId)))
+    : statisticalBookings
 
   const scopedBookings = goal.event_key
     ? filteredBookings.filter(b => b.event?.key === goal.event_key)
@@ -42,9 +47,9 @@ export function computeCurrentValue(goal: Goal, bookings: Booking[], events: Eve
 
     case 'occupancy': {
       const metricsByEvent = buildCourseMetrics(scopedBookings)
-      const filteredEvents = goal.event_block_id
-        ? events.filter(e => eventMatchesEventBlock(e, goal.event_block_id, knownEventBlockIds))
-        : events
+      const filteredEvents = goalEventBlockId
+        ? statisticalEvents.filter(e => eventMatchesEventBlock(e, goalEventBlockId, knownEventBlockIds))
+        : statisticalEvents
       if (filteredEvents.length === 0) return 0
       const total = filteredEvents.reduce((sum, e) => {
         const max      = e.requirements?.maxParticipants ?? 0
@@ -55,14 +60,8 @@ export function computeCurrentValue(goal: Goal, bookings: Booking[], events: Eve
     }
 
     case 'new_students': {
-      const countByParticipant = new Map<string, number>()
-      bookings.forEach(b => {
-        const key = b.participant?.key
-        if (key) countByParticipant.set(key, (countByParticipant.get(key) ?? 0) + 1)
-      })
-      return scopedBookings.filter(b =>
-        (countByParticipant.get(b.participant?.key ?? '') ?? 0) === 1
-      ).length
+      const countByParticipant = countBookingsByParticipant(statisticalBookings)
+      return scopedBookings.filter(b => isNewStudentBooking(b, countByParticipant)).length
     }
 
     default:

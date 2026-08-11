@@ -1,0 +1,16 @@
+[Unit]
+Description=CORE Screen Agent
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=stenlander
+EnvironmentFile=/etc/core-screen-agent.env
+WorkingDirectory=/home/stenlander/core-screen-agent
+ExecStart=/usr/bin/python3 /home/stenlander/core-screen-agent/core_screen_agent.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

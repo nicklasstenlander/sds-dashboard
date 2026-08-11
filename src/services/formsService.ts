@@ -19,6 +19,7 @@ export interface DynamicForm {
   slug: string
   description: string | null
   status: FormStatus
+  enable_checkin: boolean
   created_at: string
   updated_at: string
 }
@@ -59,6 +60,8 @@ export interface FormSubmission {
   respondent_phone: string | null
   answers: Record<string, unknown>
   selected_option_keys: string[]
+  checked_in_at: string | null
+  checked_in_by: string | null
 }
 
 export interface FormBundle {
@@ -68,7 +71,7 @@ export interface FormBundle {
 }
 
 export interface FormEditorInput {
-  form: Pick<DynamicForm, 'title' | 'slug' | 'description' | 'status'>
+  form: Pick<DynamicForm, 'title' | 'slug' | 'description' | 'status' | 'enable_checkin'>
   fields: Array<Omit<FormField, 'id' | 'form_id'> & { id?: string; options?: Array<Omit<FormOption, 'id' | 'form_id' | 'field_id'> & { id?: string }> }>
 }
 
@@ -132,6 +135,7 @@ export async function saveForm(input: FormEditorInput, formId?: string): Promise
     slug: normalizedSlug,
     description: input.form.description?.trim() || null,
     status: input.form.status,
+    enable_checkin: input.form.enable_checkin,
   }
 
   const { data: form, error: formError } = formId
@@ -226,6 +230,22 @@ export async function submitForm(formId: string, answers: Record<string, unknown
     answers,
     selected_option_keys: selectedOptionKeys,
   })
+
+  if (error) throw error
+}
+
+export async function checkInSubmission(
+  submissionId: string,
+  checkedIn: boolean,
+  checkedInBy: string
+) {
+  const { error } = await supabase
+    .from('form_submissions')
+    .update({
+      checked_in_at: checkedIn ? new Date().toISOString() : null,
+      checked_in_by: checkedIn ? checkedInBy : null,
+    })
+    .eq('id', submissionId)
 
   if (error) throw error
 }
