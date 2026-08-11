@@ -40,6 +40,13 @@ export function isAcceptedBooking(booking: Booking): boolean {
   return booking.status?.code?.toUpperCase() === 'ACCEPTED'
 }
 
+/** Bredare "antagen"-check använd av iOS Översikt (fångar även textbaserad status). */
+export function isAcceptedForOverview(booking: Booking): boolean {
+  const code = booking.status?.code?.toUpperCase() ?? ''
+  const name = booking.status?.name?.toLowerCase() ?? ''
+  return code === 'ACCEPTED' || name.includes('accepterad') || name.includes('antagen')
+}
+
 export function isPerformanceEvent(event?: EventCategoryLike): boolean {
   return isPerformanceCategoryName(event?.grouping?.primaryEventGroup?.name)
     || isPerformanceCategoryName(event?.category?.name)
@@ -106,6 +113,68 @@ export function countBookingsByParticipant(bookings: Booking[]): Map<string, num
     countByParticipant.set(key, countByCanonicalKey.get(canonicalKey) ?? 0)
   }
   return countByParticipant
+}
+
+/**
+ * Antal UNIKA elever med aktiv antagning i det redan periodfiltrerade urvalet.
+ * Porterad rakt av från iOS `OversiktView.activeStudentCount` /
+ * `CourseMetricsEngine.canonicalParticipantKeys` — samma identifierarfält
+ * (participant.key, med namn+födelsedatum som fallback om key saknas) och
+ * samma status-filter (`isAcceptedForOverview`). Bokningar utan varken key
+ * eller namn+födelsedatum saknar identifierare och räknas inte in, precis
+ * som i iOS.
+ */
+export function countActiveStudents(bookings: Booking[]): number {
+  const accepted = bookings.filter(isAcceptedForOverview)
+  const canonicalKeyOf = buildActiveStudentCanonicalKeys(accepted)
+
+  const uniqueKeys = new Set<string>()
+  for (const booking of accepted) {
+    const key = activeStudentParticipantIdentifier(booking)
+    if (!key) continue
+    uniqueKeys.add(canonicalKeyOf.get(key) ?? key)
+  }
+  return uniqueKeys.size
+}
+
+function buildActiveStudentCanonicalKeys(bookings: Booking[]): Map<string, string> {
+  const canonicalKeyOf = new Map<string, string>()
+  const keyByNameAndBirth = new Map<string, string>()
+
+  for (const booking of bookings) {
+    const key = activeStudentParticipantIdentifier(booking)
+    if (!key || canonicalKeyOf.has(key)) continue
+
+    const identity = activeStudentNameAndBirthIdentity(booking)
+    if (!identity) {
+      canonicalKeyOf.set(key, key)
+      continue
+    }
+
+    const existingKey = keyByNameAndBirth.get(identity)
+    if (existingKey) {
+      canonicalKeyOf.set(key, existingKey)
+    } else {
+      keyByNameAndBirth.set(identity, key)
+      canonicalKeyOf.set(key, key)
+    }
+  }
+
+  return canonicalKeyOf
+}
+
+function activeStudentParticipantIdentifier(booking: Booking): string | undefined {
+  const key = booking.participant?.key?.trim()
+  if (key) return key
+
+  const identity = activeStudentNameAndBirthIdentity(booking)
+  return identity ? `nameDob:${identity}` : undefined
+}
+
+function activeStudentNameAndBirthIdentity(booking: Booking): string | undefined {
+  const name = booking.participant?.name?.trim().toLowerCase()
+  const dateOfBirth = booking.participant?.dateOfBirth?.trim()
+  return name && dateOfBirth ? `${name}|${dateOfBirth}` : undefined
 }
 
 /** En elev räknas som ny om detta är dennes enda bokning, någonsin. */
