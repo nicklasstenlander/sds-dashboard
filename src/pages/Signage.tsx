@@ -323,6 +323,7 @@ export function Signage() {
     }));
     setJobs(prev => [...prev, ...newJobs]);
 
+    let anySucceeded = false;
     for (let i = 0; i < newJobs.length; i++) {
       const job = newJobs[i];
       setJobs(prev => prev.map(j => j.file === job.file ? { ...j, status: "uploading" } : j));
@@ -351,12 +352,14 @@ export function Signage() {
           xhr.onerror = () => reject(new Error("Nätverksfel"));
           xhr.send(formData);
         });
+        anySucceeded = true;
       } catch (e: any) {
         setJobs(prev => prev.map(j => j.file === job.file ? { ...j, status: "error", errorMsg: e.message } : j));
       }
     }
 
     await fetchPlaylist();
+    if (anySucceeded) setIsDirty(true);
     setTimeout(() => {
       setJobs(prev => prev.filter(j => j.status !== "done"));
     }, 3000);
@@ -375,7 +378,6 @@ export function Signage() {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
       }
       setItems(prev => prev.filter(i => i.id !== item.id));
-      savedItemsRef.current = savedItemsRef.current.filter(i => i.id !== item.id);
       setConfirmDeleteId(null);
       setIsDirty(true);
     } catch (e: any) {

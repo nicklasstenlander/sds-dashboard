@@ -586,7 +586,6 @@ async function rangeFromCache(cached, rangeHeader) {
  *   GET    /media/<id>/<filnamn>         → serverar fil med Range-stöd
  *   GET    /player?screen=<id>           → spelaren
  *   GET    /sw.js                        → Service Worker (lokal cache på Pi:n)
- *   POST   /internal/migrate             → engångsmigrering, se sodss-signage/migrate.js [auth]
  *
  * Miljövariabler (Cloudflare Dashboard → Worker → Settings → Variables):
  *   BUCKET        — R2 Bucket binding (se wrangler.toml)
@@ -832,50 +831,6 @@ export default {
       const key = `${screenId}/${fileName}`;
       await env.BUCKET.delete(key);
       return json({ ok: true, deleted: key });
-    }
-
-    // ── POST /internal/migrate — engångsmigrering, se sodss-signage/migrate.js ──
-    if (path === '/internal/migrate' && request.method === 'POST') {
-      if (!isAuthorized()) return err('Ej behörig', 401);
-
-      const listed = await env.BUCKET.list();
-      const rootObjects = listed.objects.filter(
-        (o) => o.key.indexOf('/') === -1 && !o.key.startsWith('_')
-      );
-
-      const migrated = [];
-      for (const obj of rootObjects) {
-        const source = await env.BUCKET.get(obj.key);
-        if (!source) continue;
-        const newKey = `reception/${obj.key}`;
-        await env.BUCKET.put(newKey, source.body, { httpMetadata: source.httpMetadata });
-        await env.BUCKET.delete(obj.key);
-        migrated.push(newKey);
-      }
-      migrated.sort((a, b) => a.localeCompare(b));
-
-      // Skriv bara playlists/reception.json om något faktiskt migrerades.
-      // Körs routen igen efter en lyckad migrering (t.ex. migrate.js av
-      // misstag körd två gånger) finns inga rotobjekt kvar — utan detta
-      // skulle den då tömma en redan uppbyggd reception.json.
-      let manifest = null;
-      if (migrated.length > 0) {
-        const items = migrated.map((key) => {
-          const type = guessType(key);
-          const item = { id: randomId(), type, key };
-          if (type === 'image') item.duration = 8;
-          return item;
-        });
-        manifest = { version: 2, updated: new Date().toISOString(), items };
-        await env.BUCKET.put('playlists/reception.json', JSON.stringify(manifest), {
-          httpMetadata: { contentType: 'application/json' },
-        });
-      } else {
-        const existing = await env.BUCKET.get('playlists/reception.json');
-        manifest = existing ? JSON.parse(await existing.text()) : null;
-      }
-
-      return json({ ok: true, migrated, manifest });
     }
 
     return new Response("Not found", { status: 404, headers: corsHeaders });
