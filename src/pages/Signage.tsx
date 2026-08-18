@@ -234,17 +234,24 @@ export function Signage() {
         });
         if (file) filesByKey.delete(it.key);
       }
-      // Filer som finns i R2 men saknas i manifestet (t.ex. nyss uppladdade) läggs sist
+      // Filer som finns i R2 men saknas i manifestet (t.ex. nyss uppladdade) läggs sist.
+      // De är INTE en del av det sparade manifestet ännu — savedItemsRef speglar
+      // därför bara manifest-delen, och listan markeras dirty så Spara-knappen
+      // blir aktiv (annars syns filen i listan men saknas i den spellista som
+      // spelaren faktiskt läser, utan att admin ser att något behöver sparas).
+      const unsavedExtras: PlaylistItem[] = [];
       for (const file of filesByKey.values()) {
-        resolved.push({
+        const extra: PlaylistItem = {
           id: randomId(), type: file.type, key: file.key, url: file.url, name: file.name,
           duration: 8, size: file.size, uploaded: file.uploaded, etag: file.etag,
-        });
+        };
+        unsavedExtras.push(extra);
+        resolved.push(extra);
       }
 
       setItems(resolved);
-      savedItemsRef.current = resolved;
-      setIsDirty(false);
+      savedItemsRef.current = resolved.slice(0, resolved.length - unsavedExtras.length);
+      setIsDirty(unsavedExtras.length > 0);
     } catch (e) {
       console.error("Kunde inte hämta spellista:", e);
     } finally {

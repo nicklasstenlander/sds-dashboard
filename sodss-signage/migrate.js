@@ -47,12 +47,13 @@ async function main() {
 
   if (body.migrated.length === 0) {
     console.log("Inga rotfiler att migrera (redan migrerat, eller bucketen är tom).");
+    console.log("playlists/reception.json lämnad orörd.");
   } else {
     console.log(`Migrerade ${body.migrated.length} filer till reception/:`);
     for (const key of body.migrated) console.log(`  - ${key}`);
+    const count = body.manifest ? body.manifest.items.length : 0;
+    console.log(`\nplaylists/reception.json byggd med ${count} objekt.`);
   }
-
-  console.log(`\nplaylists/reception.json byggd med ${body.manifest.items.length} objekt.`);
 }
 
 main().catch((e) => {
