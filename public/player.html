@@ -40,6 +40,14 @@
       width: 100%;
       height: 100%;
     }
+    .slide iframe {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%;
+      height: 100%;
+      border: none;
+      background: #000;
+    }
 
     /* ── Progress bar ── */
     #progress {
@@ -164,19 +172,16 @@
 <script>
 // ─── URL-parametrar ──────────────────────────────────────────────────────────
 //
-//  Obligatoriska:
-//    ?worker=https://sodss-signage.xxx.workers.dev
-//
 //  Valfria:
-//    &screen=reception       (för framtida per-skärm-spellistor)
-//    &reload=30              (minuter mellan omhämtning av spellista, default 30)
-//    &clock=1                (visa klocka nere till höger)
-//    &counter=1              (visa bildräknare nere till vänster)
-//    &transition=0.7         (fade-tid i sekunder)
+//    ?worker=https://sodss-signage.xxx.workers.dev   (default: samma origin)
+//    &screen=reception        (default: reception)
+//    &reload=30               (minuter mellan omhämtning av manifest, default 30)
+//    &clock=1                 (visa klocka nere till höger)
+//    &counter=1               (visa bildräknare nere till vänster)
 
 var p          = new URLSearchParams(location.search);
 var WORKER_URL = p.get('worker') || (location.protocol + '//' + location.host);
-var SCREEN_ID  = p.get('screen') || 'default';
+var SCREEN_ID  = p.get('screen') || 'reception';
 var RELOAD_MIN = parseInt(p.get('reload') || '30');
 var SHOW_CLOCK = p.get('clock') === '1';
 var SHOW_COUNT = p.get('counter') === '1';
@@ -193,9 +198,10 @@ var clockEl   = document.getElementById('clock');
 var counterEl = document.getElementById('counter');
 
 // ─── State ───────────────────────────────────────────────────────────────────
-var playlist = [];
-var current  = -1;
-var advTimer = null;
+var playlist    = [];
+var current     = -1;
+var advTimer    = null;
+var lastUpdated = null;
 
 // ─── UI helpers ───────────────────────────────────────────────────────────────
 function showError(msg, detail) {
@@ -224,7 +230,7 @@ function updateClock() {
 setInterval(updateClock, 15000);
 updateClock();
 
-// ─── Tidsstyrning ─────────────────────────────────────────────────────────────
+// ─── Tidsstyrning (per objekt, nyckel = R2-nyckel t.ex. "reception/foo.jpg") ──
 function isScheduledNow(schedule) {
   if (!schedule) return true;
   var now = new Date();
@@ -245,29 +251,63 @@ function isScheduledNow(schedule) {
 
 var schedules = {};
 
-// ─── Fetch spellista från Worker ─────────────────────────────────────────────
+// ─── Service Worker (lokal cache av bild/video) ───────────────────────────────
+function registerServiceWorker() {
+  if (!('serviceWorker' in navigator)) return;
+  navigator.serviceWorker.register('/sw.js').catch(function() {});
+}
+
+function syncServiceWorkerCache(items) {
+  if (!navigator.serviceWorker || !navigator.serviceWorker.controller) return;
+  var urls = [];
+  for (var i = 0; i < items.length; i++) {
+    if (items[i].type === 'image' || items[i].type === 'video') urls.push(items[i].url);
+  }
+  navigator.serviceWorker.controller.postMessage({ type: 'sync-playlist', urls: urls });
+}
+
+// ─── Fetch manifest från Worker ───────────────────────────────────────────────
+// Returnerar: 'built' (ny spellista, bygg om DOM), 'unchanged' (inget att göra),
+// 'error' (kallstart utan manifest — felskärm visas)
 function fetchPlaylist() {
   loaderMsg.innerHTML = 'Hämtar spellista…';
   return Promise.all([
-    fetch(WORKER_URL + '/api/files').then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }),
+    fetch(WORKER_URL + '/api/playlist/' + SCREEN_ID).then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }),
     fetch(WORKER_URL + '/api/schedules').then(function(r) { return r.ok ? r.json() : {}; }).catch(function() { return {}; }),
   ]).then(function(results) {
-    var data = results[0];
+    var manifest = results[0];
     schedules = results[1];
-    var files = (data.files || []).filter(function(f) {
-      return (f.type === 'image' || f.type === 'video') && isScheduledNow(schedules[f.key]);
+
+    var rawItems = manifest.items || [];
+    var mapped = rawItems.map(function(it) {
+      if (it.type === 'web') {
+        return { id: it.id, type: 'web', url: it.url, duration: it.duration || 30 };
+      }
+      var mediaUrl = WORKER_URL + '/media/' + it.key + (it.etag ? ('?v=' + it.etag) : '');
+      return { id: it.id, type: it.type, key: it.key, url: mediaUrl, duration: it.duration || 8 };
+    }).filter(function(it) {
+      return it.type === 'web' ? true : isScheduledNow(schedules[it.key]);
     });
-    if (files.length === 0) {
-      showError('Inga filer', 'Inga schemalagda inslag just nu');
-      return false;
+
+    syncServiceWorkerCache(mapped);
+
+    if (manifest.updated && manifest.updated === lastUpdated) {
+      return 'unchanged';
     }
-    playlist = files.map(function(f) {
-      return { key: f.key, name: f.name, type: f.type, url: f.url, duration: f.duration || 8 };
-    });
-    return true;
-  }).catch(function(err) {
-    showError('Fetch-fel: ' + err.message + ' | URL: ' + WORKER_URL);
-    return false;
+
+    if (mapped.length === 0) {
+      if (playlist.length > 0) return 'unchanged';
+      showError('Inga inslag', 'Spellistan är tom just nu');
+      return 'error';
+    }
+
+    playlist = mapped;
+    lastUpdated = manifest.updated;
+    return 'built';
+  }).catch(function(fetchErr) {
+    if (playlist.length > 0) return 'unchanged'; // Offline-tålighet: fortsätt spela ur cachen
+    showError('Fetch-fel: ' + fetchErr.message + ' | URL: ' + WORKER_URL);
+    return 'error';
   });
 }
 
@@ -284,16 +324,18 @@ function buildSlides() {
     if (item.type === 'image') {
       var img = new Image();
       img.src = item.url;
-      img.alt = item.name;
+      img.alt = '';
       slide.appendChild(img);
 
-    } else {
+    } else if (item.type === 'video') {
       var vid = document.createElement('video');
-      vid.src      = item.url;
       vid.muted    = true;
-      vid.autoplay = false;
+      vid.defaultMuted = true;
+      vid.setAttribute('muted', '');
+      vid.setAttribute('playsinline', '');
       vid.preload  = 'auto';
       vid.loop     = false;
+      vid.src      = item.url;
 
       vid.addEventListener('ended', function() {
         if (parseInt(slide.getAttribute('data-index')) === current) nextSlide();
@@ -303,13 +345,19 @@ function buildSlides() {
       });
 
       slide.appendChild(vid);
+
+    } else if (item.type === 'web') {
+      var iframe = document.createElement('iframe');
+      iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin');
+      iframe.setAttribute('referrerpolicy', 'no-referrer');
+      slide.appendChild(iframe);
     }
 
     playerEl.appendChild(slide);
   }
 }
 
-// ─── Visa bild/video ─────────────────────────────────────────────────────────
+// ─── Visa bild/video/webblänk ─────────────────────────────────────────────────
 function showSlide(idx) {
   clearTimeout(advTimer);
 
@@ -342,17 +390,29 @@ function showSlide(idx) {
     });
     advTimer = setTimeout(nextSlide, dur);
 
+  } else if (item.type === 'web') {
+    var activeWebSlide = allSlides[idx];
+    var iframeEl = activeWebSlide ? activeWebSlide.getElementsByTagName('iframe')[0] : null;
+    if (iframeEl) iframeEl.src = item.url; // ladda om varje gång sliden aktiveras
+    var wdur = (item.duration || 30) * 1000;
+    requestAnimationFrame(function() {
+      progressEl.style.transition = 'width ' + wdur + 'ms linear';
+      progressEl.style.width = '100%';
+    });
+    advTimer = setTimeout(nextSlide, wdur);
+
   } else {
     var activeSlide = allSlides[idx];
     var vid = activeSlide ? activeSlide.getElementsByTagName('video')[0] : null;
     if (vid) {
+      vid.muted = true;
+      vid.defaultMuted = true;
       vid.currentTime = 0;
-      var playPromise = vid.play();
-      if (playPromise && playPromise.catch) {
-        playPromise.catch(function() {
-          advTimer = setTimeout(nextSlide, 60000);
-        });
-      }
+      vid.load();
+      vid.addEventListener('loadeddata', function() {
+        var pp = vid.play();
+        if (pp && pp.catch) { pp.catch(function() { advTimer = setTimeout(nextSlide, 60000); }); }
+      });
       vid.addEventListener('loadedmetadata', function() {
         var dur = vid.duration * 1000;
         progressEl.style.transition = 'width ' + dur + 'ms linear';
@@ -371,8 +431,9 @@ function nextSlide() {
 
 // ─── Starta ───────────────────────────────────────────────────────────────────
 function init() {
-  fetchPlaylist().then(function(ok) {
-    if (!ok) return;
+  registerServiceWorker();
+  fetchPlaylist().then(function(status) {
+    if (status !== 'built') return;
     buildSlides();
     hideLoader();
     current = 0;
@@ -380,11 +441,12 @@ function init() {
   });
 }
 
-// ─── Auto-reload spellista ────────────────────────────────────────────────────
-// Hämtar om fillistan var N:e minut utan att avbryta pågående uppspelning
+// ─── Auto-reload manifest ─────────────────────────────────────────────────────
+// Hämtar om manifestet var N:e minut utan att avbryta pågående uppspelning
+// om inget faktiskt ändrats (manifest.updated oförändrat).
 setInterval(function() {
-  fetchPlaylist().then(function(ok) {
-    if (ok) buildSlides(); // Slideshow fortsätter från current
+  fetchPlaylist().then(function(status) {
+    if (status === 'built') buildSlides(); // Slideshow fortsätter från current
   });
 }, RELOAD_MIN * 60 * 1000);
 

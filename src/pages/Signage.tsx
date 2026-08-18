@@ -2,16 +2,18 @@ import { useState, useRef, useCallback, useEffect } from "react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type MediaType = "image" | "video";
+type MediaType = "image" | "video" | "web";
 
 interface PlaylistItem {
-  key: string;
-  name: string;
+  id: string;
   type: MediaType;
-  url: string;
-  size: number;
-  uploaded: string;
+  key?: string;        // R2-nyckel, endast image/video
+  url: string;          // media-URL (image/video, ?v=etag) eller mål-URL (web)
+  name: string;          // filnamn (image/video) eller URL (web) för visning
   duration: number;
+  size?: number;
+  uploaded?: string;
+  etag?: string;
 }
 
 interface FileSchedule {
@@ -24,6 +26,16 @@ interface FileSchedule {
 
 type Schedules = Record<string, FileSchedule>;
 
+interface Screen {
+  id: string;
+  name: string;
+}
+
+const DEFAULT_SCREENS: Screen[] = [
+  { id: "reception", name: "Skärm Reception" },
+  { id: "lounge", name: "Skärm Lounge" },
+];
+
 const WEEKDAYS = [
   { n: 1, label: "Mån" }, { n: 2, label: "Tis" }, { n: 3, label: "Ons" },
   { n: 4, label: "Tor" }, { n: 5, label: "Fre" }, { n: 6, label: "Lör" },
@@ -31,35 +43,42 @@ const WEEKDAYS = [
 ];
 
 const WORKER_URL    = import.meta.env.VITE_WORKER_URL    ?? "";
-const PLAYER_URL    = import.meta.env.VITE_PLAYER_URL    ?? "/player.html";
 const WORKER_SECRET = import.meta.env.VITE_WORKER_SECRET ?? "";
 
 function authHeaders(): Record<string, string> {
   return WORKER_SECRET ? { Authorization: `Bearer ${WORKER_SECRET}` } : {};
 }
 
-function formatBytes(bytes: number) {
+function randomId() {
+  return Math.random().toString(36).slice(2, 8);
+}
+
+function formatBytes(bytes?: number) {
+  if (bytes == null) return "";
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
-function formatDate(iso: string) {
+function formatDate(iso?: string) {
   return iso ? new Date(iso).toLocaleDateString("sv-SE") : "";
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function Badge({ type }: { type: MediaType }) {
+  const styles: Record<MediaType, { bg: string; fg: string; label: string }> = {
+    image: { bg: "#cfded2", fg: "#1a2e2e", label: "Bild" },
+    video: { bg: "#dd5c86", fg: "#fff", label: "Video" },
+    web:   { bg: "#a3c0b2", fg: "#1a2e2e", label: "Webb" },
+  };
+  const s = styles[type];
   return (
     <span
       className="text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded"
-      style={{
-        background: type === "image" ? "#cfded2" : "#dd5c86",
-        color: type === "image" ? "#1a2e2e" : "#fff",
-      }}
+      style={{ background: s.bg, color: s.fg }}
     >
-      {type === "image" ? "Bild" : "Video"}
+      {s.label}
     </span>
   );
 }
@@ -98,24 +117,41 @@ interface UploadJob {
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export function Signage() {
+  // ── Skärmar ──────────────────────────────────────────────────────────────
+  const [screens, setScreens]           = useState<Screen[]>(DEFAULT_SCREENS);
+  const [screen, setScreen]             = useState<string>(DEFAULT_SCREENS[0].id);
+
   const [items, setItems]               = useState<PlaylistItem[]>([]);
   const [isDirty, setIsDirty]           = useState(false);
   const [loading, setLoading]           = useState(false);
   const [isSaving, setIsSaving]         = useState(false);
+  const [saveMsg, setSaveMsg]           = useState<{ text: string; ok: boolean } | null>(null);
   const [dragOver, setDragOver]         = useState(false);
   const [jobs, setJobs]                 = useState<UploadJob[]>([]);
   const [dragId, setDragId]             = useState<string | null>(null);
   const [dragOverId, setDragOverId]     = useState<string | null>(null);
   const [deleting, setDeleting]         = useState<string | null>(null);
-  const [confirmDeleteKey, setConfirmDeleteKey] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const fileInputRef                    = useRef<HTMLInputElement>(null);
   const savedItemsRef                   = useRef<PlaylistItem[]>([]);
 
-  // ── Schedules ────────────────────────────────────────────────────────────
+  // ── Webblänk-formulär ────────────────────────────────────────────────────
+  const [webUrlInput, setWebUrlInput]           = useState("");
+  const [webDurationInput, setWebDurationInput] = useState(30);
+
+  // ── Schedules (tidsstyrning, keyed på full R2-nyckel) ────────────────────
   const [schedules, setSchedules]           = useState<Schedules>({});
   const [scheduleTarget, setScheduleTarget] = useState<string | null>(null);
   const [schedDraft, setSchedDraft]         = useState<FileSchedule>({});
   const [schedSaving, setSchedSaving]       = useState(false);
+
+  useEffect(() => {
+    if (!WORKER_URL) return;
+    fetch(`${WORKER_URL}/api/screens`)
+      .then(r => r.json() as Promise<Screen[]>)
+      .then(list => { if (Array.isArray(list) && list.length > 0) setScreens(list); })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!WORKER_URL) return;
@@ -147,7 +183,7 @@ export function Signage() {
     }
     await fetch(`${WORKER_URL}/api/schedules`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...authHeaders() },
       body: JSON.stringify(next),
     });
     setSchedules(next);
@@ -163,115 +199,114 @@ export function Signage() {
     }));
   }
 
-  // ── Studio B URL state ───────────────────────────────────────────────────
-  const [studioBUrl, setStudioBUrl]     = useState("");
-  const [studioBInput, setStudioBInput] = useState("");
-  const [studioBSaving, setStudioBSaving] = useState(false);
-  const [studioBMsg, setStudioBMsg]     = useState<{ text: string; ok: boolean } | null>(null);
-
-  const studioBRedirectUrl =
-    `https://core.sollentunadansochscenskola.se/redirect.html?screen=studio-b&worker=${encodeURIComponent(WORKER_URL)}`;
-
-  useEffect(() => {
-    if (!WORKER_URL) return;
-    fetch(`${WORKER_URL}/api/url/studio-b`)
-      .then(r => r.json() as Promise<{ url: string }>)
-      .then(d => { setStudioBUrl(d.url); setStudioBInput(d.url); })
-      .catch(() => {});
-  }, []);
-
-  async function saveStudioBUrl() {
-    if (!studioBInput.trim()) return;
-    setStudioBSaving(true);
-    setStudioBMsg(null);
-    try {
-      const res = await fetch(`${WORKER_URL}/api/url/studio-b`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: studioBInput.trim() }),
-      });
-      if (!res.ok) throw new Error();
-      setStudioBUrl(studioBInput.trim());
-      setStudioBMsg({ text: "Sparad!", ok: true });
-    } catch {
-      setStudioBMsg({ text: "Kunde inte spara", ok: false });
-    } finally {
-      setStudioBSaving(false);
-      setTimeout(() => setStudioBMsg(null), 3000);
-    }
-  }
-
-  // ── Fetch file list ──────────────────────────────────────────────────────
-  const fetchFiles = useCallback(async () => {
+  // ── Hämta spellista (manifest + filmetadata) för vald skärm ─────────────
+  const fetchPlaylist = useCallback(async () => {
     if (!WORKER_URL) return;
     setLoading(true);
     try {
       const [filesRes, playlistRes] = await Promise.all([
-        fetch(`${WORKER_URL}/api/files`),
-        fetch(`${WORKER_URL}/api/playlist`).catch(() => null),
+        fetch(`${WORKER_URL}/api/files?screen=${screen}`),
+        fetch(`${WORKER_URL}/api/playlist/${screen}`),
       ]);
       const filesData = await filesRes.json() as { files: any[] };
-      const playlistData = playlistRes
-        ? await playlistRes.json().catch(() => null) as { order: string[]; durations: Record<string, number> } | null
-        : null;
+      const manifestData = await playlistRes.json() as { items?: any[] };
 
-      const durations: Record<string, number> = playlistData?.durations ?? {};
-      let files: PlaylistItem[] = filesData.files.map(f => ({
-        ...f,
-        duration: durations[f.key] ?? 8,
-      }));
+      const filesByKey = new Map<string, any>(filesData.files.map((f: any) => [f.key, f]));
+      const manifestItems = manifestData.items ?? [];
 
-      const order = playlistData?.order ?? [];
-      if (order.length > 0) {
-        const ordered: PlaylistItem[] = [];
-        for (const key of order) {
-          const item = files.find(f => f.key === key);
-          if (item) ordered.push(item);
+      const resolved: PlaylistItem[] = [];
+      for (const it of manifestItems) {
+        if (it.type === "web") {
+          resolved.push({ id: it.id, type: "web", url: it.url, name: it.url, duration: it.duration ?? 30 });
+          continue;
         }
-        for (const f of files) {
-          if (!ordered.find(o => o.key === f.key)) ordered.push(f);
-        }
-        files = ordered;
+        const file = filesByKey.get(it.key);
+        resolved.push({
+          id: it.id,
+          type: it.type,
+          key: it.key,
+          url: file?.url ?? `${WORKER_URL}/media/${it.key}`,
+          name: file?.name ?? it.key.split("/").pop() ?? it.key,
+          duration: it.duration ?? 8,
+          size: file?.size,
+          uploaded: file?.uploaded,
+          etag: file?.etag,
+        });
+        if (file) filesByKey.delete(it.key);
+      }
+      // Filer som finns i R2 men saknas i manifestet (t.ex. nyss uppladdade) läggs sist
+      for (const file of filesByKey.values()) {
+        resolved.push({
+          id: randomId(), type: file.type, key: file.key, url: file.url, name: file.name,
+          duration: 8, size: file.size, uploaded: file.uploaded, etag: file.etag,
+        });
       }
 
-      setItems(files);
-      savedItemsRef.current = files;
+      setItems(resolved);
+      savedItemsRef.current = resolved;
       setIsDirty(false);
     } catch (e) {
-      console.error("Kunde inte hämta filer:", e);
+      console.error("Kunde inte hämta spellista:", e);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [screen]);
 
-  useEffect(() => { fetchFiles(); }, [fetchFiles]);
+  useEffect(() => { fetchPlaylist(); }, [fetchPlaylist]);
+
+  function selectScreen(id: string) {
+    if (id === screen) return;
+    if (isDirty && !window.confirm("Du har osparade ändringar i spellistan. Byta skärm ändå?")) return;
+    setScreen(id);
+  }
 
   // ── Playlist Save/Undo ───────────────────────────────────────────────────
   async function handleSave() {
     if (!WORKER_URL) return;
     setIsSaving(true);
     try {
-      const order = items.map(i => i.key);
-      const durations = Object.fromEntries(
-        items.filter(i => i.type === "image").map(i => [i.key, i.duration])
-      );
-      await fetch(`${WORKER_URL}/api/playlist`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ order, durations }),
+      const manifestItems = items.map(i => {
+        if (i.type === "web") {
+          return { id: i.id, type: "web", url: i.url, duration: i.duration };
+        }
+        return {
+          id: i.id, type: i.type, key: i.key,
+          duration: i.type === "image" ? i.duration : undefined,
+        };
       });
+      const res = await fetch(`${WORKER_URL}/api/playlist/${screen}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify({ items: manifestItems }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       savedItemsRef.current = [...items];
       setIsDirty(false);
+      setSaveMsg({ text: "Spellista sparad!", ok: true });
     } catch (e) {
       console.error("Kunde inte spara spellista:", e);
+      setSaveMsg({ text: "Kunde inte spara spellistan", ok: false });
     } finally {
       setIsSaving(false);
+      setTimeout(() => setSaveMsg(null), 3000);
     }
   }
 
   function handleUndo() {
     setItems([...savedItemsRef.current]);
     setIsDirty(false);
+  }
+
+  // ── Webblänk ─────────────────────────────────────────────────────────────
+  function addWebLink() {
+    const url = webUrlInput.trim();
+    if (!url) return;
+    setItems(prev => [...prev, {
+      id: randomId(), type: "web", url, name: url, duration: webDurationInput || 30,
+    }]);
+    setWebUrlInput("");
+    setWebDurationInput(30);
+    setIsDirty(true);
   }
 
   // ── Upload ───────────────────────────────────────────────────────────────
@@ -289,7 +324,7 @@ export function Signage() {
         formData.append("file", job.file);
         await new Promise<void>((resolve, reject) => {
           const xhr = new XMLHttpRequest();
-          xhr.open("POST", `${WORKER_URL}/api/upload`);
+          xhr.open("POST", `${WORKER_URL}/api/upload?screen=${screen}`);
           const secret = authHeaders().Authorization;
           if (secret) xhr.setRequestHeader("Authorization", secret);
           xhr.upload.onprogress = (e) => {
@@ -314,38 +349,42 @@ export function Signage() {
       }
     }
 
-    await fetchFiles();
+    await fetchPlaylist();
     setTimeout(() => {
       setJobs(prev => prev.filter(j => j.status !== "done"));
     }, 3000);
-  }, [fetchFiles]);
+  }, [fetchPlaylist, screen]);
 
   // ── Delete ───────────────────────────────────────────────────────────────
-  const deleteItem = useCallback(async (key: string) => {
-    setDeleting(key);
+  const deleteItem = useCallback(async (item: PlaylistItem) => {
+    setDeleting(item.id);
     try {
-      const res = await fetch(`${WORKER_URL}/api/files/${encodeURIComponent(key)}`, {
-        method: "DELETE",
-        headers: authHeaders(),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      setItems(prev => prev.filter(i => i.key !== key));
-      savedItemsRef.current = savedItemsRef.current.filter(i => i.key !== key);
-      setConfirmDeleteKey(null);
+      if (item.type !== "web" && item.key) {
+        const fileName = item.key.slice(screen.length + 1);
+        const res = await fetch(`${WORKER_URL}/api/files/${screen}/${encodeURIComponent(fileName)}`, {
+          method: "DELETE",
+          headers: authHeaders(),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      }
+      setItems(prev => prev.filter(i => i.id !== item.id));
+      savedItemsRef.current = savedItemsRef.current.filter(i => i.id !== item.id);
+      setConfirmDeleteId(null);
+      setIsDirty(true);
     } catch (e: any) {
       alert(`Kunde inte ta bort filen. ${e.message}`);
     } finally {
       setDeleting(null);
     }
-  }, []);
+  }, [screen]);
 
   // ── Drag reorder ─────────────────────────────────────────────────────────
   const handleDragEnd = () => {
     if (dragId && dragOverId && dragId !== dragOverId) {
       setItems(prev => {
         const arr = [...prev];
-        const from = arr.findIndex(i => i.key === dragId);
-        const to   = arr.findIndex(i => i.key === dragOverId);
+        const from = arr.findIndex(i => i.id === dragId);
+        const to   = arr.findIndex(i => i.id === dragOverId);
         const [el] = arr.splice(from, 1);
         arr.splice(to, 0, el);
         return arr;
@@ -356,19 +395,20 @@ export function Signage() {
     setDragOverId(null);
   };
 
-  // ── Player URL ───────────────────────────────────────────────────────────
-  const screenUrl = (screenId: string) =>
-    `${PLAYER_URL}?worker=${encodeURIComponent(WORKER_URL)}&screen=${screenId}`;
+  // ── Skärm-URL ────────────────────────────────────────────────────────────
+  const screenPlayerUrl = (screenId: string) => `${WORKER_URL}/player?screen=${screenId}`;
 
   const totalDuration = items.reduce((acc, i) =>
-    acc + (i.type === "image" ? i.duration : 30), 0);
+    acc + (i.type === "video" ? 30 : i.duration), 0);
+
+  const currentScreenName = screens.find(s => s.id === screen)?.name ?? screen;
 
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <div className="px-9 py-8 max-w-[980px] mx-auto">
 
       {/* ── Header ── */}
-      <div className="flex items-end justify-between mb-8 gap-4 flex-wrap">
+      <div className="flex items-end justify-between mb-6 gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold text-brand-dark m-0 tracking-tight">Skyltning</h1>
           <p className="mt-1 text-sm text-slate-500">
@@ -376,6 +416,11 @@ export function Signage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {saveMsg && (
+            <span className="text-[11px] font-semibold mr-1" style={{ color: saveMsg.ok ? "#009399" : "#dd5c86" }}>
+              {saveMsg.text}
+            </span>
+          )}
           <button
             className="sds-focus-ring"
             onClick={handleUndo}
@@ -405,11 +450,11 @@ export function Signage() {
               transition: "all 0.2s",
             }}
           >
-            {isSaving ? "Sparar…" : "Spara"}
+            {isSaving ? "Sparar…" : "Spara spellista"}
           </button>
           <button
             className="sds-focus-ring"
-            onClick={fetchFiles}
+            onClick={fetchPlaylist}
             disabled={loading}
             style={{
               minHeight: 36, padding: "7px 16px", borderRadius: 9, border: "none",
@@ -430,115 +475,47 @@ export function Signage() {
         </div>
       )}
 
-      {/* ── Screens ── */}
-      <section className="mb-8">
-        <h2 className="text-[11px] font-bold tracking-[0.12em] uppercase text-slate-400 mb-3">
-          Skärmar
-        </h2>
-        <div className="flex gap-3 flex-wrap">
-          {[
-            { id: "reception", name: "Receptionen" },
-            { id: "studio-a",  name: "Studio A" },
-          ].map(s => (
-            <div key={s.id} className="card p-4 flex-1 min-w-[260px]">
-              <div className="flex items-center justify-between mb-3">
-                <span className="font-semibold text-brand-dark text-sm">📺 {s.name}</span>
-                <span
-                  className="text-[10px] font-semibold px-2 py-0.5 rounded"
-                  style={{ background: "#f0faf4", color: "#1a2e2e", border: "1px solid #cfded2" }}
-                >
-                  LIVE
-                </span>
-              </div>
-              <div className="text-[11px] text-slate-400 mb-3 font-mono break-all">
-                {screenUrl(s.id)}
-              </div>
-              <div className="flex gap-2">
-                <CopyButton text={screenUrl(s.id)} />
-                <a
-                  className="sds-focus-ring"
-                  href={screenUrl(s.id)}
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{
-                    minHeight: 34, padding: "5px 12px", borderRadius: 7,
-                    border: "1.5px solid #cfded2",
-                    background: "transparent", color: "#1a2e2e",
-                    fontSize: 12, fontWeight: 600, textDecoration: "none",
-                    display: "inline-flex", alignItems: "center",
-                  }}
-                >
-                  Förhandsgranska ↗
-                </a>
-              </div>
-            </div>
+      {isDirty && (
+        <div className="rounded-xl px-4 py-2.5 mb-5 text-[12px] font-semibold" style={{ background: "#fdf2f6", color: "#dd5c86", border: "1px solid #f0d0d8" }}>
+          Osparade ändringar — glöm inte att trycka <em>Spara spellista</em>.
+        </div>
+      )}
+
+      {/* ── Skärmväljare ── */}
+      <section className="mb-6">
+        <div className="flex gap-2 flex-wrap mb-3">
+          {screens.map(s => (
+            <button
+              key={s.id}
+              className="sds-focus-ring"
+              onClick={() => selectScreen(s.id)}
+              style={{
+                minHeight: 40, padding: "8px 18px", borderRadius: 10,
+                border: `1.5px solid ${screen === s.id ? "#1a2e2e" : "#cfded2"}`,
+                background: screen === s.id ? "#1a2e2e" : "transparent",
+                color: screen === s.id ? "#cfded2" : "#1a2e2e",
+                fontFamily: "inherit", fontSize: 13, fontWeight: 700,
+                cursor: "pointer", transition: "all 0.2s",
+              }}
+            >
+              📺 {s.name}
+            </button>
           ))}
         </div>
 
-        {/* ── Studio B — URL-styrning ── */}
-        <div className="card p-4 mt-3">
-          <div className="flex items-center justify-between mb-3">
-            <span className="font-semibold text-brand-dark text-sm">📺 Studio B</span>
-            <span
-              className="text-[10px] font-semibold px-2 py-0.5 rounded"
-              style={{ background: "#f0faf4", color: "#1a2e2e", border: "1px solid #cfded2" }}
-            >
-              URL-STYRNING
-            </span>
-          </div>
-
-          <div className="text-[11px] text-slate-400 mb-1.5">Aktuell URL</div>
+        <div className="card p-4">
+          <div className="text-[11px] text-slate-400 mb-1.5">URL för {currentScreenName}</div>
           <div
             className="text-[11px] font-mono rounded-lg px-3 py-2 mb-3 break-all"
             style={{ background: "#f0faf4", color: "#1a2e2e" }}
           >
-            {studioBUrl || "—"}
+            {screenPlayerUrl(screen)}
           </div>
-
-          <div className="flex gap-2 mb-3">
-            <input
-              type="url"
-              value={studioBInput}
-              onChange={e => setStudioBInput(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && saveStudioBUrl()}
-              placeholder="https://..."
-              className="sds-focus-ring flex-1 font-mono text-brand-dark rounded-lg outline-none"
-              style={{
-                border: "1.5px solid #cfded2", fontSize: 12,
-                padding: "7px 10px", fontFamily: "inherit",
-              }}
-            />
-            <button
-              className="sds-focus-ring"
-              onClick={saveStudioBUrl}
-              disabled={studioBSaving}
-              style={{
-                minHeight: 36, padding: "6px 16px", borderRadius: 7, border: "none",
-                background: studioBSaving ? "#cfded2" : "#1a2e2e",
-                color: studioBSaving ? "#1a2e2e" : "#fff",
-                fontFamily: "inherit", fontSize: 12, fontWeight: 700,
-                cursor: studioBSaving ? "default" : "pointer",
-                whiteSpace: "nowrap" as const,
-              }}
-            >
-              {studioBSaving ? "Sparar…" : "Spara URL"}
-            </button>
-          </div>
-
-          {studioBMsg && (
-            <div
-              className="text-[11px] mb-2"
-              style={{ color: studioBMsg.ok ? "#009399" : "#dd5c86" }}
-            >
-              {studioBMsg.text}
-            </div>
-          )}
-
           <div className="flex gap-2 flex-wrap">
-            <CopyButton text={studioBRedirectUrl} />
+            <CopyButton text={screenPlayerUrl(screen)} />
             <a
               className="sds-focus-ring"
-              href={studioBRedirectUrl}
+              href={screenPlayerUrl(screen)}
               target="_blank"
               rel="noreferrer"
               style={{
@@ -593,7 +570,7 @@ export function Signage() {
       )}
 
       {/* ── Drop zone ── */}
-      <section className="mb-7">
+      <section className="mb-5">
         <div
           className="sds-focus-ring"
           role="button"
@@ -622,7 +599,7 @@ export function Signage() {
         >
           <div className="text-3xl mb-2">⬆</div>
           <div className="text-sm font-semibold text-brand-dark">
-            Dra och släpp bilder eller filmer här
+            Dra och släpp bilder eller filmer här — till {currentScreenName}
           </div>
           <div className="text-xs text-slate-400 mt-1">
             JPG, PNG, WebP, MP4, MOV, WebM · Laddas upp direkt till Cloudflare R2
@@ -638,11 +615,65 @@ export function Signage() {
         </div>
       </section>
 
+      {/* ── Lägg till webblänk ── */}
+      <section className="mb-7">
+        <div className="card p-4">
+          <div className="text-[11px] font-bold tracking-[0.08em] uppercase text-slate-400 mb-2.5">
+            Lägg till webblänk
+          </div>
+          <div className="flex gap-2 flex-wrap items-center">
+            <input
+              type="url"
+              value={webUrlInput}
+              onChange={e => setWebUrlInput(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && addWebLink()}
+              placeholder="https://..."
+              className="sds-focus-ring flex-1 min-w-[220px] font-mono text-brand-dark rounded-lg outline-none"
+              style={{
+                border: "1.5px solid #cfded2", fontSize: 12,
+                padding: "8px 10px", fontFamily: "inherit",
+              }}
+            />
+            <div className="flex items-center gap-1.5">
+              <input
+                type="number"
+                min={1}
+                max={600}
+                value={webDurationInput}
+                onChange={e => setWebDurationInput(Number(e.target.value))}
+                className="sds-focus-ring text-center text-brand-dark"
+                style={{
+                  width: 64, minHeight: 38, padding: "7px 8px", borderRadius: 7,
+                  border: "1.5px solid #cfded2", background: "#f8faf9",
+                  fontFamily: "inherit", fontSize: 13,
+                }}
+              />
+              <span className="text-[11px] text-slate-400">sek</span>
+            </div>
+            <button
+              className="sds-focus-ring"
+              onClick={addWebLink}
+              disabled={!webUrlInput.trim()}
+              style={{
+                minHeight: 38, padding: "8px 18px", borderRadius: 9, border: "none",
+                background: webUrlInput.trim() ? "#1a2e2e" : "#e8eeeb",
+                color: webUrlInput.trim() ? "#cfded2" : "#b8cec5",
+                fontFamily: "inherit", fontSize: 12, fontWeight: 700,
+                cursor: webUrlInput.trim() ? "pointer" : "not-allowed",
+                whiteSpace: "nowrap" as const,
+              }}
+            >
+              Lägg till
+            </button>
+          </div>
+        </div>
+      </section>
+
       {/* ── Playlist ── */}
       <section>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-[11px] font-bold tracking-[0.12em] uppercase text-slate-400 m-0">
-            Spellista
+            Spellista — {currentScreenName}
           </h2>
           <span className="text-[11px] text-slate-400">Dra för att ändra ordning</span>
         </div>
@@ -651,23 +682,23 @@ export function Signage() {
           <div className="text-center py-10 text-sm text-slate-400">Laddar…</div>
         ) : items.length === 0 ? (
           <div className="text-center py-10 text-sm text-slate-400">
-            Inga filer än. Ladda upp något ovan!
+            Inga objekt än. Ladda upp något eller lägg till en webblänk ovan!
           </div>
         ) : (
           <div className="flex flex-col gap-2">
             {items.map((item, idx) => (
               <div
-                key={item.key}
+                key={item.id}
                 draggable
-                onDragStart={() => setDragId(item.key)}
-                onDragEnter={() => setDragOverId(item.key)}
+                onDragStart={() => setDragId(item.id)}
+                onDragEnter={() => setDragOverId(item.id)}
                 onDragEnd={handleDragEnd}
                 className="flex items-center gap-3 rounded-2xl px-4 py-2.5 cursor-grab"
                 style={{
-                  background: dragOverId === item.key ? "#f0faf4" : "#fff",
-                  border: `1.5px solid ${dragOverId === item.key ? "#1a2e2e" : "#e2e8f0"}`,
+                  background: dragOverId === item.id ? "#f0faf4" : "#fff",
+                  border: `1.5px solid ${dragOverId === item.id ? "#1a2e2e" : "#e2e8f0"}`,
                   boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
-                  opacity: dragId === item.key ? 0.4 : 1,
+                  opacity: dragId === item.id ? 0.4 : 1,
                   transition: "border-color 0.15s, background 0.15s",
                 }}
               >
@@ -683,7 +714,9 @@ export function Signage() {
                 >
                   {item.type === "image"
                     ? <img src={item.url} alt={item.name} className="w-full h-full object-cover" />
-                    : <span className="text-2xl">🎬</span>
+                    : item.type === "video"
+                    ? <span className="text-2xl">🎬</span>
+                    : <span className="text-2xl">🔗</span>
                   }
                 </div>
 
@@ -691,7 +724,7 @@ export function Signage() {
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-semibold text-brand-dark truncate">{item.name}</div>
                   <div className="text-[11px] text-slate-400 mt-0.5">
-                    {formatBytes(item.size)} · {formatDate(item.uploaded)}
+                    {item.type === "web" ? "Webblänk" : `${formatBytes(item.size)} · ${formatDate(item.uploaded)}`}
                   </div>
                 </div>
 
@@ -699,16 +732,16 @@ export function Signage() {
                 <Badge type={item.type} />
 
                 {/* Duration */}
-                {item.type === "image" ? (
+                {item.type !== "video" ? (
                   <div className="flex items-center gap-1.5">
                     <input
                       type="number"
                       min={1}
-                      max={120}
+                      max={600}
                       value={item.duration}
                       onChange={(e) => {
                         setItems(prev =>
-                          prev.map(i => i.key === item.key ? { ...i, duration: Number(e.target.value) } : i)
+                          prev.map(i => i.id === item.id ? { ...i, duration: Number(e.target.value) } : i)
                         );
                         setIsDirty(true);
                       }}
@@ -725,47 +758,49 @@ export function Signage() {
                   <span className="text-[11px] text-slate-400 min-w-[55px]">Hel film</span>
                 )}
 
-                {/* Schedule */}
-                <button
-                  className="sds-focus-ring flex-shrink-0 flex items-center justify-center text-sm"
-                  onClick={() => openSchedule(item.key)}
-                  title="Tidsstyrning"
-                  style={{
-                    width: 40, height: 40, borderRadius: 9,
-                    border: `1.5px solid ${schedules[item.key] ? "#1a2e2e" : "#cfded2"}`,
-                    background: schedules[item.key] ? "#cfded2" : "transparent",
-                    color: schedules[item.key] ? "#1a2e2e" : "#94a3b8",
-                    cursor: "pointer",
-                  }}
-                >
-                  🕐
-                </button>
+                {/* Schedule (endast bild/video, har R2-nyckel) */}
+                {item.key && (
+                  <button
+                    className="sds-focus-ring flex-shrink-0 flex items-center justify-center text-sm"
+                    onClick={() => openSchedule(item.key!)}
+                    title="Tidsstyrning"
+                    style={{
+                      width: 40, height: 40, borderRadius: 9,
+                      border: `1.5px solid ${schedules[item.key] ? "#1a2e2e" : "#cfded2"}`,
+                      background: schedules[item.key] ? "#cfded2" : "transparent",
+                      color: schedules[item.key] ? "#1a2e2e" : "#94a3b8",
+                      cursor: "pointer",
+                    }}
+                  >
+                    🕐
+                  </button>
+                )}
 
                 {/* Delete */}
-                {confirmDeleteKey === item.key ? (
+                {confirmDeleteId === item.id ? (
                   <div className="flex items-center gap-1.5 flex-shrink-0">
                     <span className="text-[11px] font-bold" style={{ color: "#dd5c86" }}>Ta bort?</span>
                     <button
                       className="sds-focus-ring"
-                      onClick={() => deleteItem(item.key)}
-                      disabled={deleting === item.key}
+                      onClick={() => deleteItem(item)}
+                      disabled={deleting === item.id}
                       style={{
                         minWidth: 40, minHeight: 36, borderRadius: 7, border: "none",
                         background: "#dd5c86", color: "#fff", fontWeight: 700, fontSize: 12,
-                        cursor: deleting === item.key ? "wait" : "pointer",
+                        cursor: deleting === item.id ? "wait" : "pointer",
                       }}
                     >
-                      {deleting === item.key ? "…" : "Ja"}
+                      {deleting === item.id ? "…" : "Ja"}
                     </button>
                     <button
                       className="sds-focus-ring"
-                      onClick={() => setConfirmDeleteKey(null)}
-                      disabled={deleting === item.key}
+                      onClick={() => setConfirmDeleteId(null)}
+                      disabled={deleting === item.id}
                       style={{
                         minWidth: 54, minHeight: 36, borderRadius: 7,
                         border: "1.5px solid #cfded2", background: "transparent",
                         color: "#1a2e2e", fontWeight: 700, fontSize: 12,
-                        cursor: deleting === item.key ? "default" : "pointer",
+                        cursor: deleting === item.id ? "default" : "pointer",
                       }}
                     >
                       Avbryt
@@ -774,8 +809,8 @@ export function Signage() {
                 ) : (
                   <button
                     className="sds-focus-ring flex-shrink-0 flex items-center justify-center"
-                    onClick={() => setConfirmDeleteKey(item.key)}
-                    disabled={deleting === item.key}
+                    onClick={() => setConfirmDeleteId(item.id)}
+                    disabled={deleting === item.id}
                     aria-label={`Förbered borttagning av ${item.name}`}
                     style={{
                       width: 40, height: 40, borderRadius: 9,

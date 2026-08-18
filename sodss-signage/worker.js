@@ -6,43 +6,187 @@ const PLAYER_HTML = `<!DOCTYPE html>
   <title>SODSS Skyltning</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: #000; overflow: hidden; width: 100vw; height: 100vh; }
-    #player { position: relative; width: 100vw; height: 100vh; background: #000; }
-    .slide { position: absolute; top: 0; right: 0; bottom: 0; left: 0; opacity: 0; pointer-events: none; }
-    .slide img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
-    .slide video { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
-    #progress { position: fixed; bottom: 0; left: 0; height: 3px; width: 0%; background: #dd5c86; opacity: 0.75; z-index: 50; transition: width linear; }
-    #loader { position: fixed; top: 0; right: 0; bottom: 0; left: 0;background: #1e4025; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; z-index: 100; transition: opacity 0.6s ease; }
-    #loader.hidden { opacity: 0; pointer-events: none; }
-    #loader .spinner { width: 42px; height: 42px; border: 3px solid rgba(205,220,209,0.3); border-top-color: #CDDCD1; border-radius: 50%; animation: spin 1.1s linear infinite; }
+
+    body {
+      background: #000;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    #player {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      background: #000;
+    }
+
+    /* ── Slides ── */
+    .slide {
+      position: absolute;
+      top: 0; right: 0; bottom: 0; left: 0;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .slide img {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%;
+      height: 100%;
+    }
+    .slide video {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%;
+      height: 100%;
+    }
+    .slide iframe {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%;
+      height: 100%;
+      border: none;
+      background: #000;
+    }
+
+    /* ── Progress bar ── */
+    #progress {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      height: 3px;
+      width: 0%;
+      background: #dd5c86;
+      opacity: 0.75;
+      z-index: 50;
+      transition: width linear;
+    }
+
+    /* ── Loader ── */
+    #loader {
+      position: fixed;
+      top: 0; right: 0; bottom: 0; left: 0;
+      background: #1e4025;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      z-index: 100;
+      transition: opacity 0.6s ease;
+    }
+    #loader.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    #loader .spinner {
+      width: 42px;
+      height: 42px;
+      border: 3px solid rgba(205,220,209,0.3);
+      border-top-color: #CDDCD1;
+      border-radius: 50%;
+      animation: spin 1.1s linear infinite;
+    }
     @keyframes spin { to { transform: rotate(360deg); } }
-    #loader p { color: #CDDCD1; font-size: 13px; font-family: monospace; letter-spacing: 0.1em; }
-    #loader .logo { font-family: monospace; font-size: 11px; letter-spacing: 0.2em; color: rgba(205,220,209,0.4); text-transform: uppercase; margin-bottom: 8px; }
-    #error { position: fixed; top: 0; right: 0; bottom: 0; left: 0;background: #1e4025; color: #CDDCD1; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 14px; font-family: monospace; text-align: center; padding: 48px; }
+    #loader p {
+      color: #CDDCD1;
+      font-size: 13px;
+      font-family: monospace;
+      letter-spacing: 0.1em;
+    }
+    #loader .logo {
+      font-family: monospace;
+      font-size: 11px;
+      letter-spacing: 0.2em;
+      color: rgba(205,220,209,0.4);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    /* ── Error ── */
+    #error {
+      position: fixed;
+      top: 0; right: 0; bottom: 0; left: 0;
+      background: #1e4025;
+      color: #CDDCD1;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      font-family: monospace;
+      text-align: center;
+      padding: 48px;
+    }
     #error.visible { display: flex; }
     #error .icon { font-size: 40px; }
     #error strong { font-size: 16px; }
     #error span { font-size: 13px; opacity: 0.6; }
     #error small { font-size: 11px; opacity: 0.35; margin-top: 8px; }
-    #clock { position: fixed; bottom: 20px; right: 24px; color: rgba(255,255,255,0.25); font-family: monospace; font-size: 12px; letter-spacing: 0.06em; z-index: 40; }
-    #counter { position: fixed; bottom: 20px; left: 24px; color: rgba(255,255,255,0.2); font-family: monospace; font-size: 11px; letter-spacing: 0.08em; z-index: 40; }
+
+    /* ── Clock (valfritt) ── */
+    #clock {
+      position: fixed;
+      bottom: 20px;
+      right: 24px;
+      color: rgba(255,255,255,0.25);
+      font-family: monospace;
+      font-size: 12px;
+      letter-spacing: 0.06em;
+      z-index: 40;
+    }
+
+    /* ── Slide counter (valfritt) ── */
+    #counter {
+      position: fixed;
+      bottom: 20px;
+      left: 24px;
+      color: rgba(255,255,255,0.2);
+      font-family: monospace;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      z-index: 40;
+    }
   </style>
 </head>
 <body>
-<div id="loader"><div class="logo">SODSS · Skyltning</div><div class="spinner"></div><p id="loader-msg">Hämtar spellista…</p></div>
-<div id="error"><div class="icon">⚠</div><strong>Kunde inte ladda spellista</strong><span id="error-msg"></span><small id="error-detail"></small></div>
+
+<div id="loader">
+  <div class="logo">SODSS · Skyltning</div>
+  <div class="spinner"></div>
+  <p id="loader-msg">Hämtar spellista…</p>
+</div>
+
+<div id="error">
+  <div class="icon">⚠</div>
+  <strong>Kunde inte ladda spellista</strong>
+  <span id="error-msg"></span>
+  <small id="error-detail"></small>
+</div>
+
 <div id="player"></div>
 <div id="progress"></div>
 <div id="clock"></div>
 <div id="counter"></div>
+
 <script>
+// ─── URL-parametrar ──────────────────────────────────────────────────────────
+//
+//  Valfria:
+//    ?worker=https://sodss-signage.xxx.workers.dev   (default: samma origin)
+//    &screen=reception        (default: reception)
+//    &reload=30               (minuter mellan omhämtning av manifest, default 30)
+//    &clock=1                 (visa klocka nere till höger)
+//    &counter=1               (visa bildräknare nere till vänster)
+
 var p          = new URLSearchParams(location.search);
 var WORKER_URL = p.get('worker') || (location.protocol + '//' + location.host);
-var SCREEN_ID  = p.get('screen') || 'default';
+var SCREEN_ID  = p.get('screen') || 'reception';
 var RELOAD_MIN = parseInt(p.get('reload') || '30');
 var SHOW_CLOCK = p.get('clock') === '1';
 var SHOW_COUNT = p.get('counter') === '1';
 
+// ─── DOM ─────────────────────────────────────────────────────────────────────
 var playerEl  = document.getElementById('player');
 var loaderEl  = document.getElementById('loader');
 var loaderMsg = document.getElementById('loader-msg');
@@ -53,23 +197,40 @@ var progressEl= document.getElementById('progress');
 var clockEl   = document.getElementById('clock');
 var counterEl = document.getElementById('counter');
 
-var playlist = [];
-var current  = -1;
-var advTimer = null;
+// ─── State ───────────────────────────────────────────────────────────────────
+var playlist    = [];
+var current     = -1;
+var advTimer    = null;
+var lastUpdated = null;
 
+// ─── UI helpers ───────────────────────────────────────────────────────────────
 function showError(msg, detail) {
-  loaderEl.style.opacity = '0'; loaderEl.style.pointerEvents = 'none';
+  loaderEl.style.opacity = '0';
+  loaderEl.style.pointerEvents = 'none';
   errorEl.style.display = 'flex';
-  errorMsg.innerHTML = msg; errorDet.innerHTML = detail || '';
+  errorMsg.innerHTML = msg;
+  errorDet.innerHTML = detail || '';
 }
-function hideLoader() { loaderEl.style.opacity = '0'; loaderEl.style.pointerEvents = 'none'; }
 
+function hideLoader() {
+  loaderEl.style.opacity = '0';
+  loaderEl.style.pointerEvents = 'none';
+}
+
+// ─── Clock ───────────────────────────────────────────────────────────────────
 clockEl.style.display = SHOW_CLOCK ? 'block' : 'none';
 counterEl.style.display = SHOW_COUNT ? 'block' : 'none';
-function updateClock() { if (SHOW_CLOCK) clockEl.innerHTML = new Date().toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' }); }
+
+function updateClock() {
+  if (!SHOW_CLOCK) return;
+  clockEl.textContent = new Date().toLocaleTimeString('sv-SE', {
+    hour: '2-digit', minute: '2-digit'
+  });
+}
 setInterval(updateClock, 15000);
 updateClock();
 
+// ─── Tidsstyrning (per objekt, nyckel = R2-nyckel t.ex. "reception/foo.jpg") ──
 function isScheduledNow(schedule) {
   if (!schedule) return true;
   var now = new Date();
@@ -77,8 +238,8 @@ function isScheduledNow(schedule) {
     ('0' + (now.getMonth() + 1)).slice(-2) + '-' +
     ('0' + now.getDate()).slice(-2);
   var timeNow = ('0' + now.getHours()).slice(-2) + ':' + ('0' + now.getMinutes()).slice(-2);
-  var dow = now.getDay(); // 0=Sun
-  var isoDay = dow === 0 ? 7 : dow; // 1=Mon … 7=Sun
+  var dow = now.getDay();
+  var isoDay = dow === 0 ? 7 : dow; // 1=Mån … 7=Sön
   if (schedule.dateFrom && today < schedule.dateFrom) return false;
   if (schedule.dateTo   && today > schedule.dateTo)   return false;
   if (schedule.timeFrom && timeNow < schedule.timeFrom) return false;
@@ -90,51 +251,117 @@ function isScheduledNow(schedule) {
 
 var schedules = {};
 
+// ─── Service Worker (lokal cache av bild/video) ───────────────────────────────
+function registerServiceWorker() {
+  if (!('serviceWorker' in navigator)) return;
+  navigator.serviceWorker.register('/sw.js').catch(function() {});
+}
+
+function syncServiceWorkerCache(items) {
+  if (!navigator.serviceWorker || !navigator.serviceWorker.controller) return;
+  var urls = [];
+  for (var i = 0; i < items.length; i++) {
+    if (items[i].type === 'image' || items[i].type === 'video') urls.push(items[i].url);
+  }
+  navigator.serviceWorker.controller.postMessage({ type: 'sync-playlist', urls: urls });
+}
+
+// ─── Fetch manifest från Worker ───────────────────────────────────────────────
+// Returnerar: 'built' (ny spellista, bygg om DOM), 'unchanged' (inget att göra),
+// 'error' (kallstart utan manifest — felskärm visas)
 function fetchPlaylist() {
   loaderMsg.innerHTML = 'Hämtar spellista…';
   return Promise.all([
-    fetch(WORKER_URL + '/api/files').then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }),
+    fetch(WORKER_URL + '/api/playlist/' + SCREEN_ID).then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }),
     fetch(WORKER_URL + '/api/schedules').then(function(r) { return r.ok ? r.json() : {}; }).catch(function() { return {}; }),
   ]).then(function(results) {
-    var data = results[0];
+    var manifest = results[0];
     schedules = results[1];
-    var files = (data.files || []).filter(function(f) {
-      return (f.type === 'image' || f.type === 'video') && isScheduledNow(schedules[f.key]);
+
+    var rawItems = manifest.items || [];
+    var mapped = rawItems.map(function(it) {
+      if (it.type === 'web') {
+        return { id: it.id, type: 'web', url: it.url, duration: it.duration || 30 };
+      }
+      var mediaUrl = WORKER_URL + '/media/' + it.key + (it.etag ? ('?v=' + it.etag) : '');
+      return { id: it.id, type: it.type, key: it.key, url: mediaUrl, duration: it.duration || 8 };
+    }).filter(function(it) {
+      return it.type === 'web' ? true : isScheduledNow(schedules[it.key]);
     });
-    if (files.length === 0) { showError('Inga filer', 'Inga schemalagda inslag just nu'); return false; }
-    playlist = files.map(function(f) { return { key: f.key, name: f.name, type: f.type, url: f.url, duration: f.duration || 8 }; });
-    return true;
-  }).catch(function(err) { showError('Fetch-fel: ' + err.message + ' | URL: ' + WORKER_URL); return false; });
+
+    syncServiceWorkerCache(mapped);
+
+    if (manifest.updated && manifest.updated === lastUpdated) {
+      return 'unchanged';
+    }
+
+    if (mapped.length === 0) {
+      if (playlist.length > 0) return 'unchanged';
+      showError('Inga inslag', 'Spellistan är tom just nu');
+      return 'error';
+    }
+
+    playlist = mapped;
+    lastUpdated = manifest.updated;
+    return 'built';
+  }).catch(function(fetchErr) {
+    if (playlist.length > 0) return 'unchanged'; // Offline-tålighet: fortsätt spela ur cachen
+    showError('Fetch-fel: ' + fetchErr.message + ' | URL: ' + WORKER_URL);
+    return 'error';
+  });
 }
 
+// ─── Bygg slide-DOM ───────────────────────────────────────────────────────────
 function buildSlides() {
   playerEl.innerHTML = '';
+
   for (var i = 0; i < playlist.length; i++) {
     var item = playlist[i];
     var slide = document.createElement('div');
     slide.className = 'slide';
     slide.setAttribute('data-index', i);
+
     if (item.type === 'image') {
-      var img = new Image(); img.src = item.url; img.alt = item.name; slide.appendChild(img);
-    } else {
+      var img = new Image();
+      img.src = item.url;
+      img.alt = '';
+      slide.appendChild(img);
+
+    } else if (item.type === 'video') {
       var vid = document.createElement('video');
-      vid.muted = true;
+      vid.muted    = true;
       vid.defaultMuted = true;
       vid.setAttribute('muted', '');
       vid.setAttribute('playsinline', '');
-      vid.preload = 'auto';
-      vid.loop = false;
-      vid.src = item.url;
-      vid.addEventListener('ended', function() { if (parseInt(slide.getAttribute('data-index')) === current) nextSlide(); });
-      vid.addEventListener('error', function() { if (parseInt(slide.getAttribute('data-index')) === current) nextSlide(); });
+      vid.preload  = 'auto';
+      vid.loop     = false;
+      vid.src      = item.url;
+
+      vid.addEventListener('ended', function() {
+        if (parseInt(slide.getAttribute('data-index')) === current) nextSlide();
+      });
+      vid.addEventListener('error', function() {
+        if (parseInt(slide.getAttribute('data-index')) === current) nextSlide();
+      });
+
       slide.appendChild(vid);
+
+    } else if (item.type === 'web') {
+      var iframe = document.createElement('iframe');
+      iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin');
+      iframe.setAttribute('referrerpolicy', 'no-referrer');
+      slide.appendChild(iframe);
     }
+
     playerEl.appendChild(slide);
   }
 }
 
+// ─── Visa bild/video/webblänk ─────────────────────────────────────────────────
 function showSlide(idx) {
   clearTimeout(advTimer);
+
+  // Stoppa alla videor och sätt rätt synlighet med for-loop
   var allSlides = playerEl.getElementsByClassName('slide');
   for (var si = 0; si < allSlides.length; si++) {
     var s = allSlides[si];
@@ -144,15 +371,36 @@ function showSlide(idx) {
     var svid = s.getElementsByTagName('video')[0];
     if (svid && !isActive) { svid.pause(); svid.currentTime = 0; }
   }
-  if (SHOW_COUNT) counterEl.innerHTML = (idx + 1) + ' / ' + playlist.length;
+
+  if (SHOW_COUNT) {
+    counterEl.innerHTML = (idx + 1) + ' / ' + playlist.length;
+  }
+
   var item = playlist[idx];
   if (!item) return;
+
   progressEl.style.transition = 'none';
   progressEl.style.width = '0%';
+
   if (item.type === 'image') {
     var dur = (item.duration || 8) * 1000;
-    requestAnimationFrame(function() { progressEl.style.transition = 'width ' + dur + 'ms linear'; progressEl.style.width = '100%'; });
+    requestAnimationFrame(function() {
+      progressEl.style.transition = 'width ' + dur + 'ms linear';
+      progressEl.style.width = '100%';
+    });
     advTimer = setTimeout(nextSlide, dur);
+
+  } else if (item.type === 'web') {
+    var activeWebSlide = allSlides[idx];
+    var iframeEl = activeWebSlide ? activeWebSlide.getElementsByTagName('iframe')[0] : null;
+    if (iframeEl) iframeEl.src = item.url; // ladda om varje gång sliden aktiveras
+    var wdur = (item.duration || 30) * 1000;
+    requestAnimationFrame(function() {
+      progressEl.style.transition = 'width ' + wdur + 'ms linear';
+      progressEl.style.width = '100%';
+    });
+    advTimer = setTimeout(nextSlide, wdur);
+
   } else {
     var activeSlide = allSlides[idx];
     var vid = activeSlide ? activeSlide.getElementsByTagName('video')[0] : null;
@@ -175,11 +423,17 @@ function showSlide(idx) {
   }
 }
 
-function nextSlide() { if (playlist.length === 0) return; current = (current + 1) % playlist.length; showSlide(current); }
+function nextSlide() {
+  if (playlist.length === 0) return;
+  current = (current + 1) % playlist.length;
+  showSlide(current);
+}
 
+// ─── Starta ───────────────────────────────────────────────────────────────────
 function init() {
-  fetchPlaylist().then(function(ok) {
-    if (!ok) return;
+  registerServiceWorker();
+  fetchPlaylist().then(function(status) {
+    if (status !== 'built') return;
     buildSlides();
     hideLoader();
     current = 0;
@@ -187,32 +441,153 @@ function init() {
   });
 }
 
-setInterval(function() { fetchPlaylist().then(function(ok) { if (ok) buildSlides(); }); }, RELOAD_MIN * 60 * 1000);
+// ─── Auto-reload manifest ─────────────────────────────────────────────────────
+// Hämtar om manifestet var N:e minut utan att avbryta pågående uppspelning
+// om inget faktiskt ändrats (manifest.updated oförändrat).
+setInterval(function() {
+  fetchPlaylist().then(function(status) {
+    if (status === 'built') buildSlides(); // Slideshow fortsätter från current
+  });
+}, RELOAD_MIN * 60 * 1000);
 
+// ─── Tangentbordsgenvägar (testläge) ─────────────────────────────────────────
 document.addEventListener('keydown', function(e) {
   if (e.key === 'ArrowRight') nextSlide();
-  if (e.key === 'ArrowLeft') { current = (current - 2 + playlist.length) % playlist.length; nextSlide(); }
-  if (e.key === 'f' || e.key === 'F') { if (document.documentElement.requestFullscreen) { document.documentElement.requestFullscreen(); } }
+  if (e.key === 'ArrowLeft') {
+    current = (current - 2 + playlist.length) % playlist.length;
+    nextSlide();
+  }
+  if (e.key === 'f' || e.key === 'F') {
+    if (document.documentElement.requestFullscreen) {
+      document.documentElement.requestFullscreen();
+    }
+  }
 });
 
+// ─── Kör ─────────────────────────────────────────────────────────────────────
 init();
 </script>
 </body>
-</html>`;
+</html>
+`;
+
+// ─── Service Worker — lokal cache av bild/video, servad på /sw.js ────────────
+const SW_JS = `var CACHE_NAME = 'sodss-media-v1';
+
+self.addEventListener('install', function(event) {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', function(event) {
+  event.waitUntil(self.clients.claim());
+});
+
+self.addEventListener('message', function(event) {
+  var data = event.data;
+  if (!data || data.type !== 'sync-playlist') return;
+  event.waitUntil(syncPlaylist(data.urls || []));
+});
+
+function syncPlaylist(urls) {
+  return caches.open(CACHE_NAME).then(function(cache) {
+    return cache.keys().then(function(existingRequests) {
+      var wanted = urls.slice();
+      var existingUrls = existingRequests.map(function(r) { return r.url; });
+
+      var toFetch = wanted.filter(function(u) { return existingUrls.indexOf(u) === -1; });
+      var toDelete = existingRequests.filter(function(r) { return wanted.indexOf(r.url) === -1; });
+
+      var fetchPromises = toFetch.map(function(u) {
+        return fetch(u).then(function(response) {
+          if (response && response.ok) return cache.put(u, response);
+        }).catch(function() {});
+      });
+
+      var deletePromises = toDelete.map(function(r) { return cache.delete(r); });
+
+      return Promise.all(fetchPromises.concat(deletePromises));
+    });
+  });
+}
+
+self.addEventListener('fetch', function(event) {
+  var req = event.request;
+  var reqUrl = new URL(req.url);
+
+  if (reqUrl.pathname.indexOf('/media/') !== 0) return; // bara /media/ hanteras, allt annat går till nätet som vanligt
+
+  var rangeHeader = req.headers.get('Range');
+
+  event.respondWith(
+    caches.open(CACHE_NAME).then(function(cache) {
+      return cache.match(req.url).then(function(cached) {
+        if (cached) {
+          if (rangeHeader) return rangeFromCache(cached, rangeHeader);
+          return cached;
+        }
+        return fetch(req); // cache-miss → nätet, cacha inte här (nästa sync-playlist fyller på)
+      });
+    })
+  );
+});
+
+async function rangeFromCache(cached, rangeHeader) {
+  var buf = await cached.arrayBuffer();
+  var size = buf.byteLength;
+  var m = /bytes=(\\d*)-(\\d*)/.exec(rangeHeader);
+  var start = m && m[1] ? parseInt(m[1], 10) : 0;
+  var end   = m && m[2] ? parseInt(m[2], 10) : size - 1;
+  if (end >= size) end = size - 1;
+  return new Response(buf.slice(start, end + 1), {
+    status: 206,
+    headers: {
+      'Content-Type':   cached.headers.get('Content-Type') || 'application/octet-stream',
+      'Content-Range':  'bytes ' + start + '-' + end + '/' + size,
+      'Content-Length': String(end - start + 1),
+      'Accept-Ranges':  'bytes'
+    }
+  });
+}
+`;
 
 /**
- * SODSS Signage — Cloudflare Worker
+ * SODSS Signage — Cloudflare Worker (v2, två skärmar)
  *
- * Hanterar:
- *   GET  /api/files          → lista alla filer i R2-bucketen
- *   POST /api/upload         → ladda upp fil till R2
- *   DELETE /api/files/:name  → ta bort fil från R2
+ * R2-layout:
+ *   reception/<filnamn>          media för Skärm Reception
+ *   lounge/<filnamn>             media för Skärm Lounge
+ *   playlists/reception.json     manifest (spellista) för Skärm Reception
+ *   playlists/lounge.json        manifest (spellista) för Skärm Lounge
+ *   _schedules.json              tidsstyrning, nyckel = R2-nyckel (t.ex "reception/foo.jpg")
+ *
+ * Endpoints:
+ *   GET    /api/screens                  → [{ id, name }]
+ *   GET    /api/files?screen=<id>        → filer under <id>/
+ *   POST   /api/upload?screen=<id>       → ladda upp till <id>/<sanerat filnamn>   [auth]
+ *   DELETE /api/files/<id>/<filnamn>     → ta bort fil                            [auth]
+ *   GET    /api/playlist/<id>            → manifest (publik — spelaren läser den)
+ *   PUT    /api/playlist/<id>            → sparar manifest                        [auth]
+ *   GET    /api/schedules                → tidsstyrning (alla skärmar, keyed på R2-nyckel)
+ *   PUT    /api/schedules                → sparar tidsstyrning                    [auth]
+ *   GET    /media/<id>/<filnamn>         → serverar fil med Range-stöd
+ *   GET    /player?screen=<id>           → spelaren
+ *   GET    /sw.js                        → Service Worker (lokal cache på Pi:n)
+ *   POST   /internal/migrate             → engångsmigrering, se sodss-signage/migrate.js [auth]
  *
  * Miljövariabler (Cloudflare Dashboard → Worker → Settings → Variables):
  *   BUCKET        — R2 Bucket binding (se wrangler.toml)
  *   ADMIN_SECRET  — En hemlig sträng, t.ex. ett långt lösenord
  *   CORS_ORIGIN   — URL till din Core-dashboard, t.ex. https://core.sollentunadansochscenskola.se
  */
+
+const SCREENS = [
+  { id: 'reception', name: 'Skärm Reception' },
+  { id: 'lounge', name: 'Skärm Lounge' },
+];
+
+function isValidScreen(id) {
+  return SCREENS.some((s) => s.id === id);
+}
 
 export default {
   async fetch(request, env) {
@@ -230,7 +605,7 @@ export default {
       return new Response(null, { status: 204, headers: corsHeaders });
     }
 
-    // ── Auth (för POST och DELETE) ───────────────────────────────────────────
+    // ── Auth (för POST, PUT och DELETE) ──────────────────────────────────────
     function isAuthorized() {
       if (!env.ADMIN_SECRET) return true; // inget secret konfigurerat = öppet
       const auth = request.headers.get("Authorization") ?? "";
@@ -259,159 +634,20 @@ export default {
       });
     }
 
-    // ── GET /debug — diagnostiksida ──────────────────────────────────────────
-    // ── GET /player-test — videotest med debug ───────────────────────────────
-    if (path === '/player-test') {
-      const listed = await env.BUCKET.list();
-      const videos = listed.objects.filter(o => o.key.toLowerCase().endsWith('.mp4'));
-      const src = videos.length > 0 ? `${url.origin}/media/${encodeURIComponent(videos[0].key)}` : '';
-      return new Response(`<!DOCTYPE html>
-<html><head><meta charset="utf-8">
-<style>
-  html,body{margin:0;background:#000;overflow:hidden;}
-  #info{position:fixed;top:0;left:0;right:0;color:#0f0;font-family:monospace;font-size:13px;z-index:99;background:rgba(0,0,0,.85);padding:10px;max-height:50vh;overflow-y:auto;}
-  video{position:fixed;bottom:0;left:0;width:100%;height:50vh;}
-</style>
-</head><body>
-<div id="info">src: ${src || 'INGEN VIDEO'}<br></div>
-<video id="v" muted loop playsinline preload="auto" controls src="${src}">
-</video>
-<script>
-var v = document.getElementById('v');
-var info = document.getElementById('info');
-function log(t){ info.innerHTML += t+'<br>'; }
-
-v.muted = true;
-v.defaultMuted = true;
-
-function showState(){
-  log('readyState='+v.readyState+' networkState='+v.networkState);
-}
-
-v.addEventListener('loadstart',    function(){ log('loadstart'); showState(); });
-v.addEventListener('progress',     function(){ log('progress'); });
-v.addEventListener('loadedmetadata',function(){ log('loadedmetadata dur='+v.duration); showState(); });
-v.addEventListener('loadeddata',   function(){ log('loadeddata'); showState();
-  v.play().then(function(){ log('play() resolve'); }).catch(function(e){ log('play() FEL: '+e.message); });
-});
-v.addEventListener('canplay',      function(){ log('canplay'); });
-v.addEventListener('playing',      function(){ log('SPELAR'); });
-v.addEventListener('stalled',      function(){ log('stalled'); showState(); });
-v.addEventListener('waiting',      function(){ log('waiting'); showState(); });
-v.addEventListener('error',        function(){
-  var e = v.error;
-  log('ERROR kod='+(e?e.code:'?')+' msg='+(e?e.message:'?'));
-  showState();
-});
-
-setTimeout(function(){ showState(); log('--- 3s timeout ---'); }, 3000);
-</script>
-</body></html>`, { headers: { 'Content-Type': 'text/html' } });
-    }
-
-    if (path === '/player-mini') {
-      return new Response(`<!DOCTYPE html>
-<html><body style="background:#111;color:#fff;font-family:monospace;padding:20px">
-<div id="s1">1: startar...</div>
-<div id="s2">2: ...</div>
-<div id="s3">3: ...</div>
-<div id="s4">4: ...</div>
-<div id="s5">5: ...</div>
-<div id="vid-wrap" style="position:relative;width:320px;height:180px;background:#333;margin-top:12px"></div>
-<script>
-function s(id,t){var e=document.getElementById(id);if(e)e.innerHTML=t;}
-var W=location.protocol+'//'+location.host;
-s('s1','1: JS ok, W='+W);
-fetch(W+'/api/files')
-  .then(function(r){return r.json();})
-  .then(function(d){
-    s('s2','2: '+d.files.length+' filer');
-    var f=d.files[0];
-    if(!f){s('s3','ingen fil');return;}
-    s('s3','3: '+f.type+' — '+f.name);
-    var wrap=document.getElementById('vid-wrap');
-    if(f.type==='video'){
-      var v=document.createElement('video');
-      v.src=f.url; v.muted=true; v.setAttribute('muted',''); v.setAttribute('autoplay','');
-      v.style.cssText='width:100%;height:100%;';
-      wrap.appendChild(v);
-      s('s4','4: video tillagd, spelar...');
-      var pp=v.play();
-      if(pp&&pp.then){
-        pp.then(function(){s('s5','5: play() OK');})
-          .catch(function(e){s('s5','5: play() FEL: '+e.message);});
-      } else {
-        s('s5','5: play() returnerade: '+pp);
-      }
-    } else {
-      var img=new Image(); img.src=f.url; img.style.cssText='width:100%;';
-      wrap.appendChild(img); s('s4','4: bild tillagd');
-    }
-  })
-  .catch(function(e){s('s2','FEL: '+e.message);});
-</script>
-</body></html>`, {
-        headers: { 'Content-Type': 'text/html' }
+    // ── GET /sw.js — Service Worker för lokal cache på Pi:n ───────────────────
+    if (path === '/sw.js' && request.method === 'GET') {
+      return new Response(SW_JS, {
+        headers: {
+          'Content-Type': 'application/javascript',
+          'Service-Worker-Allowed': '/',
+          'Cache-Control': 'no-cache',
+        },
       });
     }
 
-    if (path === '/canplay') {
-      return new Response(`<!DOCTYPE html>
-<html><body style="background:#1e4025;color:#CDDCD1;font-family:monospace;padding:30px;font-size:14px">
-<h2 style="margin-bottom:16px">canPlayType</h2>
-<div id="out"></div>
-<script>
-var v = document.createElement('video');
-var types = [
-  'video/mp4',
-  'video/mp4; codecs="avc1.42E01E"',
-  'video/mp4; codecs="avc1.4D401E"',
-  'video/mp4; codecs="avc1.640028"',
-  'video/webm',
-  'video/webm; codecs="vp8"',
-  'video/ogg',
-  'video/ogg; codecs="theora"'
-];
-var html = '';
-for (var i = 0; i < types.length; i++) {
-  var r = v.canPlayType(types[i]);
-  html += '<div style="margin:4px 0"><b>' + (r || 'NEJ') + '</b> — ' + types[i] + '</div>';
-}
-document.getElementById('out').innerHTML = html;
-</script></body></html>`, { headers: { 'Content-Type': 'text/html' } });
-    }
-
-    if (path === '/debug') {
-      return new Response(`<!DOCTYPE html>
-<html><body style="background:#1e4025;color:#CDDCD1;font-family:monospace;padding:40px">
-<h1>Debug</h1>
-<div id="out">Testar fetch...</div>
-<script>
-fetch('/api/files')
-  .then(r => r.json())
-  .then(d => document.getElementById('out').textContent = 'OK: ' + d.files.length + ' filer')
-  .catch(e => document.getElementById('out').textContent = 'FEL: ' + e.message)
-</script>
-</body></html>`, {
-        headers: { 'Content-Type': 'text/html' }
-      });
-    }
-
-    // ── GET /api/url/:screen — hämta URL för skärm ──────────────────────────
-    if (path.startsWith('/api/url/') && request.method === 'GET') {
-      const screen = path.replace('/api/url/', '');
-      const obj = await env.BUCKET.get(`urls/${screen}.txt`);
-      const url2 = obj ? await obj.text() : 'https://nicklasstenlander.github.io/sds-schema/';
-      return json({ screen, url: url2 });
-    }
-
-    // ── PUT /api/url/:screen — spara URL för skärm ──────────────────────────
-    if (path.startsWith('/api/url/') && request.method === 'PUT') {
-      if (!isAuthorized()) return err('Ej behörig', 401);
-      const screen = path.replace('/api/url/', '');
-      const body = await request.json();
-      await env.BUCKET.put(`urls/${screen}.txt`, body.url);
-      return json({ ok: true, screen, url: body.url });
+    // ── GET /api/screens ───────────────────────────────────────────────────────
+    if (path === '/api/screens' && request.method === 'GET') {
+      return json(SCREENS);
     }
 
     // ── GET /api/schedules — hämta tidsscheman ──────────────────────────────
@@ -431,42 +667,54 @@ fetch('/api/files')
       return json({ ok: true });
     }
 
-    // ── GET /api/playlist — hämta spelliste-konfiguration ───────────────────
-    if (path === '/api/playlist' && request.method === 'GET') {
-      const obj = await env.BUCKET.get('_playlist.json');
-      const config = obj ? JSON.parse(await obj.text()) : { order: [], durations: {} };
-      return json(config);
+    // ── GET /api/playlist/<id> — hämta manifest ──────────────────────────────
+    if (path.startsWith('/api/playlist/') && request.method === 'GET') {
+      const screenId = path.replace('/api/playlist/', '');
+      if (!isValidScreen(screenId)) return err('Okänd skärm', 404);
+      const manifest = await deliverManifest(env, screenId);
+      return json(manifest);
     }
 
-    // ── PUT /api/playlist — spara spelliste-konfiguration ───────────────────
-    if (path === '/api/playlist' && request.method === 'PUT') {
+    // ── PUT /api/playlist/<id> — spara manifest ──────────────────────────────
+    if (path.startsWith('/api/playlist/') && request.method === 'PUT') {
       if (!isAuthorized()) return err('Ej behörig', 401);
+      const screenId = path.replace('/api/playlist/', '');
+      if (!isValidScreen(screenId)) return err('Okänd skärm', 404);
       const body = await request.json();
-      await env.BUCKET.put('_playlist.json', JSON.stringify(body), {
+      const manifest = {
+        version: 2,
+        updated: new Date().toISOString(),
+        items: Array.isArray(body.items) ? body.items : [],
+      };
+      await env.BUCKET.put(`playlists/${screenId}.json`, JSON.stringify(manifest), {
         httpMetadata: { contentType: 'application/json' },
       });
-      return json({ ok: true });
+      return json({ ok: true, manifest });
     }
 
-    // ── GET /api/files ───────────────────────────────────────────────────────
+    // ── GET /api/files?screen=<id> ─────────────────────────────────────────────
     if (path === "/api/files" && request.method === "GET") {
-      const listed = await env.BUCKET.list();
+      const screenId = url.searchParams.get('screen');
+      if (!screenId) return err('screen-parameter saknas', 400);
+      if (!isValidScreen(screenId)) return err('Okänd skärm', 404);
+
+      const listed = await env.BUCKET.list({ prefix: `${screenId}/` });
       const files = listed.objects
-        .filter(obj => !obj.key.startsWith('_') && !obj.key.startsWith('urls/'))
+        .filter((obj) => !obj.key.endsWith('/'))
         .map((obj) => ({
           key: obj.key,
-          name: obj.key,
+          name: obj.key.slice(screenId.length + 1),
           size: obj.size,
+          etag: obj.etag,
           uploaded: obj.uploaded,
           type: guessType(obj.key),
-          url: `${url.origin}/media/${obj.key}`,
+          url: `${url.origin}/media/${obj.key}?v=${obj.etag}`,
         }));
-      // Sort by name
       files.sort((a, b) => a.name.localeCompare(b.name));
       return json({ files });
     }
 
-    // ── GET /media/:key  — publik filservering ───────────────────────────────
+    // ── GET /media/<key>  — publik filservering (nyckeln inkluderar skärm-prefix) ─
     if (path.startsWith('/media/')) {
       const key = decodeURIComponent(path.replace('/media/', ''));
       const obj = await env.BUCKET.get(key);
@@ -480,12 +728,12 @@ fetch('/api/files')
         ...corsHeaders,
         'Content-Type': contentType,
         'Accept-Ranges': 'bytes',
-        'Cache-Control': isVideo ? 'public, max-age=3600' : 'public, max-age=86400',
+        'Cache-Control': isVideo ? 'public, max-age=31536000, immutable' : 'public, max-age=31536000, immutable',
         // Ta bort x-frame-options så video kan spelas i iframe/player
         'X-Frame-Options': '',
       };
 
-      // Range request (krävs för video i Firefox och LG webOS)
+      // Range request (krävs för video — <video>-element skickar alltid Range)
       const rangeHeader = request.headers.get('Range');
       if (rangeHeader && isVideo) {
         const [start, end] = parseRange(rangeHeader, size);
@@ -517,52 +765,162 @@ fetch('/api/files')
       });
     }
 
-    // ── POST /api/upload ─────────────────────────────────────────────────────
+    // ── POST /api/upload?screen=<id> ─────────────────────────────────────────
     if (path === "/api/upload" && request.method === "POST") {
       if (!isAuthorized()) return err("Ej behörig", 401);
 
-      const contentType = request.headers.get("Content-Type") ?? "";
+      const screenId = url.searchParams.get('screen');
+      if (!screenId) return err('screen-parameter saknas', 400);
+      if (!isValidScreen(screenId)) return err('Okänd skärm', 404);
 
+      const contentType = request.headers.get("Content-Type") ?? "";
       if (!contentType.includes("multipart/form-data")) {
         return err("Förväntar multipart/form-data");
       }
 
       const formData = await request.formData();
       const file = formData.get("file");
-
       if (!file || typeof file === "string") {
         return err("Ingen fil i formuläret");
       }
 
       const fileName = sanitizeFileName(file.name);
+      const key = `${screenId}/${fileName}`;
       const mime = file.type || guessMime(fileName);
 
-      await env.BUCKET.put(fileName, file.stream(), {
+      await env.BUCKET.put(key, file.stream(), {
         httpMetadata: { contentType: mime },
       });
+      const head = await env.BUCKET.head(key);
 
       return json({
         ok: true,
-        key: fileName,
-        url: `${url.origin}/media/${fileName}`,
+        key,
+        name: fileName,
+        etag: head?.etag,
+        url: `${url.origin}/media/${key}${head?.etag ? `?v=${head.etag}` : ''}`,
         type: guessType(fileName),
       });
     }
 
-    // ── DELETE /api/files/:name ──────────────────────────────────────────────
+    // ── DELETE /api/files/<id>/<filnamn> ─────────────────────────────────────
     if (path.startsWith("/api/files/") && request.method === "DELETE") {
       if (!isAuthorized()) return err("Ej behörig", 401);
 
-      const key = decodeURIComponent(path.replace("/api/files/", ""));
+      const rest = decodeURIComponent(path.replace("/api/files/", ""));
+      const slashIdx = rest.indexOf('/');
+      if (slashIdx === -1) return err('Förväntar /api/files/<screen>/<filnamn>', 400);
+
+      const screenId = rest.slice(0, slashIdx);
+      const fileName = rest.slice(slashIdx + 1);
+      if (!isValidScreen(screenId)) return err('Okänd skärm', 404);
+
+      const key = `${screenId}/${fileName}`;
       await env.BUCKET.delete(key);
       return json({ ok: true, deleted: key });
+    }
+
+    // ── POST /internal/migrate — engångsmigrering, se sodss-signage/migrate.js ──
+    if (path === '/internal/migrate' && request.method === 'POST') {
+      if (!isAuthorized()) return err('Ej behörig', 401);
+
+      const listed = await env.BUCKET.list();
+      const rootObjects = listed.objects.filter(
+        (o) => o.key.indexOf('/') === -1 && !o.key.startsWith('_')
+      );
+
+      const migrated = [];
+      for (const obj of rootObjects) {
+        const source = await env.BUCKET.get(obj.key);
+        if (!source) continue;
+        const newKey = `reception/${obj.key}`;
+        await env.BUCKET.put(newKey, source.body, { httpMetadata: source.httpMetadata });
+        await env.BUCKET.delete(obj.key);
+        migrated.push(newKey);
+      }
+      migrated.sort((a, b) => a.localeCompare(b));
+
+      const items = migrated.map((key) => {
+        const type = guessType(key);
+        const item = { id: randomId(), type, key };
+        if (type === 'image') item.duration = 8;
+        return item;
+      });
+      const manifest = { version: 2, updated: new Date().toISOString(), items };
+      await env.BUCKET.put('playlists/reception.json', JSON.stringify(manifest), {
+        httpMetadata: { contentType: 'application/json' },
+      });
+
+      return json({ ok: true, migrated, manifest });
     }
 
     return new Response("Not found", { status: 404, headers: corsHeaders });
   },
 };
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Manifest-hjälpare ──────────────────────────────────────────────────────────
+
+// Läser playlists/<id>.json. Saknas den: bygg den från bucketens innehåll
+// (självläkning — en skärm ska aldrig sluta fungera bara för att manifestet
+// inte hunnit skapas) och spara den.
+async function getOrBuildManifest(env, screenId) {
+  const key = `playlists/${screenId}.json`;
+  const obj = await env.BUCKET.get(key);
+  if (obj) {
+    try {
+      return JSON.parse(await obj.text());
+    } catch (e) {
+      console.log(`[playlist:${screenId}] trasigt manifest, bygger om`, e);
+    }
+  }
+  const manifest = await buildManifestFromBucket(env, screenId);
+  await env.BUCKET.put(key, JSON.stringify(manifest), {
+    httpMetadata: { contentType: 'application/json' },
+  });
+  return manifest;
+}
+
+async function buildManifestFromBucket(env, screenId) {
+  const listed = await env.BUCKET.list({ prefix: `${screenId}/` });
+  const items = listed.objects
+    .filter((o) => !o.key.endsWith('/'))
+    .sort((a, b) => a.key.localeCompare(b.key))
+    .map((o) => {
+      const type = guessType(o.key);
+      const item = { id: randomId(), type, key: o.key };
+      if (type === 'image') item.duration = 8;
+      return item;
+    });
+  return { version: 2, updated: new Date().toISOString(), items };
+}
+
+// Hämtar manifestet och validerar varje medieobjekt mot R2 vid leverans.
+// Ett objekt vars nyckel inte längre finns hoppas över (och loggas) — men
+// manifestet i R2 rörs inte. Etag hämtas färskt (head()) så en ersatt fil
+// alltid får ny cache-bustande ?v=-URL, även om manifestet inte sparats om.
+async function deliverManifest(env, screenId) {
+  const manifest = await getOrBuildManifest(env, screenId);
+  const items = [];
+  for (const item of manifest.items || []) {
+    if (item.type === 'web') {
+      items.push(item);
+      continue;
+    }
+    const head = await env.BUCKET.head(item.key);
+    if (!head) {
+      console.log(`[playlist:${screenId}] saknar objekt för nyckel "${item.key}", hoppar över`);
+      continue;
+    }
+    items.push({ ...item, etag: head.etag });
+  }
+  return { ...manifest, items };
+}
+
+function randomId() {
+  return Math.random().toString(36).slice(2, 8);
+}
+
+// ─── Övriga helpers ──────────────────────────────────────────────────────────────
 
 function guessType(name) {
   const ext = name.split(".").pop()?.toLowerCase() ?? "";
