@@ -12,3 +12,5 @@ bucket_name = "sodss-signage"
 # Miljövariabler sätts i Cloudflare Dashboard eller via:
 # npx wrangler secret put ADMIN_SECRET
 # npx wrangler secret put CORS_ORIGIN
+# npx wrangler secret put CORE_AGENT_TOKEN
+# npx wrangler secret put SCREEN_AGENT_TOKENS

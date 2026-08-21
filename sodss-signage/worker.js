@@ -565,32 +565,49 @@ async function rangeFromCache(cached, rangeHeader) {
 `;
 
 /**
- * SODSS Signage — Cloudflare Worker (v2, två skärmar)
+ * SODSS Signage — Cloudflare Worker (v2, två skärmar + fjärrstyrning)
  *
  * R2-layout:
- *   reception/<filnamn>          media för Skärm Reception
- *   lounge/<filnamn>             media för Skärm Lounge
- *   playlists/reception.json     manifest (spellista) för Skärm Reception
- *   playlists/lounge.json        manifest (spellista) för Skärm Lounge
- *   _schedules.json              tidsstyrning, nyckel = R2-nyckel (t.ex "reception/foo.jpg")
+ *   reception/<filnamn>                media för Skärm Reception
+ *   lounge/<filnamn>                   media för Skärm Lounge
+ *   playlists/reception.json           manifest (spellista) för Skärm Reception
+ *   playlists/lounge.json              manifest (spellista) för Skärm Lounge
+ *   _schedules.json                    tidsstyrning, nyckel = R2-nyckel (t.ex "reception/foo.jpg")
+ *
+ *   screens/<id>/status.json           senaste heartbeat från Pi-agenten
+ *   screens/<id>/latest.jpg            senaste skärmdump
+ *   screens/<id>/screenshot-meta.json  { capturedAt, hostname } för senaste skärmdump
+ *   screens/<id>/commands/<cmdId>.json ett fjärrkommando (pending → running → done/failed)
+ *
+ *   Detta är ett eget namespace, skilt från <id>/ (mediafiler) och playlists/<id>.json.
  *
  * Endpoints:
- *   GET    /api/screens                  → [{ id, name }]
- *   GET    /api/files?screen=<id>        → filer under <id>/
- *   POST   /api/upload?screen=<id>       → ladda upp till <id>/<sanerat filnamn>   [auth]
- *   DELETE /api/files/<id>/<filnamn>     → ta bort fil                            [auth]
- *   GET    /api/playlist/<id>            → manifest (publik — spelaren läser den)
- *   PUT    /api/playlist/<id>            → sparar manifest                        [auth]
- *   GET    /api/schedules                → tidsstyrning (alla skärmar, keyed på R2-nyckel)
- *   PUT    /api/schedules                → sparar tidsstyrning                    [auth]
- *   GET    /media/<id>/<filnamn>         → serverar fil med Range-stöd
- *   GET    /player?screen=<id>           → spelaren
- *   GET    /sw.js                        → Service Worker (lokal cache på Pi:n)
+ *   GET    /api/screens                            → [{ id, name, online, lastHeartbeatAt,
+ *                                                        lastScreenshotAt, temperature, uptime,
+ *                                                        lastCommand }] (publik)
+ *   POST   /api/screens/<id>/commands               skapa fjärrkommando { type }           [admin-auth]
+ *   GET    /api/files?screen=<id>                  → filer under <id>/
+ *   POST   /api/upload?screen=<id>                 → ladda upp till <id>/<sanerat filnamn>  [admin-auth]
+ *   DELETE /api/files/<id>/<filnamn>                ta bort fil                             [admin-auth]
+ *   GET    /api/playlist/<id>                       manifest (publik — spelaren läser den)
+ *   PUT    /api/playlist/<id>                       sparar manifest                         [admin-auth]
+ *   GET    /api/schedules                           tidsstyrning (alla skärmar, keyed på R2-nyckel)
+ *   PUT    /api/schedules                           sparar tidsstyrning                     [admin-auth]
+ *   GET    /media/<id>/<filnamn>                    serverar fil med Range-stöd
+ *   GET    /player?screen=<id>                      spelaren
+ *   GET    /sw.js                                   Service Worker (lokal cache på Pi:n)
+ *
+ *   POST   /api/screens/<id>/heartbeat              agentens heartbeat                      [agent-auth]
+ *   POST   /api/screens/<id>/screenshot             agentens skärmdumpsuppladdning          [agent-auth]
+ *   GET    /api/screens/<id>/commands/next           hämta/starta nästa väntande kommando    [agent-auth]
+ *   POST   /api/screens/<id>/commands/<cmdId>/result rapportera kommandoresultat             [agent-auth]
  *
  * Miljövariabler (Cloudflare Dashboard → Worker → Settings → Variables):
- *   BUCKET        — R2 Bucket binding (se wrangler.toml)
- *   ADMIN_SECRET  — En hemlig sträng, t.ex. ett långt lösenord
- *   CORS_ORIGIN   — URL till din Core-dashboard, t.ex. https://core.sollentunadansochscenskola.se
+ *   BUCKET               — R2 Bucket binding (se wrangler.toml)
+ *   ADMIN_SECRET         — En hemlig sträng, t.ex. ett långt lösenord (Core-GUI:t)
+ *   CORS_ORIGIN          — URL till din Core-dashboard, t.ex. https://core.sollentunadansochscenskola.se
+ *   CORE_AGENT_TOKEN     — Delad hemlighet för alla Pi-agenter (fallback om SCREEN_AGENT_TOKENS saknar id)
+ *   SCREEN_AGENT_TOKENS  — JSON, per-skärm-tokens: {"reception":"...","lounge":"..."}
  */
 
 const SCREENS = [
@@ -598,8 +615,79 @@ const SCREENS = [
   { id: 'lounge', name: 'Skärm Lounge' },
 ];
 
+const ALLOWED_COMMAND_TYPES = ['screenshot_now', 'reload_browser', 'restart_browser', 'reboot_pi'];
+const HEARTBEAT_ONLINE_WINDOW_MS = 120 * 1000; // 2× agentens 60s-intervall
+
 function isValidScreen(id) {
   return SCREENS.some((s) => s.id === id);
+}
+
+// Agent-auth: skild från admin-isAuthorized(). Accepterar SCREEN_AGENT_TOKENS[screenId]
+// om satt, annars CORE_AGENT_TOKEN som delad fallback. Agenten kan aldrig skapa kommandon
+// åt sig själv med denna — bara hämta/rapportera på dem (se admin-auth för /commands POST).
+function isAgentAuthorized(request, screenId, env) {
+  const auth = request.headers.get('Authorization') ?? '';
+  const match = auth.match(/^Bearer\s+(.+)$/);
+  if (!match) return false;
+  const token = match[1];
+
+  let perScreenTokens = {};
+  if (env.SCREEN_AGENT_TOKENS) {
+    try {
+      perScreenTokens = JSON.parse(env.SCREEN_AGENT_TOKENS);
+    } catch (e) {
+      console.log('[agent-auth] SCREEN_AGENT_TOKENS är inte giltig JSON', e);
+    }
+  }
+
+  if (Object.prototype.hasOwnProperty.call(perScreenTokens, screenId)) {
+    return token === perScreenTokens[screenId];
+  }
+  if (env.CORE_AGENT_TOKEN) return token === env.CORE_AGENT_TOKEN;
+  return false;
+}
+
+async function readJsonObject(env, key) {
+  const obj = await env.BUCKET.get(key);
+  if (!obj) return null;
+  try {
+    return JSON.parse(await obj.text());
+  } catch (e) {
+    console.log(`[screens] trasig JSON för "${key}"`, e);
+    return null;
+  }
+}
+
+async function writeJsonObject(env, key, data) {
+  await env.BUCKET.put(key, JSON.stringify(data), {
+    httpMetadata: { contentType: 'application/json' },
+  });
+}
+
+// Senast skapade/uppdaterade kommando för en skärm (för lastCommand i /api/screens).
+async function getLastCommand(env, screenId) {
+  const listed = await env.BUCKET.list({ prefix: `screens/${screenId}/commands/` });
+  let latest = null;
+  for (const o of listed.objects) {
+    const cmd = await readJsonObject(env, o.key);
+    if (!cmd) continue;
+    const stamp = cmd.updatedAt || cmd.createdAt || '';
+    const latestStamp = latest ? (latest.updatedAt || latest.createdAt || '') : '';
+    if (!latest || stamp > latestStamp) latest = cmd;
+  }
+  return latest;
+}
+
+// Äldsta kommandot med status "pending" för en skärm.
+async function getOldestPendingCommand(env, screenId) {
+  const listed = await env.BUCKET.list({ prefix: `screens/${screenId}/commands/` });
+  let oldest = null;
+  for (const o of listed.objects) {
+    const cmd = await readJsonObject(env, o.key);
+    if (!cmd || cmd.status !== 'pending') continue;
+    if (!oldest || (cmd.createdAt || '') < (oldest.createdAt || '')) oldest = cmd;
+  }
+  return oldest;
 }
 
 export default {
@@ -658,9 +746,135 @@ export default {
       });
     }
 
-    // ── GET /api/screens ───────────────────────────────────────────────────────
+    // ── GET /api/screens — statisk lista + liveuppgifter (publik) ────────────
     if (path === '/api/screens' && request.method === 'GET') {
-      return json(SCREENS);
+      const now = Date.now();
+      const enriched = await Promise.all(SCREENS.map(async (s) => {
+        const status = await readJsonObject(env, `screens/${s.id}/status.json`);
+        const meta = await readJsonObject(env, `screens/${s.id}/screenshot-meta.json`);
+        const lastCommand = await getLastCommand(env, s.id);
+
+        const lastHeartbeatAt = status?.receivedAt ?? null;
+        const online = lastHeartbeatAt != null
+          && (now - new Date(lastHeartbeatAt).getTime()) <= HEARTBEAT_ONLINE_WINDOW_MS;
+
+        return {
+          id: s.id,
+          name: s.name,
+          online,
+          lastHeartbeatAt,
+          lastScreenshotAt: meta?.capturedAt ?? null,
+          temperature: status?.temperature ?? null,
+          uptime: status?.uptime ?? null,
+          lastCommand: lastCommand
+            ? { type: lastCommand.type, status: lastCommand.status, error: lastCommand.error ?? null }
+            : null,
+        };
+      }));
+      return json(enriched);
+    }
+
+    // ── POST /api/screens/<id>/commands — skapa fjärrkommando (Core-GUI:t) [admin-auth] ─
+    const commandsCreateMatch = path.match(/^\/api\/screens\/([^/]+)\/commands$/);
+    if (commandsCreateMatch && request.method === 'POST') {
+      const screenId = commandsCreateMatch[1];
+      if (!isValidScreen(screenId)) return err('Okänd skärm', 404);
+      if (!isAuthorized()) return err('Ej behörig', 401);
+
+      const body = await request.json();
+      if (!ALLOWED_COMMAND_TYPES.includes(body.type)) return err('Okänt kommandotyp', 400);
+
+      const commandId = randomId();
+      const now = new Date().toISOString();
+      const command = { id: commandId, type: body.type, status: 'pending', createdAt: now, updatedAt: now };
+      await writeJsonObject(env, `screens/${screenId}/commands/${commandId}.json`, command);
+      return json({ commandId });
+    }
+
+    // ── POST /api/screens/<id>/heartbeat — agentens heartbeat [agent-auth] ────
+    const heartbeatMatch = path.match(/^\/api\/screens\/([^/]+)\/heartbeat$/);
+    if (heartbeatMatch && request.method === 'POST') {
+      const screenId = heartbeatMatch[1];
+      if (!isValidScreen(screenId)) return err('Okänd skärm', 404);
+      if (!isAgentAuthorized(request, screenId, env)) return err('Ej behörig', 401);
+
+      const body = await request.json();
+      const status = {
+        hostname: body.hostname ?? null,
+        localTime: body.localTime ?? null,
+        uptime: body.uptime ?? null,
+        temperature: body.temperature ?? null,
+        tailscaleIp: body.tailscaleIp ?? null,
+        agentVersion: body.agentVersion ?? null,
+        receivedAt: new Date().toISOString(),
+      };
+      await writeJsonObject(env, `screens/${screenId}/status.json`, status);
+      return json({ ok: true });
+    }
+
+    // ── POST /api/screens/<id>/screenshot — agentens skärmdump [agent-auth] ───
+    const screenshotMatch = path.match(/^\/api\/screens\/([^/]+)\/screenshot$/);
+    if (screenshotMatch && request.method === 'POST') {
+      const screenId = screenshotMatch[1];
+      if (!isValidScreen(screenId)) return err('Okänd skärm', 404);
+      if (!isAgentAuthorized(request, screenId, env)) return err('Ej behörig', 401);
+
+      const contentType = request.headers.get('Content-Type') ?? '';
+      if (!contentType.includes('multipart/form-data')) return err('Förväntar multipart/form-data');
+
+      const formData = await request.formData();
+      const file = formData.get('screenshot');
+      if (!file || typeof file === 'string') return err('Ingen skärmdump i formuläret');
+
+      const capturedAtField = formData.get('capturedAt');
+      const hostnameField = formData.get('hostname');
+
+      await env.BUCKET.put(`screens/${screenId}/latest.jpg`, file.stream(), {
+        httpMetadata: { contentType: file.type || 'image/jpeg' },
+      });
+      await writeJsonObject(env, `screens/${screenId}/screenshot-meta.json`, {
+        capturedAt: typeof capturedAtField === 'string' && capturedAtField ? capturedAtField : new Date().toISOString(),
+        hostname: typeof hostnameField === 'string' ? hostnameField : null,
+      });
+      return json({ ok: true });
+    }
+
+    // ── GET /api/screens/<id>/commands/next — hämta nästa kommando [agent-auth] ─
+    const commandsNextMatch = path.match(/^\/api\/screens\/([^/]+)\/commands\/next$/);
+    if (commandsNextMatch && request.method === 'GET') {
+      const screenId = commandsNextMatch[1];
+      if (!isValidScreen(screenId)) return err('Okänd skärm', 404);
+      if (!isAgentAuthorized(request, screenId, env)) return err('Ej behörig', 401);
+
+      const next = await getOldestPendingCommand(env, screenId);
+      if (!next) return json({});
+
+      next.status = 'running';
+      next.updatedAt = new Date().toISOString();
+      await writeJsonObject(env, `screens/${screenId}/commands/${next.id}.json`, next);
+      return json({ commandId: next.id, type: next.type });
+    }
+
+    // ── POST /api/screens/<id>/commands/<cmdId>/result — kommandoresultat [agent-auth] ─
+    const commandResultMatch = path.match(/^\/api\/screens\/([^/]+)\/commands\/([^/]+)\/result$/);
+    if (commandResultMatch && request.method === 'POST') {
+      const [, screenId, commandId] = commandResultMatch;
+      if (!isValidScreen(screenId)) return err('Okänd skärm', 404);
+      if (!isAgentAuthorized(request, screenId, env)) return err('Ej behörig', 401);
+
+      const body = await request.json();
+      if (body.status !== 'done' && body.status !== 'failed') return err('Ogiltig status', 400);
+
+      const key = `screens/${screenId}/commands/${commandId}.json`;
+      const existing = await readJsonObject(env, key);
+      if (!existing) return err('Okänt kommando', 404);
+
+      existing.status = body.status;
+      existing.updatedAt = new Date().toISOString();
+      if (body.status === 'failed' && body.error) existing.error = String(body.error).slice(0, 500);
+      else delete existing.error;
+      await writeJsonObject(env, key, existing);
+      return json({ ok: true });
     }
 
     // ── GET /api/schedules — hämta tidsscheman ──────────────────────────────
@@ -735,13 +949,16 @@ export default {
 
       const contentType = obj.httpMetadata?.contentType ?? guessMime(key);
       const isVideo = contentType.startsWith('video/');
+      const isScreenshot = key.startsWith('screens/') && key.endsWith('/latest.jpg');
       const size = obj.size;
 
       const baseHeaders = {
         ...corsHeaders,
         'Content-Type': contentType,
         'Accept-Ranges': 'bytes',
-        'Cache-Control': isVideo ? 'public, max-age=31536000, immutable' : 'public, max-age=31536000, immutable',
+        // Skärmdumpar ska alltid vara färska — Core cache-bustar med ?t=<lastScreenshotAt>
+        // men vi litar inte på det ensamt eftersom webbläsaren annars kan cacha mellan dumpar.
+        'Cache-Control': isScreenshot ? 'no-store' : 'public, max-age=31536000, immutable',
         // Ta bort x-frame-options så video kan spelas i iframe/player
         'X-Frame-Options': '',
       };
