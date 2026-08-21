@@ -114,6 +114,168 @@ interface UploadJob {
   errorMsg?: string;
 }
 
+// ─── Skärmar / fjärrstyrning ────────────────────────────────────────────────
+
+type CommandType = "screenshot_now" | "reload_browser" | "restart_browser" | "reboot_pi";
+
+interface ScreenCommandInfo {
+  type: string;
+  status: "pending" | "running" | "done" | "failed";
+  error?: string | null;
+}
+
+interface ScreenStatus {
+  id: string;
+  name: string;
+  online: boolean;
+  lastHeartbeatAt: string | null;
+  lastScreenshotAt: string | null;
+  temperature: string | null;
+  uptime: string | null;
+  lastCommand: ScreenCommandInfo | null;
+}
+
+const SCREENS_POLL_MS = 5000;
+const SCREENSHOT_WAIT_TIMEOUT_MS = 30000;
+
+const COMMAND_LABELS: Record<string, string> = {
+  screenshot_now: "Ta ny skärmdump",
+  reload_browser: "Ladda om webbläsare",
+  restart_browser: "Starta om webbläsare",
+  reboot_pi: "Starta om Pi",
+};
+
+const COMMAND_STATUS_LABELS: Record<string, string> = {
+  pending: "väntar",
+  running: "pågår",
+  done: "klart",
+  failed: "misslyckades",
+};
+
+function formatDateTime(iso?: string | null) {
+  return iso ? new Date(iso).toLocaleString("sv-SE") : "";
+}
+
+function screenshotButtonStyle(disabled: boolean) {
+  return {
+    minHeight: 34, padding: "6px 12px", borderRadius: 7,
+    border: "1.5px solid #cfded2",
+    background: disabled ? "#e8eeeb" : "#f8faf9",
+    color: disabled ? "#b8cec5" : "#1a2e2e",
+    fontFamily: "inherit", fontSize: 11.5, fontWeight: 600,
+    cursor: disabled ? "not-allowed" : "pointer", transition: "all 0.2s",
+  } as const;
+}
+
+function ScreenCard({
+  screen,
+  pendingScreenshot,
+  onSendCommand,
+}: {
+  screen: ScreenStatus;
+  pendingScreenshot: boolean;
+  onSendCommand: (screenId: string, type: CommandType) => void;
+}) {
+  const previewUrl = `${WORKER_URL}/media/screens/${screen.id}/latest.jpg?t=${encodeURIComponent(screen.lastScreenshotAt ?? "none")}`;
+  const lastCommand = screen.lastCommand;
+
+  function reboot() {
+    if (window.confirm(`Starta om Pi:n för ${screen.name}? Skärmen blir otillgänglig i ungefär en minut.`)) {
+      onSendCommand(screen.id, "reboot_pi");
+    }
+  }
+
+  return (
+    <div className="card p-4" style={{ flex: "1 1 320px", minWidth: 280 }}>
+      <div className="flex items-center justify-between mb-3">
+        <strong className="text-sm text-brand-dark">{screen.name}</strong>
+        <span
+          className="flex items-center gap-1.5 text-[11px] font-semibold"
+          style={{ color: screen.online ? "#009399" : "#94a3b8" }}
+        >
+          <span
+            style={{
+              width: 8, height: 8, borderRadius: "50%", display: "inline-block",
+              background: screen.online ? "#009399" : "#cbd5e1",
+            }}
+          />
+          {screen.online
+            ? "Online"
+            : `Offline${screen.lastHeartbeatAt ? ` (senast sedd ${formatDateTime(screen.lastHeartbeatAt)})` : ""}`}
+        </span>
+      </div>
+
+      <div
+        className="rounded-lg overflow-hidden mb-3 flex items-center justify-center"
+        style={{ background: "#0d1a12", aspectRatio: "16 / 9" }}
+      >
+        {screen.lastScreenshotAt ? (
+          <img
+            key={screen.lastScreenshotAt}
+            src={previewUrl}
+            alt={`Skärmdump — ${screen.name}`}
+            className="w-full h-full object-contain"
+          />
+        ) : (
+          <span className="text-[11px]" style={{ color: "#6b8577" }}>Ingen skärmdump än</span>
+        )}
+      </div>
+
+      <div className="flex gap-4 text-[11px] text-slate-400 mb-3">
+        <span>🌡 {screen.temperature || "—"}</span>
+        <span>⏱ {screen.uptime || "—"}</span>
+      </div>
+
+      <div className="flex gap-2 flex-wrap mb-3">
+        <button
+          className="sds-focus-ring"
+          onClick={() => onSendCommand(screen.id, "screenshot_now")}
+          disabled={pendingScreenshot}
+          style={screenshotButtonStyle(pendingScreenshot)}
+        >
+          {pendingScreenshot ? "Väntar på ny skärmdump…" : COMMAND_LABELS.screenshot_now}
+        </button>
+        <button
+          className="sds-focus-ring"
+          onClick={() => onSendCommand(screen.id, "reload_browser")}
+          style={screenshotButtonStyle(false)}
+        >
+          {COMMAND_LABELS.reload_browser}
+        </button>
+        <button
+          className="sds-focus-ring"
+          onClick={() => onSendCommand(screen.id, "restart_browser")}
+          style={screenshotButtonStyle(false)}
+        >
+          {COMMAND_LABELS.restart_browser}
+        </button>
+        <button
+          className="sds-focus-ring"
+          onClick={reboot}
+          style={{ ...screenshotButtonStyle(false), border: "1.5px solid #f0d0d8", color: "#dd5c86" }}
+        >
+          {COMMAND_LABELS.reboot_pi}
+        </button>
+      </div>
+
+      {lastCommand && (
+        <div className="text-[11px]" style={{ color: lastCommand.status === "failed" ? "#dd5c86" : "#64748b" }}>
+          Senaste kommando: <strong>{COMMAND_LABELS[lastCommand.type] ?? lastCommand.type}</strong>
+          {" — "}{COMMAND_STATUS_LABELS[lastCommand.status] ?? lastCommand.status}
+          {lastCommand.status === "failed" && lastCommand.error && (
+            <div
+              className="mt-1.5 rounded-lg px-2.5 py-1.5"
+              style={{ background: "#fdf2f6", border: "1px solid #f0d0d8", color: "#dd5c86" }}
+            >
+              {lastCommand.error}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export function Signage() {
@@ -145,6 +307,10 @@ export function Signage() {
   const [schedDraft, setSchedDraft]         = useState<FileSchedule>({});
   const [schedSaving, setSchedSaving]       = useState(false);
 
+  // ── Skärmar / fjärrstyrning ──────────────────────────────────────────────
+  const [screenStatuses, setScreenStatuses]         = useState<ScreenStatus[]>([]);
+  const [screenshotWaitStart, setScreenshotWaitStart] = useState<Record<string, number>>({});
+
   useEffect(() => {
     if (!WORKER_URL) return;
     fetch(`${WORKER_URL}/api/screens`)
@@ -160,6 +326,68 @@ export function Signage() {
       .then(setSchedules)
       .catch(() => {});
   }, []);
+
+  // ── Skärmar: status + polling ────────────────────────────────────────────
+  const fetchScreenStatuses = useCallback(async () => {
+    if (!WORKER_URL) return;
+    try {
+      const res = await fetch(`${WORKER_URL}/api/screens`);
+      const data = await res.json();
+      if (!Array.isArray(data)) return;
+      setScreenStatuses(data as ScreenStatus[]);
+      // Rensa väntande-state när en nyare skärmdump kommit, eller efter timeout.
+      setScreenshotWaitStart(prev => {
+        if (Object.keys(prev).length === 0) return prev;
+        const now = Date.now();
+        let changed = false;
+        const next = { ...prev };
+        for (const s of data as ScreenStatus[]) {
+          const waitStart = next[s.id];
+          if (waitStart == null) continue;
+          const shotAt = s.lastScreenshotAt ? new Date(s.lastScreenshotAt).getTime() : 0;
+          if (shotAt > waitStart || now - waitStart > SCREENSHOT_WAIT_TIMEOUT_MS) {
+            delete next[s.id];
+            changed = true;
+          }
+        }
+        return changed ? next : prev;
+      });
+    } catch (e) {
+      console.error("Kunde inte hämta skärmstatus:", e);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!WORKER_URL) return;
+    fetchScreenStatuses();
+    const id = setInterval(fetchScreenStatuses, SCREENS_POLL_MS);
+    return () => clearInterval(id);
+  }, [fetchScreenStatuses]);
+
+  const sendScreenCommand = useCallback(async (screenId: string, type: CommandType) => {
+    if (!WORKER_URL) return;
+    if (type === "screenshot_now") {
+      setScreenshotWaitStart(prev => ({ ...prev, [screenId]: Date.now() }));
+    }
+    try {
+      const res = await fetch(`${WORKER_URL}/api/screens/${screenId}/commands`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify({ type }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await fetchScreenStatuses();
+    } catch (e) {
+      console.error("Kunde inte skicka kommando:", e);
+      if (type === "screenshot_now") {
+        setScreenshotWaitStart(prev => {
+          const next = { ...prev };
+          delete next[screenId];
+          return next;
+        });
+      }
+    }
+  }, [fetchScreenStatuses]);
 
   function openSchedule(key: string) {
     setScheduleTarget(key);
@@ -531,6 +759,32 @@ export function Signage() {
               Förhandsgranska ↗
             </a>
           </div>
+        </div>
+      </section>
+
+      {/* ── Skärmar ── */}
+      <section className="mb-7">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-[11px] font-bold tracking-[0.12em] uppercase text-slate-400 m-0">
+            Skärmar
+          </h2>
+          <span className="text-[11px] text-slate-400">Uppdateras var {SCREENS_POLL_MS / 1000}:e sekund</span>
+        </div>
+        <div className="flex gap-3 flex-wrap">
+          {screens.map(s => {
+            const status = screenStatuses.find(st => st.id === s.id) ?? {
+              id: s.id, name: s.name, online: false, lastHeartbeatAt: null,
+              lastScreenshotAt: null, temperature: null, uptime: null, lastCommand: null,
+            };
+            return (
+              <ScreenCard
+                key={s.id}
+                screen={status}
+                pendingScreenshot={screenshotWaitStart[s.id] != null}
+                onSendCommand={sendScreenCommand}
+              />
+            );
+          })}
         </div>
       </section>
 
