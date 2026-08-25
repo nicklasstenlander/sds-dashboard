@@ -198,10 +198,10 @@ var clockEl   = document.getElementById('clock');
 var counterEl = document.getElementById('counter');
 
 // ─── State ───────────────────────────────────────────────────────────────────
-var playlist    = [];
-var current     = -1;
-var advTimer    = null;
-var lastUpdated = null;
+var playlist      = [];
+var current       = -1;
+var advTimer      = null;
+var lastSignature = null;
 
 // ─── UI helpers ───────────────────────────────────────────────────────────────
 function showError(msg, detail) {
@@ -266,6 +266,19 @@ function syncServiceWorkerCache(items) {
   navigator.serviceWorker.controller.postMessage({ type: 'sync-playlist', urls: urls });
 }
 
+// Signatur av den resolvade (schema-filtrerade, url-kompletta) spellistan.
+// Jämförs istället för manifest.updated: ett rent updated-baserat schema
+// missar ändringar som inte rör manifestet självt — ett ändrat tidsschema
+// i /api/schedules, eller en ersatt fil vars nya etag redan slagits upp av
+// Workern men vars manifest.json inte sparats om.
+function playlistSignature(list) {
+  var parts = [];
+  for (var i = 0; i < list.length; i++) {
+    parts.push(list[i].id + '|' + list[i].type + '|' + list[i].url + '|' + list[i].duration);
+  }
+  return parts.join(',');
+}
+
 // ─── Fetch manifest från Worker ───────────────────────────────────────────────
 // Returnerar: 'built' (ny spellista, bygg om DOM), 'unchanged' (inget att göra),
 // 'error' (kallstart utan manifest — felskärm visas)
@@ -291,7 +304,8 @@ function fetchPlaylist() {
 
     syncServiceWorkerCache(mapped);
 
-    if (manifest.updated && manifest.updated === lastUpdated) {
+    var signature = playlistSignature(mapped);
+    if (signature === lastSignature) {
       return 'unchanged';
     }
 
@@ -302,7 +316,7 @@ function fetchPlaylist() {
     }
 
     playlist = mapped;
-    lastUpdated = manifest.updated;
+    lastSignature = signature;
     return 'built';
   }).catch(function(fetchErr) {
     if (playlist.length > 0) return 'unchanged'; // Offline-tålighet: fortsätt spela ur cachen
