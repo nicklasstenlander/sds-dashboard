@@ -203,6 +203,7 @@ var counterEl = document.getElementById('counter');
 var playlist      = [];
 var current       = -1;
 var advTimer      = null;
+var stallWatchdog = null;
 var lastSignature = null;
 
 // ─── UI helpers ───────────────────────────────────────────────────────────────
@@ -376,6 +377,7 @@ function buildSlides() {
 // ─── Visa bild/video/webblänk ─────────────────────────────────────────────────
 function showSlide(idx) {
   clearTimeout(advTimer);
+  clearInterval(stallWatchdog);
 
   // Stoppa alla videor och sätt rätt synlighet med for-loop
   var allSlides = playerEl.getElementsByClassName('slide');
@@ -385,7 +387,11 @@ function showSlide(idx) {
     s.style.opacity = isActive ? '1' : '0';
     s.style.pointerEvents = isActive ? 'auto' : 'none';
     var svid = s.getElementsByTagName('video')[0];
-    if (svid && !isActive) { svid.pause(); svid.currentTime = 0; }
+    if (svid && !isActive) {
+      svid.pause();
+      svid.removeAttribute('src');
+      svid.load();
+    }
   }
 
   if (SHOW_COUNT) {
@@ -425,6 +431,20 @@ function showSlide(idx) {
       vid.defaultMuted = true;
       vid.currentTime = 0;
       vid.load();
+      var lastVideoTime = -1, stallCount = 0;
+      stallWatchdog = setInterval(function() {
+        if (!vid || vid.paused || vid.ended || current !== idx) return;
+        if (vid.currentTime === lastVideoTime) {
+          stallCount++;
+          if (stallCount >= 3) {
+            clearInterval(stallWatchdog);
+            nextSlide();
+          }
+        } else {
+          stallCount = 0;
+          lastVideoTime = vid.currentTime;
+        }
+      }, 1000);
       vid.addEventListener('loadeddata', function() {
         var pp = vid.play();
         if (pp && pp.catch) { pp.catch(function() { advTimer = setTimeout(nextSlide, 60000); }); }
