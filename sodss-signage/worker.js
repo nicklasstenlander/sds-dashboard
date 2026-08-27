@@ -488,14 +488,21 @@ init();
 `;
 
 // ─── Service Worker — lokal cache av bild/video, servad på /sw.js ────────────
-const SW_JS = `var CACHE_NAME = 'sodss-media-v1';
+const SW_JS = `var CACHE_NAME = 'sodss-media-v2';
 
 self.addEventListener('install', function(event) {
   self.skipWaiting();
 });
 
 self.addEventListener('activate', function(event) {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    caches.keys().then(function(names) {
+      return Promise.all(
+        names.filter(function(n) { return n !== CACHE_NAME; })
+             .map(function(n) { return caches.delete(n); })
+      );
+    }).then(function() { return self.clients.claim(); })
+  );
 });
 
 self.addEventListener('message', function(event) {
@@ -538,7 +545,12 @@ self.addEventListener('fetch', function(event) {
     caches.open(CACHE_NAME).then(function(cache) {
       return cache.match(req.url).then(function(cached) {
         if (cached) {
-          if (rangeHeader) return rangeFromCache(cached, rangeHeader);
+          if (rangeHeader) {
+            return rangeFromCache(cached, rangeHeader).catch(function() {
+              // Trasig cache-post — släng den och hämta färskt från nätet
+              return cache.delete(req.url).then(function() { return fetch(req); });
+            });
+          }
           return cached;
         }
         return fetch(req); // cache-miss → nätet, cacha inte här (nästa sync-playlist fyller på)
@@ -550,6 +562,7 @@ self.addEventListener('fetch', function(event) {
 async function rangeFromCache(cached, rangeHeader) {
   var buf = await cached.arrayBuffer();
   var size = buf.byteLength;
+  if (!size) throw new Error('Tom eller trasig cache-post');
   var m = /bytes=(\\d*)-(\\d*)/.exec(rangeHeader);
   var start = m && m[1] ? parseInt(m[1], 10) : 0;
   var end   = m && m[2] ? parseInt(m[2], 10) : size - 1;
