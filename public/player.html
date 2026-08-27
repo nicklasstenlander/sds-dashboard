@@ -428,13 +428,13 @@ function showSlide(idx) {
       vid.addEventListener('loadeddata', function() {
         var pp = vid.play();
         if (pp && pp.catch) { pp.catch(function() { advTimer = setTimeout(nextSlide, 60000); }); }
-      });
+      }, { once: true });
       vid.addEventListener('loadedmetadata', function() {
         var dur = vid.duration * 1000;
         progressEl.style.transition = 'width ' + dur + 'ms linear';
         requestAnimationFrame(function() { progressEl.style.width = '100%'; });
         advTimer = setTimeout(nextSlide, dur + 3000);
-      });
+      }, { once: true });
     }
   }
 }
