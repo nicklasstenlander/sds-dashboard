@@ -5,8 +5,6 @@ import socket
 import subprocess
 import sys
 import time
-import urllib.error
-import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -67,20 +65,25 @@ def utc_now():
 
 
 def request_json(config, method, path, payload=None):
+    # curl, inte urllib. urllib.request skickar User-Agent: Python-urllib/x.y
+    # om inget annat anges — ett vanligt botfilter-mönster — och gav
+    # intermittenta 403 rakt igenom Cloudflare på just den här zonen (uppmätt:
+    # samma anrop, samma token, samma svarskropp för övrigt — bara klienten
+    # skiljde). curl (redan i bruk för skärmdumpsuppladdningen) har inte
+    # fallerat en enda gång i samma test.
     url = f"{config['base_url']}{path}"
-    data = None
-    headers = {
-        "Authorization": f"Bearer {config['token']}",
-        "Accept": "application/json",
-    }
+    args = [
+        "curl", "--fail", "--silent", "--show-error",
+        "-X", method,
+        "-H", f"Authorization: Bearer {config['token']}",
+        "-H", "Accept: application/json",
+    ]
     if payload is not None:
-        data = json.dumps(payload).encode("utf-8")
-        headers["Content-Type"] = "application/json"
+        args += ["-H", "Content-Type: application/json", "-d", json.dumps(payload)]
+    args.append(url)
 
-    req = urllib.request.Request(url, data=data, headers=headers, method=method)
-    with urllib.request.urlopen(req, timeout=20) as response:
-        body = response.read().decode("utf-8")
-        return json.loads(body) if body else {}
+    result = run_command(args)
+    return json.loads(result.stdout) if result.stdout.strip() else {}
 
 
 def run_command(args, env=None, check=True):
@@ -242,7 +245,7 @@ def run_check(name, last_time, interval, now, action):
     # inte kastar).
     try:
         action()
-    except (urllib.error.URLError, urllib.error.HTTPError, subprocess.CalledProcessError, RuntimeError) as exc:
+    except (subprocess.CalledProcessError, RuntimeError) as exc:
         log(f"Fel ({name}): {exc}")
     except Exception as exc:
         log(f"Oväntat fel ({name}): {exc}")
