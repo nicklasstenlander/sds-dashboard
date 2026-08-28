@@ -51,8 +51,14 @@ def load_config():
         "token": os.environ["CORE_AGENT_TOKEN"],
         "kiosk_url": os.environ.get("KIOSK_URL", ""),
         "display": os.environ.get("DISPLAY", ":0"),
+        "wayland_display": os.environ.get("WAYLAND_DISPLAY", "wayland-0"),
+        "xdg_runtime_dir": os.environ.get("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}"),
         "restart_script": os.environ.get("KIOSK_RESTART_SCRIPT", "/home/stenlander/start-kiosk.sh"),
-        "screenshot_path": f"/tmp/{os.environ['SCREEN_ID']}.jpg",
+        # .png fast R2-nyckeln på serversidan alltid heter latest.jpg (hårdkodat i
+        # worker.js och Signage.tsx) — Content-Type sätts separat vid uppladdning
+        # och avgör hur webbläsaren tolkar filen, inte namnet. grim på den här
+        # Pi-avbildningen är byggd utan libjpeg, så riktig jpeg är inte ett alternativ.
+        "screenshot_path": f"/tmp/{os.environ['SCREEN_ID']}.png",
     }
 
 
@@ -128,9 +134,15 @@ def send_heartbeat(config):
 
 
 def take_screenshot(config):
+    # Kiosken kör Chromium nativt mot Wayland (--ozone-platform=wayland), inte
+    # via Xwayland. scrot läser X11-rootfönstret, som därför alltid är svart
+    # oavsett vad som faktiskt visas — grim läser compositor-outputen direkt.
     env = os.environ.copy()
-    env["DISPLAY"] = config["display"]
-    run_command(["scrot", config["screenshot_path"]], env=env)
+    env["XDG_RUNTIME_DIR"] = config["xdg_runtime_dir"]
+    env["WAYLAND_DISPLAY"] = config["wayland_display"]
+    # Ingen -t jpeg: grim-paketet på kiosk-avbildningen är byggt utan libjpeg
+    # ("jpeg support disabled"). PNG (grims default) fungerar alltid.
+    run_command(["grim", config["screenshot_path"]], env=env)
     log(f"Skärmdump sparad: {config['screenshot_path']}")
     return config["screenshot_path"]
 
@@ -145,7 +157,7 @@ def upload_screenshot(config, path):
         "-H",
         f"Authorization: Bearer {config['token']}",
         "-F",
-        f"screenshot=@{path};type=image/jpeg",
+        f"screenshot=@{path};type=image/png",
         "-F",
         f"capturedAt={utc_now()}",
         "-F",
