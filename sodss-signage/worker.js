@@ -203,8 +203,29 @@ var counterEl = document.getElementById('counter');
 var playlist      = [];
 var current       = -1;
 var advTimer      = null;
+var loadTimer     = null;
 var stallWatchdog = null;
 var lastSignature = null;
+
+// Ökas vid varje showSlide(). Alla asynkrona callbacks (timers, media-events,
+// stall-vakten) fångar sitt token och gör ingenting om det hunnit ändras.
+// Utan detta kan en callback från en tidigare aktivering av samma slide
+// stega spelaren en gång extra.
+var token = 0;
+
+// Antal misslyckade objekt i rad. Nollställs så fort något faktiskt spelas.
+// Styr backoff så att en trasig fil aldrig kan bli en tight loop.
+var consecutiveFailures = 0;
+
+// Index där videon just fallerat och nästa försök ska gå förbi
+// Service Worker-cachen. Nollställs så fort objektet spelar igen.
+var bypassCache = {};
+
+// Blir en video aldrig spelbar (nätverket hänger, filen är trasig) går vi
+// vidare i stället för att stå kvar på svart. loadeddata kräver bara första
+// bildrutan, så det här taket träffar bara verkliga fel.
+var LOAD_TIMEOUT_MS = 20000;
+var MAX_FAIL_BACKOFF_MS = 30000;
 
 // ─── UI helpers ───────────────────────────────────────────────────────────────
 function showError(msg, detail) {
@@ -331,6 +352,7 @@ function fetchPlaylist() {
 // ─── Bygg slide-DOM ───────────────────────────────────────────────────────────
 function buildSlides() {
   playerEl.innerHTML = '';
+  bypassCache = {}; // nya element och nya index — gammal felhistorik gäller inte
 
   for (var i = 0; i < playlist.length; i++) {
     var item = playlist[i];
@@ -354,12 +376,20 @@ function buildSlides() {
       vid.loop     = false;
       vid.src      = item.url;
 
-      vid.addEventListener('ended', function() {
-        if (parseInt(slide.getAttribute('data-index')) === current) nextSlide();
-      });
-      vid.addEventListener('error', function() {
-        if (parseInt(slide.getAttribute('data-index')) === current) nextSlide();
-      });
+      // IIFE:n är inte kosmetik. Loopvariablerna deklareras med var och är
+      // funktionsscopade, så utan den här skulle varje videos lyssnare läsa
+      // den *sista* sliden i loopen — och jämförelsen mot current slår då fel
+      // för alla objekt utom det sista.
+      (function(slideIdx) {
+        vid.addEventListener('ended', function() {
+          if (slideIdx !== current) return;
+          advance(token);
+        });
+        vid.addEventListener('error', function() {
+          if (slideIdx !== current) return;
+          failSlide(token);
+        });
+      })(i);
 
       slide.appendChild(vid);
 
@@ -374,10 +404,53 @@ function buildSlides() {
   }
 }
 
+// ─── Stegning och felhantering ────────────────────────────────────────────────
+function clearTimers() {
+  clearTimeout(advTimer);      advTimer = null;
+  clearTimeout(loadTimer);     loadTimer = null;
+  clearInterval(stallWatchdog); stallWatchdog = null;
+}
+
+// Normal stegning från en asynkron callback.
+function advance(myToken) {
+  if (myToken !== token) return;
+  nextSlide();
+}
+
+// Objektet gick inte att spela. Vi går vidare — men aldrig direkt tillbaka in
+// i samma anrop. Med en spellista på ett enda objekt ger nextSlide() samma
+// index igen, så ett obromsat felanrop blir en oändlig
+// error → nextSlide → load() → error-loop: svart skärm och pajad CPU.
+// Finns det andra objekt hoppar vi vidare omgående; är hela listan trasig
+// backar vi av exponentiellt upp till MAX_FAIL_BACKOFF_MS.
+function failSlide(myToken) {
+  if (myToken !== token) return;
+  token++;          // döda kvarvarande callbacks för den här aktiveringen
+  clearTimers();
+
+  // En video som fallerar har oftast inte en trasig fil — den fick ett oläsligt
+  // svar ur Service Worker-cachen. Gör då ett försök som går förbi cachen innan
+  // vi ger upp på objektet, annars tappar skylten ett inslag varje varv.
+  var failedIdx = current;
+  var failedItem = playlist[failedIdx];
+  if (failedItem && failedItem.type === 'video' && !bypassCache[failedIdx]) {
+    bypassCache[failedIdx] = true;
+    advTimer = setTimeout(function() { showSlide(failedIdx); }, 250);
+    return;
+  }
+
+  consecutiveFailures++;
+  var delay = consecutiveFailures < playlist.length
+    ? 0
+    : Math.min(1000 * Math.pow(2, consecutiveFailures - 1), MAX_FAIL_BACKOFF_MS);
+  advTimer = setTimeout(nextSlide, delay);
+}
+
 // ─── Visa bild/video/webblänk ─────────────────────────────────────────────────
 function showSlide(idx) {
-  clearTimeout(advTimer);
-  clearInterval(stallWatchdog);
+  token++;
+  var myToken = token;
+  clearTimers();
 
   // Stoppa alla videor och sätt rätt synlighet med for-loop
   var allSlides = playerEl.getElementsByClassName('slide');
@@ -399,64 +472,121 @@ function showSlide(idx) {
   }
 
   var item = playlist[idx];
-  if (!item) return;
+  if (!item) { failSlide(myToken); return; }
 
   progressEl.style.transition = 'none';
   progressEl.style.width = '0%';
 
   if (item.type === 'image') {
+    consecutiveFailures = 0;
     var dur = (item.duration || 8) * 1000;
     requestAnimationFrame(function() {
+      if (myToken !== token) return;
       progressEl.style.transition = 'width ' + dur + 'ms linear';
       progressEl.style.width = '100%';
     });
-    advTimer = setTimeout(nextSlide, dur);
+    advTimer = setTimeout(function() { advance(myToken); }, dur);
 
   } else if (item.type === 'web') {
+    consecutiveFailures = 0;
     var activeWebSlide = allSlides[idx];
     var iframeEl = activeWebSlide ? activeWebSlide.getElementsByTagName('iframe')[0] : null;
     if (iframeEl) iframeEl.src = item.url; // ladda om varje gång sliden aktiveras
     var wdur = (item.duration || 30) * 1000;
     requestAnimationFrame(function() {
+      if (myToken !== token) return;
       progressEl.style.transition = 'width ' + wdur + 'ms linear';
       progressEl.style.width = '100%';
     });
-    advTimer = setTimeout(nextSlide, wdur);
+    advTimer = setTimeout(function() { advance(myToken); }, wdur);
 
   } else {
     var activeSlide = allSlides[idx];
     var vid = activeSlide ? activeSlide.getElementsByTagName('video')[0] : null;
-    if (vid) {
-      vid.muted = true;
-      vid.defaultMuted = true;
-      vid.currentTime = 0;
+    if (!vid) { failSlide(myToken); return; }
+
+    vid.muted = true;
+    vid.defaultMuted = true;
+
+    // Efter ett fel hämtar vi om via en URL som Service Workern inte har i
+    // cachen, så att svaret garanterat kommer från Workern. Workern bryr sig
+    // bara om sökvägen, så den extra parametern är ofarlig.
+    var srcUrl = bypassCache[idx]
+      ? item.url + (item.url.indexOf('?') === -1 ? '?' : '&') + 'nocache=1'
+      : item.url;
+
+    // Kan vi återanvända resursen som redan ligger i elementet? Det är load()
+    // som river ner videon till svart och tvingar fram en ny hämtning över
+    // Service Workern, och det är exakt vid loop-punkten (ended → showSlide)
+    // som den hämtningen tidigare kunde fallera och låsa skylten. Spelar vi
+    // om samma objekt räcker det att spola tillbaka.
+    var canReuse = !vid.error
+                && vid.getAttribute('src') === srcUrl
+                && vid.readyState >= 2; // HAVE_CURRENT_DATA
+
+    if (canReuse) {
+      try { vid.currentTime = 0; } catch (e) {}
+      startVideoPlayback(vid, item, idx, myToken);
+    } else {
+      loadTimer = setTimeout(function() { failSlide(myToken); }, LOAD_TIMEOUT_MS);
+      // Lyssnaren måste plockas bort explicit. En slide som misslyckas gång på
+      // gång aktiveras om och om igen, och utan det här samlar elementet på sig
+      // en lyssnare per försök — precis den sortens läckage som ger stigande
+      // CPU över tid på en skylt som stått igång i dagar.
+      if (vid.onDataHandler) vid.removeEventListener('loadeddata', vid.onDataHandler);
+      var onData = function() {
+        vid.removeEventListener('loadeddata', onData);
+        if (vid.onDataHandler === onData) vid.onDataHandler = null;
+        startVideoPlayback(vid, item, idx, myToken);
+      };
+      vid.onDataHandler = onData;
+      vid.addEventListener('loadeddata', onData);
+      if (vid.getAttribute('src') !== srcUrl) vid.setAttribute('src', srcUrl);
       vid.load();
-      var lastVideoTime = -1, stallCount = 0;
-      stallWatchdog = setInterval(function() {
-        if (!vid || vid.paused || vid.ended || current !== idx) return;
-        if (vid.currentTime === lastVideoTime) {
-          stallCount++;
-          if (stallCount >= 3) {
-            clearInterval(stallWatchdog);
-            nextSlide();
-          }
-        } else {
-          stallCount = 0;
-          lastVideoTime = vid.currentTime;
-        }
-      }, 1000);
-      vid.addEventListener('loadeddata', function() {
-        var pp = vid.play();
-        if (pp && pp.catch) { pp.catch(function() { advTimer = setTimeout(nextSlide, 60000); }); }
-      }, { once: true });
-      vid.addEventListener('loadedmetadata', function() {
-        var dur = vid.duration * 1000;
-        progressEl.style.transition = 'width ' + dur + 'ms linear';
-        requestAnimationFrame(function() { progressEl.style.width = '100%'; });
-        advTimer = setTimeout(nextSlide, dur + 3000);
-      }, { once: true });
     }
   }
+}
+
+// Startar uppspelning och sätter både progressbar och det hårda taket för hur
+// länge sliden får ligga kvar. Anropas antingen direkt (återanvänd resurs)
+// eller från loadeddata (nyladdad resurs).
+function startVideoPlayback(vid, item, idx, myToken) {
+  if (myToken !== token) return;
+  clearTimeout(loadTimer); loadTimer = null;
+  consecutiveFailures = 0;
+  // Objektet spelar igen — nästa varv får börja i cachen som vanligt.
+  bypassCache[idx] = false;
+
+  var durSec = (isFinite(vid.duration) && vid.duration > 0) ? vid.duration : (item.duration || 8);
+  var durMs  = durSec * 1000;
+
+  requestAnimationFrame(function() {
+    if (myToken !== token) return;
+    progressEl.style.transition = 'width ' + durMs + 'ms linear';
+    progressEl.style.width = '100%';
+  });
+
+  // Sista utvägen om varken 'ended' eller stall-vakten hinner först.
+  advTimer = setTimeout(function() { advance(myToken); }, durMs + 3000);
+
+  // Stall-vakt: står currentTime stilla trots att vi inte är pausade har
+  // uppspelningen dött (t.ex. avbruten ombuffring) — gå vidare i stället för
+  // att bli stående på svart.
+  var lastVideoTime = -1, stallCount = 0;
+  stallWatchdog = setInterval(function() {
+    if (myToken !== token) return;
+    if (vid.paused || vid.ended) return;
+    if (vid.currentTime === lastVideoTime) {
+      stallCount++;
+      if (stallCount >= 4) failSlide(myToken);
+    } else {
+      stallCount = 0;
+      lastVideoTime = vid.currentTime;
+    }
+  }, 1000);
+
+  var pp = vid.play();
+  if (pp && pp.catch) { pp.catch(function() { failSlide(myToken); }); }
 }
 
 function nextSlide() {
@@ -465,24 +595,33 @@ function nextSlide() {
   showSlide(current);
 }
 
+// Bygger om DOM:en och aktiverar en slide igen. buildSlides() ensam tömmer
+// #player och lämnar alla nya slides på CSS-default opacity:0 — d.v.s. svart —
+// tills någon gammal timer råkar stega vidare. Manifest-omhämtningen måste
+// därför alltid gå via den här.
+function rebuildAndResume() {
+  buildSlides();
+  if (current < 0 || current >= playlist.length) current = 0;
+  showSlide(current);
+}
+
 // ─── Starta ───────────────────────────────────────────────────────────────────
 function init() {
   registerServiceWorker();
   fetchPlaylist().then(function(status) {
     if (status !== 'built') return;
-    buildSlides();
     hideLoader();
     current = 0;
-    showSlide(0);
+    rebuildAndResume();
   });
 }
 
 // ─── Auto-reload manifest ─────────────────────────────────────────────────────
-// Hämtar om manifestet var N:e minut utan att avbryta pågående uppspelning
-// om inget faktiskt ändrats (manifest.updated oförändrat).
+// Hämtar om manifestet var N:e minut. Har inget ändrats (samma signatur) rörs
+// inte DOM:en alls och uppspelningen fortsätter oavbrutet.
 setInterval(function() {
   fetchPlaylist().then(function(status) {
-    if (status === 'built') buildSlides(); // Slideshow fortsätter från current
+    if (status === 'built') rebuildAndResume();
   });
 }, RELOAD_MIN * 60 * 1000);
 
@@ -508,7 +647,7 @@ init();
 `;
 
 // ─── Service Worker — lokal cache av bild/video, servad på /sw.js ────────────
-const SW_JS = `var CACHE_NAME = 'sodss-media-v2';
+const SW_JS = `var CACHE_NAME = 'sodss-media-v3';
 
 self.addEventListener('install', function(event) {
   self.skipWaiting();
@@ -559,42 +698,114 @@ self.addEventListener('fetch', function(event) {
 
   if (reqUrl.pathname.indexOf('/media/') !== 0) return; // bara /media/ hanteras, allt annat går till nätet som vanligt
 
-  var rangeHeader = req.headers.get('Range');
-
+  // Varje fel här nere måste sluta i ett svar. Ett avvisat löfte till
+  // respondWith() blir ett nätverksfel i <video>, och en Pi där t.ex.
+  // caches.open() fallerar skulle annars aldrig ens komma till nätet.
   event.respondWith(
-    caches.open(CACHE_NAME).then(function(cache) {
-      return cache.match(req.url).then(function(cached) {
-        if (cached) {
-          if (rangeHeader) {
-            return rangeFromCache(cached, rangeHeader).catch(function() {
-              // Trasig cache-post — släng den och hämta färskt från nätet
-              return cache.delete(req.url).then(function() { return fetch(req); });
-            });
-          }
-          return cached;
-        }
-        return fetch(req); // cache-miss → nätet, cacha inte här (nästa sync-playlist fyller på)
-      });
-    })
+    serveMedia(req).catch(function() { return fetch(req); })
   );
 });
 
-async function rangeFromCache(cached, rangeHeader) {
-  var buf = await cached.arrayBuffer();
-  var size = buf.byteLength;
-  if (!size) throw new Error('Tom eller trasig cache-post');
-  var m = /bytes=(\\d*)-(\\d*)/.exec(rangeHeader);
-  var start = m && m[1] ? parseInt(m[1], 10) : 0;
-  var end   = m && m[2] ? parseInt(m[2], 10) : size - 1;
-  if (end >= size) end = size - 1;
-  return new Response(buf.slice(start, end + 1), {
-    status: 206,
-    headers: {
+function serveMedia(req) {
+  var rangeHeader = req.headers.get('Range');
+  return caches.open(CACHE_NAME).then(function(cache) {
+    return cache.match(req.url).then(function(cached) {
+      if (!cached) return fetch(req); // cache-miss → nätet, cacha inte här (nästa sync-playlist fyller på)
+      if (!rangeHeader) return cached;
+      return rangeFromCache(cached, rangeHeader).catch(function() {
+        // Trasig cache-post — släng den och hämta färskt från nätet
+        return cache.delete(req.url).then(function() { return fetch(req); });
+      });
+    });
+  });
+}
+
+// Skivar ut ett byte-intervall ur den cachade responsen utan att materialisera
+// hela filen. Den tidigare versionen gjorde arrayBuffer() + slice(), alltså två
+// fulla kopior av mediefilen i RAM per Range-request — på en Pi 2 med en
+// flerhundra-megabytes mp4 är det den mest sannolika källan till att en
+// hämtning fallerar.
+function rangeFromCache(cached, rangeHeader) {
+  var size = parseInt(cached.headers.get('Content-Length') || '', 10);
+  var sizePromise = isFinite(size) && size > 0
+    ? Promise.resolve(size)
+    : cached.clone().arrayBuffer().then(function(b) { return b.byteLength; });
+
+  return sizePromise.then(function(total) {
+    if (!total) throw new Error('Tom eller trasig cache-post');
+    var m = /bytes=(\\d*)-(\\d*)/.exec(rangeHeader);
+    var start = m && m[1] ? parseInt(m[1], 10) : 0;
+    var end   = m && m[2] ? parseInt(m[2], 10) : total - 1;
+    if (end >= total) end = total - 1;
+
+    // Ett ouppfyllbart intervall är 416 — inte en trasig cache-post. Kastar vi
+    // här i stället slänger anroparen ut en fullt användbar mediefil ur cachen
+    // och tvingar fram en ny nerladdning av hela filen.
+    if (start >= total || start > end || start < 0) {
+      return new Response(null, {
+        status: 416,
+        headers: { 'Content-Range': 'bytes */' + total, 'Accept-Ranges': 'bytes' }
+      });
+    }
+
+    var headers = {
       'Content-Type':   cached.headers.get('Content-Type') || 'application/octet-stream',
-      'Content-Range':  'bytes ' + start + '-' + end + '/' + size,
+      'Content-Range':  'bytes ' + start + '-' + end + '/' + total,
       'Content-Length': String(end - start + 1),
       'Accept-Ranges':  'bytes'
+    };
+
+    var body = cached.body;
+    if (!body || typeof ReadableStream === 'undefined') {
+      // Fallback för miljöer utan strömmar: samma resultat, högre minnestryck.
+      return cached.arrayBuffer().then(function(buf) {
+        return new Response(buf.slice(start, end + 1), { status: 206, headers: headers });
+      });
     }
+    return new Response(sliceStream(body, start, end), { status: 206, headers: headers });
+  });
+}
+
+function sliceStream(body, start, end) {
+  var reader = body.getReader();
+  var pos = 0;
+  var done = false;
+
+  function finish(controller) {
+    if (done) return;
+    done = true;
+    controller.close();
+    reader.cancel();
+  }
+
+  return new ReadableStream({
+    pull: function(controller) {
+      // Ett pull() måste antingen köa data eller stänga strömmen. Chunkarna som
+      // ligger före intervallet ska hoppas över, och då räcker inte en enda
+      // läsning — därför loopar vi här. Returnerar man i stället utan att köa
+      // något blir strömmen aldrig ombedd att fortsätta och läsaren hänger.
+      function step() {
+        if (done) return;
+        return reader.read().then(function(res) {
+          if (done) return;
+          if (res.done) { done = true; controller.close(); return; }
+          var chunk = res.value;
+          var chunkStart = pos;
+          pos += chunk.byteLength;
+          if (pos <= start) return step();     // helt före intervallet
+          if (chunkStart > end) {              // helt efter intervallet
+            finish(controller);
+            return;
+          }
+          var from = Math.max(0, start - chunkStart);
+          var to   = Math.min(chunk.byteLength, end - chunkStart + 1);
+          controller.enqueue(chunk.subarray(from, to));
+          if (pos > end) finish(controller);
+        });
+      }
+      return step();
+    },
+    cancel: function(reason) { done = true; return reader.cancel(reason); }
   });
 }
 `;
