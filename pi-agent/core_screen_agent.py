@@ -232,6 +232,23 @@ def report_result(config, command_id, status, error=""):
     )
 
 
+def run_check(name, last_time, interval, now, action):
+    if now - last_time < interval:
+        return last_time
+    # Tiden uppdateras oavsett utfall. Annars fortsätter ett fel att stega om
+    # på varje loop-varv (var 5:e sekund) i stället för att vänta till nästa
+    # intervall — det var det som körde fast agenten i en evig 403-storm mot
+    # Workern och blockerade de andra kontrollerna (de körs bara om det här
+    # inte kastar).
+    try:
+        action()
+    except (urllib.error.URLError, urllib.error.HTTPError, subprocess.CalledProcessError, RuntimeError) as exc:
+        log(f"Fel ({name}): {exc}")
+    except Exception as exc:
+        log(f"Oväntat fel ({name}): {exc}")
+    return now
+
+
 def main():
     config = load_config()
     log(f"CORE screen agent {AGENT_VERSION} startar för {config['screen_id']}")
@@ -242,23 +259,9 @@ def main():
 
     while True:
         now = time.monotonic()
-        try:
-            if now - last_heartbeat >= 60:
-                send_heartbeat(config)
-                last_heartbeat = now
-
-            if now - last_screenshot >= 300:
-                screenshot_now(config)
-                last_screenshot = now
-
-            if now - last_command_poll >= 30:
-                poll_command(config)
-                last_command_poll = now
-
-        except (urllib.error.URLError, urllib.error.HTTPError, subprocess.CalledProcessError, RuntimeError) as exc:
-            log(f"Fel: {exc}")
-        except Exception as exc:
-            log(f"Oväntat fel: {exc}")
+        last_heartbeat = run_check("heartbeat", last_heartbeat, 60, now, lambda: send_heartbeat(config))
+        last_screenshot = run_check("screenshot", last_screenshot, 300, now, lambda: screenshot_now(config))
+        last_command_poll = run_check("command_poll", last_command_poll, 30, now, lambda: poll_command(config))
 
         time.sleep(5)
 
