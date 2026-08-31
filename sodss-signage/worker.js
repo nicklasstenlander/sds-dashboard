@@ -827,6 +827,12 @@ function sliceStream(body, start, end) {
  *
  *   Detta är ett eget namespace, skilt från <id>/ (mediafiler) och playlists/<id>.json.
  *
+ *   news/<uuid>.<ext>                  nyhetsbilder från Core "Nyheter"-redigeraren
+ *
+ *   Också ett eget namespace. Kan aldrig kollidera med <id>/-listningen i /api/files
+ *   eller /api/upload eftersom de kräver ett screen-id som matchar SCREENS (reception/lounge) —
+ *   "news" är inte ett giltigt screen-id och matchas därför aldrig av isValidScreen().
+ *
  * Endpoints:
  *   GET    /api/screens                            → [{ id, name, online, lastHeartbeatAt,
  *                                                        lastScreenshotAt, temperature, uptime,
@@ -835,6 +841,8 @@ function sliceStream(body, start, end) {
  *   GET    /api/files?screen=<id>                  → filer under <id>/
  *   POST   /api/upload?screen=<id>                 → ladda upp till <id>/<sanerat filnamn>  [admin-auth]
  *   DELETE /api/files/<id>/<filnamn>                ta bort fil                             [admin-auth]
+ *   POST   /api/news/upload                        → ladda upp bild till news/<uuid>.<ext>  [admin-auth]
+ *                                                      (Nyheter i Core — eget namespace, se news/ nedan)
  *   GET    /api/playlist/<id>                       manifest (publik — spelaren läser den)
  *   PUT    /api/playlist/<id>                       sparar manifest                         [admin-auth]
  *   GET    /api/schedules                           tidsstyrning (alla skärmar, keyed på R2-nyckel)
@@ -1276,6 +1284,47 @@ export default {
         etag: head?.etag,
         url: `${url.origin}/media/${key}${head?.etag ? `?v=${head.etag}` : ''}`,
         type: guessType(fileName),
+      });
+    }
+
+    // ── POST /api/news/upload — nyhetsbild till news/<uuid>.<ext> ────────────
+    if (path === "/api/news/upload" && request.method === "POST") {
+      if (!isAuthorized()) return err("Ej behörig", 401);
+
+      const contentType = request.headers.get("Content-Type") ?? "";
+      if (!contentType.includes("multipart/form-data")) {
+        return err("Förväntar multipart/form-data");
+      }
+
+      const formData = await request.formData();
+      const file = formData.get("file");
+      if (!file || typeof file === "string") {
+        return err("Ingen fil i formuläret");
+      }
+
+      const ext = (file.name.split(".").pop() ?? "").toLowerCase();
+      const allowedExt = { jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", webp: "image/webp", gif: "image/gif" };
+      if (!Object.prototype.hasOwnProperty.call(allowedExt, ext)) {
+        return err("Otillåten filtyp. Tillåtna format: jpg, jpeg, png, webp, gif", 400);
+      }
+
+      const NEWS_MAX_BYTES = 10 * 1024 * 1024;
+      if (file.size > NEWS_MAX_BYTES) {
+        return err("Filen är för stor. Max 10 MB", 413);
+      }
+
+      const key = `news/${crypto.randomUUID()}.${ext}`;
+      const mime = file.type || allowedExt[ext];
+
+      await env.BUCKET.put(key, file.stream(), {
+        httpMetadata: { contentType: mime },
+      });
+      const head = await env.BUCKET.head(key);
+
+      return json({
+        ok: true,
+        key,
+        url: `${url.origin}/media/${key}${head?.etag ? `?v=${head.etag}` : ''}`,
       });
     }
 

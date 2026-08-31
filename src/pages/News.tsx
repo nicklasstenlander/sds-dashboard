@@ -1,11 +1,14 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { format, parseISO } from 'date-fns'
 import { sv } from 'date-fns/locale'
-import { CheckCircle, Loader2, Plus, Save, Trash2, X } from 'lucide-react'
+import { CheckCircle, Loader2, Plus, Save, Trash2, Upload, X } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useContentCards, useCreateContentCard, useDeleteContentCard, useUpdateContentCard } from '../hooks/useContentCards'
 import { useEvents } from '../hooks/useEvents'
 import type { ContentCard, ContentCardInput, ContentCardType } from '../services/contentCardsService'
+
+const WORKER_URL = import.meta.env.VITE_WORKER_URL ?? ''
+const WORKER_SECRET = import.meta.env.VITE_WORKER_SECRET ?? ''
 
 type CardStatus = 'active' | 'draft' | 'upcoming' | 'expired'
 
@@ -216,6 +219,10 @@ function CardModal({
   const [draft, setDraft] = useState<CardDraft>(() => toDraft(card))
   const [titleError, setTitleError] = useState<string | null>(null)
   const [destinationError, setDestinationError] = useState<string | null>(null)
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+  const [dragOver, setDragOver] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const eventsQuery = useEvents()
   const courseOptions = useMemo(
@@ -281,6 +288,46 @@ function CardModal({
     }
   }
 
+  function handleImageUpload(file: File) {
+    setUploadError(null)
+    setUploadProgress(0)
+
+    const formData = new FormData()
+    formData.append('file', file)
+
+    const xhr = new XMLHttpRequest()
+    xhr.open('POST', `${WORKER_URL}/api/news/upload`)
+    if (WORKER_SECRET) xhr.setRequestHeader('Authorization', `Bearer ${WORKER_SECRET}`)
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        setUploadProgress(Math.round((event.loaded / event.total) * 100))
+      }
+    }
+    xhr.onload = () => {
+      setUploadProgress(null)
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const data = JSON.parse(xhr.responseText)
+          setDraft((current) => ({ ...current, image_url: data.url }))
+        } catch {
+          setUploadError('Oväntat svar från servern. Försök igen.')
+        }
+      } else {
+        try {
+          const data = JSON.parse(xhr.responseText)
+          setUploadError(data.error ?? `Uppladdningen misslyckades (${xhr.status})`)
+        } catch {
+          setUploadError(`Uppladdningen misslyckades (${xhr.status})`)
+        }
+      }
+    }
+    xhr.onerror = () => {
+      setUploadProgress(null)
+      setUploadError('Nätverksfel. Försök igen.')
+    }
+    xhr.send(formData)
+  }
+
   return (
     <div className="fixed inset-0 z-[80] flex items-end justify-center px-4 pb-4 sm:items-center sm:pb-0">
       <div className="absolute inset-0 bg-black/30" onClick={onClose} />
@@ -337,9 +384,55 @@ function CardModal({
             />
           </label>
 
-          <div>
+          <div className="space-y-2">
+            <span className="text-xs font-semibold text-slate-600">Bild</span>
+
+            <div>
+              <p className="mb-1 text-xs font-medium text-slate-500">Ladda upp bild</p>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                onDragOver={(event) => { event.preventDefault(); setDragOver(true) }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={(event) => {
+                  event.preventDefault()
+                  setDragOver(false)
+                  const file = event.dataTransfer.files?.[0]
+                  if (file) handleImageUpload(file)
+                }}
+                disabled={uploadProgress !== null}
+                className={`flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed px-3 py-4 text-sm transition-colors disabled:opacity-60 ${
+                  dragOver ? 'border-brand-mint bg-brand-mint/10 text-brand-dark' : 'border-slate-200 text-slate-500 hover:border-brand-mint hover:bg-brand-mint/10'
+                }`}
+              >
+                {uploadProgress !== null ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Laddar upp… {uploadProgress}%
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-4 w-4" />
+                    Välj eller dra en bildfil (jpg, png, webp, gif)
+                  </>
+                )}
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                className="hidden"
+                onChange={(event) => {
+                  const file = event.target.files?.[0]
+                  if (file) handleImageUpload(file)
+                  event.target.value = ''
+                }}
+              />
+              {uploadError && <p className="mt-1 text-xs text-status-critical">{uploadError}</p>}
+            </div>
+
             <label className="block">
-              <span className="text-xs font-semibold text-slate-600">Bild-URL</span>
+              <span className="text-xs font-semibold text-slate-600">…eller klistra in bild-URL</span>
               <input
                 value={draft.image_url}
                 onChange={(event) => setDraft({ ...draft, image_url: event.target.value })}
