@@ -10,6 +10,10 @@ export interface ContentCard {
   image_url: string | null
   link_url: string | null
   link_label: string | null
+  title_color: string | null
+  body_color: string | null
+  button_bg_color: string | null
+  button_text_color: string | null
   app_destination: string | null
   starts_at: string
   expires_at: string | null

@@ -35,6 +35,25 @@ const TYPE_LABELS: Record<ContentCardType, string> = {
   banner: 'Banner',
 }
 
+const BRAND_COLOR_SWATCHES: Array<{ hex: string; label: string }> = [
+  { hex: '#f4d1ce', label: '#f4d1ce' },
+  { hex: '#f192ac', label: '#f192ac' },
+  { hex: '#ee7a9f', label: '#ee7a9f' },
+  { hex: '#dd5c86', label: '#dd5c86' },
+  { hex: '#cfded2', label: '#cfded2' },
+  { hex: '#a0c4b9', label: '#a0c4b9' },
+  { hex: '#45aba5', label: '#45aba5' },
+  { hex: '#009399', label: '#009399' },
+]
+
+const NEUTRAL_COLOR_SWATCHES: Array<{ hex: string; label: string }> = [
+  { hex: '#000000', label: 'Svart' },
+  { hex: '#ffffff', label: 'Vit' },
+  { hex: '#8a8f98', label: 'Grå' },
+]
+
+const COLOR_SWATCHES = [...BRAND_COLOR_SWATCHES, ...NEUTRAL_COLOR_SWATCHES]
+
 const TYPE_BADGE_CLASS: Record<ContentCardType, string> = {
   news: 'bg-identity-sky text-brand-dark',
   event: 'bg-identity-violet text-brand-dark',
@@ -56,6 +75,10 @@ interface CardDraft {
   image_url: string
   link_url: string
   link_label: string
+  title_color: string | null
+  body_color: string | null
+  button_bg_color: string | null
+  button_text_color: string | null
   link_type: LinkType
   course_event_id: string
   starts_at: string
@@ -266,6 +289,10 @@ function CardModal({
       image_url: draft.image_url.trim() || null,
       link_url: draft.link_url.trim() || null,
       link_label: draft.link_label.trim() || null,
+      title_color: draft.title_color,
+      body_color: draft.body_color,
+      button_bg_color: draft.button_bg_color,
+      button_text_color: draft.button_text_color,
       app_destination: appDestination,
       starts_at: fromDatetimeLocal(draft.starts_at),
       expires_at: draft.noEndDate ? null : fromDatetimeLocal(draft.expires_at),
@@ -455,6 +482,16 @@ function CardModal({
             <Input label="Länktext" value={draft.link_label} onChange={(link_label) => setDraft({ ...draft, link_label })} />
           </div>
 
+          <div className="space-y-3 rounded-2xl border border-slate-100 bg-slate-50/60 p-3">
+            <p className="text-xs font-semibold text-slate-600">Textfärger (för kort med bakgrundsbild)</p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <ColorPicker label="Rubrik" value={draft.title_color} onChange={(title_color) => setDraft({ ...draft, title_color })} />
+              <ColorPicker label="Ingress" value={draft.body_color} onChange={(body_color) => setDraft({ ...draft, body_color })} />
+              <ColorPicker label="Knappbakgrund" value={draft.button_bg_color} onChange={(button_bg_color) => setDraft({ ...draft, button_bg_color })} />
+              <ColorPicker label="Knapptext" value={draft.button_text_color} onChange={(button_text_color) => setDraft({ ...draft, button_text_color })} />
+            </div>
+          </div>
+
           <div className="space-y-2">
             <label className="block">
               <span className="text-xs font-semibold text-slate-600">Appnavigering</span>
@@ -619,6 +656,48 @@ function Input({ label, value, onChange }: { label: string; value: string; onCha
   )
 }
 
+function ColorPicker({
+  label,
+  value,
+  onChange,
+}: {
+  label: string
+  value: string | null
+  onChange: (value: string | null) => void
+}) {
+  return (
+    <div>
+      <span className="text-xs font-semibold text-slate-600">{label}</span>
+      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+        {COLOR_SWATCHES.map((swatch) => {
+          const selected = value?.toLowerCase() === swatch.hex.toLowerCase()
+          return (
+            <button
+              key={swatch.hex}
+              type="button"
+              title={swatch.label}
+              onClick={() => onChange(swatch.hex)}
+              className={`h-6 w-6 rounded-full transition-transform ${selected ? 'scale-110 ring-2 ring-brand-dark ring-offset-1' : 'ring-1 ring-black/10'}`}
+              style={{ backgroundColor: swatch.hex }}
+            >
+              <span className="sr-only">{swatch.label}</span>
+            </button>
+          )
+        })}
+        <button
+          type="button"
+          onClick={() => onChange(null)}
+          className={`rounded-full border px-2 py-1 text-[11px] font-medium transition-colors ${
+            !value ? 'border-brand-dark text-brand-dark' : 'border-slate-200 text-slate-400 hover:border-slate-300'
+          }`}
+        >
+          Standard
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function Th({ children }: { children?: React.ReactNode }) {
   return <th className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold text-slate-600">{children}</th>
 }
@@ -685,6 +764,10 @@ function toDraft(card: ContentCard | null): CardDraft {
       image_url: '',
       link_url: '',
       link_label: '',
+      title_color: null,
+      body_color: null,
+      button_bg_color: null,
+      button_text_color: null,
       link_type: 'external',
       course_event_id: '',
       starts_at: toDatetimeLocal(new Date().toISOString()),
@@ -707,6 +790,10 @@ function toDraft(card: ContentCard | null): CardDraft {
     image_url: card.image_url ?? '',
     link_url: card.link_url ?? '',
     link_label: card.link_label ?? '',
+    title_color: card.title_color ?? null,
+    body_color: card.body_color ?? null,
+    button_bg_color: card.button_bg_color ?? null,
+    button_text_color: card.button_text_color ?? null,
     link_type,
     course_event_id,
     starts_at: toDatetimeLocal(card.starts_at),
