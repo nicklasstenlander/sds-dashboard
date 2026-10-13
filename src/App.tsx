@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useLayoutEffect, lazy, Suspense } from 'react'
 import { Routes, Route, Navigate, NavLink, useLocation } from 'react-router-dom'
-import { LayoutDashboard, ClipboardList, Users, Settings, LogOut, ShoppingBag, PanelLeft, Phone, ClipboardCheck, Monitor, CalendarDays, MoreHorizontal, Loader2, FileText, Newspaper, Bell } from 'lucide-react'
+import { LayoutDashboard, ClipboardList, Users, Settings, LogOut, ShoppingBag, PanelLeft, Phone, ClipboardCheck, Monitor, CalendarDays, MoreHorizontal, Loader2, FileText, Newspaper, Bell, Ticket } from 'lucide-react'
 import { ApiProvider, useApiConfig } from './context/ApiContext'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { LoginPage } from './pages/LoginPage'
@@ -19,6 +19,7 @@ const Forms = lazy(() => import('./pages/Forms').then(m => ({ default: m.Forms }
 const News = lazy(() => import('./pages/News').then(m => ({ default: m.News })))
 const Notifications = lazy(() => import('./pages/Notifications').then(m => ({ default: m.Notifications })))
 const PublicForm = lazy(() => import('./pages/PublicForm').then(m => ({ default: m.PublicForm })))
+const Forestallningar = lazy(() => import('./pages/Forestallningar').then(m => ({ default: m.Forestallningar })))
 
 function PageLoader() {
   return (
@@ -60,6 +61,11 @@ const NAV = [
   { to: '/formular',    label: 'Formulär',      Icon: FileText        },
   { to: '/nyheter',     label: 'Nyheter',       Icon: Newspaper       },
   { to: '/notiser',     label: 'Notiser',       Icon: Bell            },
+  // Synlig ENDAST för rollen admin (ordern "Föreställningar-statistik
+  // från Rideau till CORE" 2026-10-13, Fas 3) - filtreras bort nedan i
+  // BÅDA nav-listorna (desktop + mobil "Mer") om profile.role !== 'admin'.
+  // Servern (Workern) nekar ändå oberoende av detta - se Forestallningar.tsx.
+  { to: '/forestallningar', label: 'Föreställningar', Icon: Ticket, adminOnly: true },
 ]
 
 function AppShell() {
@@ -153,7 +159,7 @@ function AppShell() {
               style={{ top: pill.top, height: pill.height }}
             />
           )}
-          {NAV.map(({ to, label, Icon }) => {
+          {NAV.filter(({ adminOnly }) => !adminOnly || profile?.role === 'admin').map(({ to, label, Icon }) => {
             const active = isActive(to)
             return (
               <NavLink
@@ -241,6 +247,7 @@ function AppShell() {
               <Route path="/formular" element={<Forms />} />
               <Route path="/nyheter" element={<News />} />
               <Route path="/notiser" element={<Notifications />} />
+              <Route path="/forestallningar" element={<Forestallningar />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Suspense>
@@ -255,7 +262,7 @@ function AppShell() {
           { to: '/kunder',      label: 'Kunder',      Icon: Users           },
           { to: '/shop',        label: 'Shop',        Icon: ShoppingBag     },
         ]
-        const MORE: { to: string; label: string; Icon: React.ElementType }[] = [
+        const MORE: { to: string; label: string; Icon: React.ElementType; adminOnly?: boolean }[] = [
           { to: '/samtal',    label: 'Samtal',    Icon: Phone         },
           { to: '/narvaro',   label: 'Närvaro',   Icon: ClipboardCheck },
           { to: '/skyltning', label: 'Skyltning', Icon: Monitor       },
@@ -263,7 +270,8 @@ function AppShell() {
           { to: '/formular',  label: 'Formulär',  Icon: FileText      },
           { to: '/nyheter',   label: 'Nyheter',   Icon: Newspaper     },
           { to: '/notiser',   label: 'Notiser',   Icon: Bell          },
-        ]
+          { to: '/forestallningar', label: 'Föreställningar', Icon: Ticket, adminOnly: true },
+        ].filter(({ adminOnly }) => !adminOnly || profile?.role === 'admin')
         const isMoreActive = MORE.some(m => isActive(m.to))
 
         return (
