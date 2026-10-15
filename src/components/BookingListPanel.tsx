@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { X } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { X, ArrowRight } from 'lucide-react'
 import { ParticipantPanel } from './ParticipantPanel'
 import { bookingTicketQuantity } from '../utils/courseMetrics'
 import type { Booking, BookingPayment } from '../types/cogwork'
@@ -28,9 +29,11 @@ interface BookingListPanelProps {
   title: string
   bookings: Booking[]
   onClose: () => void
+  /** Valfri länk längst ned, t.ex. till Anmälningar med förvalt filter. */
+  footerLink?: { to: string; label: string }
 }
 
-export function BookingListPanel({ title, bookings, onClose }: BookingListPanelProps) {
+export function BookingListPanel({ title, bookings, onClose, footerLink }: BookingListPanelProps) {
   const [selectedName, setSelectedName] = useState<string | null>(null)
   const open = Boolean(title)
   const ticketCount = bookings.reduce((sum, booking) => sum + bookingTicketQuantity(booking), 0)
@@ -113,6 +116,19 @@ export function BookingListPanel({ title, bookings, onClose }: BookingListPanelP
             </ul>
           )}
         </div>
+
+        {footerLink && open && (
+          <div className="border-t border-slate-100 p-4">
+            <Link
+              to={footerLink.to}
+              onClick={onClose}
+              className="flex items-center justify-center gap-2 rounded-full bg-brand-dark px-4 py-2 text-sm font-medium text-white hover:opacity-90 transition-opacity"
+            >
+              {footerLink.label}
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+        )}
       </div>
 
       <ParticipantPanel name={selectedName} onClose={() => setSelectedName(null)} elevated />

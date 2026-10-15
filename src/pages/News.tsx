@@ -94,7 +94,11 @@ interface CardDraft {
 export function News() {
   const { session, usingLegacyAuth } = useAuth()
   const cardsQuery = useContentCards()
-  const cards = cardsQuery.data ?? []
+  // Aktiva kort överst, utgångna sist. Stabil sortering behåller sort_order inom varje grupp.
+  const cards = useMemo(() => {
+    const order: Record<CardStatus, number> = { active: 0, upcoming: 1, draft: 2, expired: 3 }
+    return [...(cardsQuery.data ?? [])].sort((a, b) => order[computeStatus(a)] - order[computeStatus(b)])
+  }, [cardsQuery.data])
   const createCard = useCreateContentCard()
   const updateCard = useUpdateContentCard()
   const deleteCard = useDeleteContentCard()
@@ -177,8 +181,8 @@ export function News() {
                         {TYPE_LABELS[card.type]}
                       </span>
                     </td>
-                    <td className="max-w-[280px] px-5 py-3 text-sm font-medium text-brand-dark">
-                      <span className="line-clamp-1">{card.title}</span>
+                    <td className="w-full min-w-[220px] px-5 py-3 text-sm font-medium text-brand-dark">
+                      <span className="line-clamp-2" title={card.title}>{card.title}</span>
                     </td>
                     <td className="whitespace-nowrap px-5 py-3 text-sm">
                       <StatusBadge status={computeStatus(card)} />

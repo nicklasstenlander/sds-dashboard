@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react'
+import type { KeyboardEvent, ReactNode } from 'react'
+import { ChevronRight } from 'lucide-react'
 
 interface KPICardProps {
   title: string
@@ -26,11 +27,21 @@ const colorMap = {
 export function KPICard({ title, value, subtitle, icon, trend, delta, color = 'violet', onClick }: KPICardProps) {
   const c = colorMap[color]
 
+  // Klickbara kort är knappar för tangentbord/skärmläsare (Enter/Space öppnar detaljpanelen).
+  function handleKeyDown(e: KeyboardEvent<HTMLDivElement>) {
+    if (!onClick || e.target !== e.currentTarget) return
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      onClick()
+    }
+  }
+
   return (
     <div
-      className={`card kpi-card p-5 border ${c.cardBg} ${c.border} ${onClick ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}`}
+      className={`card kpi-card group relative p-5 border ${c.cardBg} ${c.border} ${onClick ? 'cursor-pointer hover:shadow-md transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-dark' : ''}`}
       data-kpi-color={color}
       onClick={onClick}
+      {...(onClick ? { role: 'button', tabIndex: 0, onKeyDown: handleKeyDown, 'aria-label': `${title}: ${value}. Visa detaljer` } : {})}
     >
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
@@ -52,6 +63,12 @@ export function KPICard({ title, value, subtitle, icon, trend, delta, color = 'v
           {icon}
         </div>
       </div>
+      {onClick && (
+        <ChevronRight
+          aria-hidden="true"
+          className={`absolute bottom-3 right-3 w-4 h-4 opacity-40 transition-all group-hover:opacity-80 group-hover:translate-x-0.5 ${c.icon}`}
+        />
+      )}
     </div>
   )
 }

@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { format, parseISO } from 'date-fns'
 import { sv } from 'date-fns/locale'
@@ -31,24 +32,58 @@ function paymentStatus(b: Booking): 'paid' | 'unpaid' | 'partial' | 'unknown' {
   return 'unknown'
 }
 
+// Antal hela dagar sedan förfallodatumet passerat (0 = ej förfallen / ej obetald).
+function daysOverdue(b: Booking): number {
+  const due = b.payment?.paymentDue
+  if (!due || paymentStatus(b) !== 'unpaid') return 0
+  // Datum utan klockslag gäller hela förfallodagen, så de räknas som förfallna först efter dagens slut.
+  const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(due.trim())
+  const dueDate = new Date(dateOnly ? `${due.trim()}T23:59:59` : due.replace(' ', 'T'))
+  if (Number.isNaN(dueDate.getTime())) return 0
+  const diff = Date.now() - dueDate.getTime()
+  return diff > 0 ? Math.max(1, Math.floor(diff / 86_400_000)) : 0
+}
+
+function formatDueDate(due: string): string {
+  try {
+    return format(parseISO(due.replace(' ', 'T')), 'd MMM', { locale: sv })
+  } catch {
+    return due.slice(0, 10)
+  }
+}
+
 function PayBadge({ booking }: { booking: Booking }) {
   const s = paymentStatus(booking)
   const p = booking.payment
+  if (s === 'unknown') return <span className="text-xs text-slate-600">—</span>
+
+  const overdue = daysOverdue(booking)
+  if (overdue > 0) {
+    return (
+      <span
+        className="inline-block text-xs font-semibold px-2.5 py-0.5 rounded-full bg-status-critical text-white"
+        title={`Förföll ${p?.paymentDue ?? ''}`}
+      >
+        Förfallen · {overdue} {overdue === 1 ? 'dag' : 'dagar'}
+      </span>
+    )
+  }
+
   const map = {
     paid:    { label: 'Betald',    cls: 'bg-status-okSoft text-brand-forest' },
     unpaid:  { label: 'Obetald',   cls: 'bg-status-criticalSoft text-status-critical' },
     partial: { label: 'Delbetald', cls: 'bg-status-warningSoft text-[#5f4700]' },
-    unknown: { label: '—',         cls: '' },
   }
   const { label, cls } = map[s]
-  if (s === 'unknown') return <span className="text-xs text-slate-600">—</span>
+  // Betalt belopp visas bara när det avviker från priset (priset står redan i samma cell).
+  const showPaidAmount =
+    s === 'paid' && p?.amountPaid != null && p.priceAgreed != null && p.amountPaid !== p.priceAgreed
   return (
-    <span className={`inline-block text-xs font-semibold px-2.5 py-0.5 rounded-full ${cls}`}>
+    <span className={`inline-block text-xs font-semibold px-2.5 py-0.5 rounded-full whitespace-nowrap ${cls}`}>
       {label}
-      {s === 'paid' && p?.amountPaid
-        ? ` · ${p.amountPaid.toLocaleString('sv-SE')} ${p.currency ?? 'SEK'}`
-        : ''}
-      {s === 'unpaid' && p?.paymentDue ? ` · förfaller ${p.paymentDue}` : ''}
+      {showPaidAmount ? ` · ${p!.amountPaid!.toLocaleString('sv-SE')} ${p!.currency ?? 'SEK'}` : ''}
+      {s === 'partial' && p?.amountPaid ? ` · ${p.amountPaid.toLocaleString('sv-SE')} ${p.currency ?? 'SEK'}` : ''}
+      {s === 'unpaid' && p?.paymentDue ? ` · förfaller ${formatDueDate(p.paymentDue)}` : ''}
     </span>
   )
 }
@@ -88,8 +123,18 @@ function Pill({
 export function RecentBookings() {
   const { config } = useApiConfig()
   const queryClient = useQueryClient()
-  const [eventBlockId, setEventBlockId] = useState('')
-  const [payFilter, setPayFilter] = useState<'' | 'paid' | 'unpaid' | 'partial'>('')
+  const [searchParams] = useSearchParams()
+  const [eventBlockId, setEventBlockId] = useState(() => searchParams.get('period') ?? '')
+  // Djuplänkar från Översikten: #/anmalningar?betalning=obetalda|forfallna|delbetalda|betalda&period=<period>
+  const [payFilter, setPayFilter] = useState<'' | 'paid' | 'unpaid' | 'partial' | 'overdue'>(() => {
+    const preset = searchParams.get('betalning')
+    if (preset === 'obetalda') return 'unpaid'
+    if (preset === 'forfallna') return 'overdue'
+    if (preset === 'delbetalda') return 'partial'
+    if (preset === 'betalda') return 'paid'
+    return ''
+  })
+  const [onlyWithComment, setOnlyWithComment] = useState(false)
   const [search, setSearch] = useState('')
   const [selectedName, setSelectedName] = useState<string | null>(null)
   const [isManualRefreshing, setIsManualRefreshing] = useState(false)
@@ -153,7 +198,10 @@ export function RecentBookings() {
     () =>
       bookings
         .filter((b) => {
-          if (payFilter && paymentStatus(b) !== payFilter) return false
+          if (payFilter === 'overdue') {
+            if (daysOverdue(b) === 0) return false
+          } else if (payFilter && paymentStatus(b) !== payFilter) return false
+          if (onlyWithComment && !b.comment?.trim()) return false
           if (search) {
             const q = search.toLowerCase()
             const schedule = bookingScheduleDisplay(b, eventById).toLowerCase()
@@ -166,12 +214,14 @@ export function RecentBookings() {
           return true
         })
         .sort((a, b) => b.created.localeCompare(a.created)),
-    [bookings, eventById, payFilter, search],
+    [bookings, eventById, payFilter, onlyWithComment, search],
   )
 
   const paidCount    = bookings.filter((b) => paymentStatus(b) === 'paid').length
   const unpaidCount  = bookings.filter((b) => paymentStatus(b) === 'unpaid').length
   const partialCount = bookings.filter((b) => paymentStatus(b) === 'partial').length
+  const overdueCount = bookings.filter((b) => daysOverdue(b) > 0).length
+  const commentCount = bookings.filter((b) => b.comment?.trim()).length
 
   if (!config.pw) {
     return (
@@ -218,6 +268,24 @@ export function RecentBookings() {
               Delbetalda ({partialCount})
             </Pill>
           )}
+          {overdueCount > 0 && (
+            <Pill active={payFilter === 'overdue'} onClick={() => setPayFilter('overdue')}>
+              Förfallna ({overdueCount})
+            </Pill>
+          )}
+          <span className="w-px bg-slate-200 mx-1" aria-hidden="true" />
+          <button
+            type="button"
+            aria-pressed={onlyWithComment}
+            onClick={() => setOnlyWithComment((v) => !v)}
+            className={`text-sm px-4 py-1.5 rounded-full border transition-colors font-medium ${
+              onlyWithComment
+                ? 'bg-brand-dark text-white border-brand-dark'
+                : 'border-slate-200 text-slate-500 hover:border-brand-dark hover:text-brand-dark'
+            }`}
+          >
+            Har kommentar {!isSettling && `(${commentCount})`}
+          </button>
         </div>
       </div>
 
@@ -255,6 +323,11 @@ export function RecentBookings() {
               {partialCount > 0 && (
                 <span>
                   <span className="font-semibold text-amber-700">{partialCount}</span> delbetalda
+                </span>
+              )}
+              {overdueCount > 0 && (
+                <span>
+                  <span className="font-semibold text-status-critical">{overdueCount}</span> förfallna
                 </span>
               )}
             </div>
@@ -303,24 +376,18 @@ export function RecentBookings() {
             <table className="w-full">
               <thead className="bg-slate-50/60 border-b border-slate-100">
                 <tr>
-                  <Th>Anmäld</Th>
-                  <Th>Deltagare</Th>
-                  <Th>Kurs</Th>
-                  <Th>Dag / tid</Th>
-                  <Th>Pris</Th>
-                  <Th>Betalning</Th>
+                  <Th>Deltagare / anmäld</Th>
+                  <Th>Kurs / tid</Th>
+                  <Th>Pris / betalning</Th>
                   <Th>Status</Th>
                   <Th>Kommentar</Th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {filtered.map((b) => (
-                  <tr key={b.key} className="hover:bg-slate-50/60 dark:hover:bg-[var(--dark-green-secondary)] transition-colors">
-                    <td className="py-3 px-5 text-sm text-slate-600 whitespace-nowrap">
-                      {formatDate(b.created)}
-                    </td>
-                    <td className="py-3 px-5 text-sm font-medium whitespace-nowrap">
-                      <div className="flex items-center gap-2">
+                  <tr key={b.key} className="hover:bg-slate-50/60 dark:hover:bg-[var(--dark-green-secondary)] transition-colors align-top">
+                    <td className="py-2.5 px-3 text-sm font-medium max-w-[260px]">
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
                         {b.participant?.name ? (
                           <button
                             onClick={() => setSelectedName(b.participant!.name!)}
@@ -339,25 +406,26 @@ export function RecentBookings() {
                           </span>
                         )}
                       </div>
+                      <div className="text-xs font-normal text-slate-500 mt-0.5 whitespace-nowrap">
+                        Anmäld {formatDate(b.created)}
+                      </div>
                     </td>
-                    <td className="py-3 px-5 text-sm text-slate-700 max-w-[280px]">
-                      <span className="line-clamp-1">{b.event?.name ?? '—'}</span>
-                    </td>
-                    <td className="py-3 px-5 text-sm text-slate-600 max-w-[180px]">
-                      <span className="line-clamp-1" title={bookingScheduleDisplay(b, eventById)}>
+                    <td className="py-2.5 px-3 text-sm text-slate-700 max-w-[260px]">
+                      <span className="line-clamp-1" title={b.event?.name ?? undefined}>{b.event?.name ?? '—'}</span>
+                      <span className="block text-xs text-slate-500 mt-0.5 line-clamp-1" title={bookingScheduleDisplay(b, eventById)}>
                         {bookingScheduleDisplay(b, eventById)}
                       </span>
                     </td>
-                    <td className="py-3 px-5 text-sm text-slate-600 tabular-nums whitespace-nowrap">
-                      {priceDisplay(b.payment)}
+                    <td className="py-2.5 px-3 text-sm text-slate-600">
+                      <div className="flex flex-col items-start gap-1">
+                        <span className="tabular-nums whitespace-nowrap">{priceDisplay(b.payment)}</span>
+                        <PayBadge booking={b} />
+                      </div>
                     </td>
-                    <td className="py-3 px-5 whitespace-nowrap">
-                      <PayBadge booking={b} />
-                    </td>
-                    <td className="py-3 px-5 text-sm text-slate-500 whitespace-nowrap">
+                    <td className="py-2.5 px-3 text-sm text-slate-500 whitespace-nowrap">
                       {formatBookingStatus(b.status?.code, b.status?.name)}
                     </td>
-                    <td className="py-3 px-5 text-sm text-slate-600 max-w-[240px]">
+                    <td className="py-2.5 px-3 text-sm text-slate-600 max-w-[220px]">
                       {b.comment
                         ? <span className="line-clamp-2" title={b.comment}>{b.comment}</span>
                         : <span className="text-slate-600">—</span>}
@@ -377,7 +445,7 @@ export function RecentBookings() {
 
 function Th({ children }: { children: React.ReactNode }) {
   return (
-    <th className="text-left text-xs font-semibold text-slate-600 py-3 px-5 whitespace-nowrap">
+    <th className="text-left text-xs font-semibold text-slate-600 py-3 px-3 whitespace-nowrap">
       {children}
     </th>
   )
