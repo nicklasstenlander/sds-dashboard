@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { X, Users, Clock, MapPin, User, Banknote, CalendarDays } from 'lucide-react'
 import { useEventBookings } from '../hooks/useEventBookings'
 import { ParticipantPanel } from './ParticipantPanel'
@@ -54,7 +54,7 @@ function BookingSection({
     <div>
       <SectionHeader label="Antagna" count={antagnaCount} color="text-brand-forest" />
       {antagna.length === 0 ? (
-        <p className="px-5 py-3 text-sm text-slate-400">Inga antagna ännu</p>
+        <p className="px-5 py-3 text-sm text-slate-500">Inga antagna ännu</p>
       ) : (
         <ul className="divide-y divide-slate-50">
           {antagna.map((b) => (
@@ -71,7 +71,7 @@ function BookingSection({
 
       <SectionHeader label="Anmälda — ej antagna" count={ejAntagnaCount} color="text-amber-600" />
       {ejAntagna.length === 0 ? (
-        <p className="px-5 py-3 text-sm text-slate-400">Alla anmälda är antagna</p>
+        <p className="px-5 py-3 text-sm text-slate-500">Alla anmälda är antagna</p>
       ) : (
         <ul className="divide-y divide-slate-50">
           {ejAntagna.map((b) => (
@@ -93,7 +93,7 @@ function SectionHeader({ label, count, color }: { label: string; count: number; 
   return (
     <div className={`px-5 py-2.5 flex items-center justify-between sticky top-0 bg-white border-b border-slate-100`}>
       <p className={`text-xs font-semibold uppercase tracking-wide ${color}`}>{label}</p>
-      <span className="text-xs text-slate-400">{count} st</span>
+      <span className="text-xs text-slate-500">{count} st</span>
     </div>
   )
 }
@@ -118,21 +118,25 @@ function BookingRow({
     ? `Bytt från ${courseChangeInfo.fromCourses.join(', ')}`
     : ''
   return (
-    <li className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50/60">
+    <li className="flex items-start gap-3 px-5 py-3 hover:bg-slate-50/60">
       <div className="w-8 h-8 rounded-full bg-brand-teal flex items-center justify-center text-white text-xs font-semibold shrink-0">
         {initials}
       </div>
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          {name ? (
+        {name ? (
             <button
               onClick={() => onSelect(name)}
-              className="text-sm font-medium text-brand-dark hover:text-brand-forest hover:underline truncate text-left"
+              className="block max-w-full text-sm font-medium text-brand-dark hover:text-brand-forest hover:underline truncate text-left"
+              title={name}
             >
               {name}
             </button>
           ) : (
             <p className="text-sm font-medium text-brand-dark truncate">—</p>
+          )}
+        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+          {b.status?.name && (
+            <span className="text-xs text-slate-500">{formatBookingStatus(b.status.code, b.status.name)}</span>
           )}
           {isTicketPurchase ? (
             <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 whitespace-nowrap">
@@ -145,16 +149,13 @@ function BookingRow({
           )}
           {!isTicketPurchase && courseChangeLabel && (
             <span
-              className="inline-block max-w-[170px] truncate text-xs font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 whitespace-nowrap align-bottom"
+              className="inline-block max-w-full truncate text-xs font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 whitespace-nowrap align-bottom"
               title={courseChangeLabel}
             >
               {courseChangeLabel}
             </span>
           )}
         </div>
-        {b.status?.name && (
-          <p className="text-xs text-slate-400">{formatBookingStatus(b.status.code, b.status.name)}</p>
-        )}
       </div>
       {ticketQuantity > 1 && (
         <span className="shrink-0 text-xs font-semibold px-3 py-1 rounded-full bg-slate-100 text-slate-500 whitespace-nowrap">
@@ -188,18 +189,35 @@ export function CourseDetailPanel({ event, bookingCountByParticipant, courseChan
     return accepted * price
   }, [event, metrics])
 
+  // Esc stänger översta panelen: först deltagarpanelen (om öppen), sedan kurspanelen.
+  useEffect(() => {
+    if (!event) return
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key !== 'Escape') return
+      if (selectedParticipant) setSelectedParticipant(null)
+      else onClose()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [event, selectedParticipant, onClose])
+
   return (
     <>
-      {/* Backdrop */}
+      {/* Backdrop: nedtonad bottenpanel på mobil. På desktop är panelen icke-modal så att
+          kurslistan bakom förblir klickbar (man byter kurs direkt utan att stänga först). */}
       <div
-        className={`fixed inset-0 bg-black/20 z-40 transition-opacity duration-200 ${event ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+        className={`fixed inset-0 bg-black/20 z-40 transition-opacity duration-200 md:pointer-events-none md:bg-transparent ${event ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
         onClick={onClose}
+        aria-hidden="true"
       />
 
       {/* Panel */}
       <div
-        className={`fixed inset-x-0 bottom-0 z-50 flex max-h-[88dvh] w-full flex-col rounded-t-[28px] bg-white shadow-2xl transition-transform duration-300 ease-out md:inset-x-auto md:bottom-auto md:right-0 md:top-0 md:h-full md:max-h-none md:max-w-md md:rounded-none ${
-          event ? 'translate-y-0 md:translate-x-0' : 'translate-y-full md:translate-y-0 md:translate-x-full'
+        role="dialog"
+        aria-label={event ? `Kurs: ${event.name}` : 'Kursdetaljer'}
+        aria-hidden={!event}
+        className={`fixed inset-x-0 bottom-0 z-50 flex max-h-[88dvh] w-full flex-col rounded-t-[28px] bg-white shadow-2xl transition-[transform,visibility] duration-300 ease-out md:inset-x-auto md:bottom-auto md:right-0 md:top-0 md:h-dvh md:max-h-none md:max-w-[34rem] md:rounded-none md:border-l md:border-slate-200 ${
+          event ? 'visible translate-y-0 md:translate-x-0' : 'invisible translate-y-full md:translate-y-0 md:translate-x-full'
         }`}
       >
         <div className="mx-auto mt-3 h-1 w-11 rounded-full bg-slate-200 md:hidden" />
@@ -215,7 +233,8 @@ export function CourseDetailPanel({ event, bookingCountByParticipant, courseChan
           </div>
           <button
             onClick={onClose}
-            className="shrink-0 p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+            aria-label="Stäng"
+            className="shrink-0 p-1.5 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-forest"
           >
             <X className="w-5 h-5" />
           </button>
@@ -223,7 +242,7 @@ export function CourseDetailPanel({ event, bookingCountByParticipant, courseChan
 
         {/* Meta */}
         {event && (
-          <div className="px-5 py-3 border-b border-slate-100 flex flex-wrap gap-x-5 gap-y-1.5">
+          <div className="px-5 py-3 border-b border-slate-100 grid grid-cols-1 gap-y-1.5 sm:grid-cols-2 sm:gap-x-5">
             {event.schedule?.dayAndTimeInfo && (
               <span className="flex items-center gap-1.5 text-sm text-slate-500">
                 <Clock className="w-3.5 h-3.5 shrink-0" />

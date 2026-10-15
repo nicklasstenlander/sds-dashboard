@@ -134,7 +134,7 @@ function AppShell() {
   if (preparingApi) return <PreparingLoader />
 
   return (
-    <div className="flex h-screen bg-white dark:bg-[var(--dark-page)] overflow-hidden">
+    <div className="flex h-dvh bg-white dark:bg-[var(--dark-page)] overflow-hidden">
       {/* ── Sidebar (desktop) ── */}
       <aside
         className="sds-sidebar hidden md:flex shrink-0 flex-col bg-slate-50 border-r border-slate-200 transition-all duration-250 ease-out"
