@@ -64,23 +64,6 @@ export function Dashboard({ darkMode, onToggleDarkMode }: DashboardProps) {
   const isRefreshing  = isManualRefreshing || isDirectRefreshing
 
   const rawEvents = allDataQuery.data?.events.events ?? []
-  const selectedEvent: Event | null = selectedEventId
-    ? rawEvents.find((e) => String(e.id) === selectedEventId) ?? null
-    : null
-  const selectEvent = useCallback((event: Event | null) => {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev)
-      if (event) next.set('kurs', String(event.id))
-      else next.delete('kurs')
-      return next
-    }, { replace: Boolean(selectedEventId) })
-  }, [setSearchParams, selectedEventId])
-  const selectedIndex = selectedEventId ? visibleEventIds.indexOf(selectedEventId) : -1
-  const stepEvent = (delta: number) => {
-    const id = visibleEventIds[selectedIndex + delta]
-    const next = id ? rawEvents.find((e) => String(e.id) === id) : undefined
-    if (next) selectEvent(next)
-  }
   const rawBookings = allDataQuery.data?.bookings.bookings ?? []
   const goalEvents = rawEvents
   // Bokningar från VARJE känd termin (VT/HT) — behövs för new_students-målet,
@@ -94,11 +77,6 @@ export function Dashboard({ darkMode, onToggleDarkMode }: DashboardProps) {
   const bookingCountByParticipant = useMemo(
     () => countBookingsByParticipant(statisticalGoalBookings),
     [statisticalGoalBookings],
-  )
-  const selectedEventPeriodCode = selectedEvent ? eventPeriodCode(selectedEvent) : ''
-  const courseChangeByParticipant = useMemo(
-    () => buildCourseChangeInfoByParticipant(statisticalGoalBookings, selectedEventPeriodCode),
-    [statisticalGoalBookings, selectedEventPeriodCode],
   )
   const knownEventBlockIds = useMemo(() => collectKnownEventBlockIds(rawEvents), [rawEvents])
   // CogWork's /bookings response embeds a stripped-down event on each booking
@@ -128,6 +106,30 @@ export function Dashboard({ darkMode, onToggleDarkMode }: DashboardProps) {
     if (!categoryFilter) return allEvents
     return allEvents.filter((e) => e.grouping?.primaryEventGroup?.name === categoryFilter)
   }, [allEvents, categoryFilter])
+
+  // Slå upp mot det som visas i tabellen (inkl. kurser som bara finns i bokningsdata), sedan mot rådata.
+  const findEventById = (id: string | undefined) =>
+    id ? allEvents.find((e) => String(e.id) === id) ?? rawEvents.find((e) => String(e.id) === id) : undefined
+  const selectedEvent: Event | null = findEventById(selectedEventId ?? undefined) ?? null
+  const selectEvent = useCallback((event: Event | null) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      if (event) next.set('kurs', String(event.id))
+      else next.delete('kurs')
+      return next
+    }, { replace: Boolean(selectedEventId) })
+  }, [setSearchParams, selectedEventId])
+  const selectedIndex = selectedEventId ? visibleEventIds.indexOf(selectedEventId) : -1
+  const stepEvent = (delta: number) => {
+    const id = visibleEventIds[selectedIndex + delta]
+    const next = findEventById(id)
+    if (next) selectEvent(next)
+  }
+  const selectedEventPeriodCode = selectedEvent ? eventPeriodCode(selectedEvent) : ''
+  const courseChangeByParticipant = useMemo(
+    () => buildCourseChangeInfoByParticipant(statisticalGoalBookings, selectedEventPeriodCode),
+    [statisticalGoalBookings, selectedEventPeriodCode],
+  )
 
   const bookings = useMemo(() => {
     let result = rawBookings
