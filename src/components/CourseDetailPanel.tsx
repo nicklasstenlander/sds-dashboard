@@ -189,11 +189,13 @@ export function CourseDetailPanel({ event, bookingCountByParticipant, courseChan
     return accepted * price
   }, [event, metrics])
 
-  // Esc stänger kurspanelen (men inte om deltagarpanelen ligger ovanpå – den hanterar sin egen stängning).
+  // Esc stänger översta panelen: först deltagarpanelen (om öppen), sedan kurspanelen.
   useEffect(() => {
-    if (!event || selectedParticipant) return
+    if (!event) return
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose()
+      if (e.key !== 'Escape') return
+      if (selectedParticipant) setSelectedParticipant(null)
+      else onClose()
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
