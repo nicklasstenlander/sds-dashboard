@@ -58,7 +58,7 @@ export function LoginPage() {
         src="/core-dancer.png"
         alt=""
         aria-hidden="true"
-        className="pointer-events-none fixed bottom-0 right-0 z-0 w-[30vw] min-w-[110px] max-w-[180px] object-contain sm:w-[38vw] sm:min-w-[260px] sm:max-w-[760px]"
+        className="pointer-events-none fixed bottom-0 right-0 z-0 hidden w-[38vw] min-w-[260px] max-w-[760px] object-contain md:block"
       />
 
       <main className="relative z-10 flex min-h-dvh w-dvw max-w-none items-center justify-center overflow-hidden px-4 py-10 sm:px-10">
@@ -89,16 +89,17 @@ export function LoginPage() {
 
             {/* E-post */}
             <div>
-              <label className="mb-1 block text-sm font-normal text-black">
-                E-mailadress
+              <label htmlFor="login-email" className="mb-1 block text-sm font-normal text-black">
+                E-post
               </label>
               <input
+                id="login-email"
                 type="email"
                 value={email}
                 onChange={(e) => { setEmail(e.target.value); setSbError('') }}
-                placeholder="namn@sollentunadans.se"
+                placeholder="namn@sollentunadansochscenskola.se"
                 autoComplete="email"
-                className={`h-7 w-full rounded-full border bg-[#fff] px-4 text-sm text-black outline-none transition-colors focus:ring-2 ${
+                className={`h-11 w-full rounded-full border bg-[#fff] px-4 text-sm text-black placeholder:text-[#6b7280] outline-none transition-colors focus:ring-2 ${
                   sbError
                     ? 'border-red-400 focus:ring-red-100'
                     : 'border-black focus:border-brand-forest focus:ring-brand-mint'
@@ -108,17 +109,18 @@ export function LoginPage() {
 
             {/* Lösenord */}
             <div>
-              <label className="mb-1 block text-sm font-normal text-black">
+              <label htmlFor="login-password" className="mb-1 block text-sm font-normal text-black">
                 Lösenord
               </label>
               <div className="relative">
                 <input
+                  id="login-password"
                   type={sbShowPw ? 'text' : 'password'}
                   value={sbPw}
                   onChange={(e) => { setSbPw(e.target.value); setSbError('') }}
                   placeholder="••••••••••"
                   autoComplete="current-password"
-                  className={`h-7 w-full rounded-full border bg-[#fff] px-4 pr-10 text-sm text-black outline-none transition-colors focus:ring-2 ${
+                  className={`h-11 w-full rounded-full border bg-[#fff] px-4 pr-12 text-sm text-black placeholder:text-[#6b7280] outline-none transition-colors focus:ring-2 ${
                     sbError
                       ? 'border-red-400 focus:ring-red-100'
                       : 'border-black focus:border-brand-forest focus:ring-brand-mint'
@@ -127,8 +129,7 @@ export function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setSbShowPw(s => !s)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition-colors hover:text-black"
-                  tabIndex={-1}
+                  className="absolute right-0 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full text-[#4b5563] transition-colors hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-forest"
                   aria-label={sbShowPw ? 'Dölj lösenord' : 'Visa lösenord'}
                 >
                   {sbShowPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -138,15 +139,15 @@ export function LoginPage() {
               {/* Glömt lösenord */}
               <div className="mt-2 flex items-center justify-between">
                 {sbError && (
-                  <p className="flex items-center gap-1.5 text-xs text-red-500">
-                    <span className="inline-block w-1 h-1 rounded-full bg-red-500 shrink-0" />
+                  <p className="flex items-center gap-1.5 text-sm text-red-700" role="alert">
+                    <span className="inline-block w-1 h-1 rounded-full bg-red-700 shrink-0" />
                     {sbError}
                   </p>
                 )}
                 {!sbError && <span />}
                 <Link
                   to="/forgot-password"
-                  className="text-xs text-slate-400 transition-colors hover:text-brand-forest"
+                  className="-my-2 inline-flex min-h-[44px] items-center px-1 text-sm text-[#4b5563] underline-offset-2 transition-colors hover:text-black hover:underline"
                 >
                   Glömt lösenord?
                 </Link>
@@ -157,12 +158,12 @@ export function LoginPage() {
             <button
               type="submit"
               disabled={sbLoading || !email.trim() || !sbPw}
-              className="mt-7 flex h-[68px] w-full items-center justify-center rounded-xl bg-brand-forest px-6 text-[22px] font-bold text-white transition-colors hover:bg-[#008489] disabled:cursor-not-allowed disabled:bg-brand-forest disabled:opacity-100"
+              className="mt-7 flex h-[68px] w-full items-center justify-center rounded-xl bg-brand-dark px-6 text-[22px] font-bold text-white transition-colors hover:bg-[#243d3d] disabled:cursor-not-allowed disabled:bg-[#4b5563] disabled:opacity-100"
             >
               {sbLoading ? (
                 <Loader2 className="h-6 w-6 animate-spin" />
               ) : (
-                'Login'
+                'Logga in'
               )}
             </button>
           </form>
@@ -176,7 +177,8 @@ export function LoginPage() {
             <button
               type="button"
               onClick={() => setShowLegacy(s => !s)}
-              className="flex items-center gap-1 text-xs text-slate-400 transition-colors hover:text-slate-500"
+              aria-expanded={showLegacy}
+              className="flex min-h-[44px] items-center gap-1 text-sm text-[#4b5563] transition-colors hover:text-black"
             >
               <ChevronDown
                 className={`w-3.5 h-3.5 transition-transform duration-200 ${showLegacy ? 'rotate-180' : ''}`}
@@ -188,22 +190,24 @@ export function LoginPage() {
             <div
               style={{
                 overflow: 'hidden',
-                maxHeight: showLegacy ? '220px' : '0',
+                maxHeight: showLegacy ? '240px' : '0',
                 transition: 'max-height 0.3s ease',
               }}
             >
               <form onSubmit={handleLegacySubmit} className="mt-4 space-y-4">
                 <div>
-                  <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  <label htmlFor="legacy-password" className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[#4b5563]">
                     Tillfälligt lösenord
                   </label>
                   <div className="relative">
                     <input
+                      id="legacy-password"
                       type={show ? 'text' : 'password'}
+                      autoComplete="off"
                       value={pw}
                       onChange={(e) => { setPw(e.target.value); setError('') }}
                       placeholder="••••••••••"
-                      className={`w-full rounded-xl border bg-white px-4 py-3 pr-11 text-sm text-brand-dark transition-colors focus:outline-none focus:ring-2 ${
+                      className={`w-full rounded-xl border bg-white px-4 py-3 pr-12 text-sm text-brand-dark placeholder:text-[#6b7280] transition-colors focus:outline-none focus:ring-2 ${
                         error
                           ? 'border-red-300 focus:ring-red-200'
                           : 'border-slate-200 focus:ring-brand-mint focus:border-brand-forest'
@@ -212,16 +216,15 @@ export function LoginPage() {
                     <button
                       type="button"
                       onClick={() => setShow(s => !s)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition-colors hover:text-slate-600"
-                      tabIndex={-1}
+                      className="absolute right-0 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full text-[#4b5563] transition-colors hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-forest"
                       aria-label={show ? 'Dölj tillfälligt lösenord' : 'Visa tillfälligt lösenord'}
                     >
                       {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
                   {error && (
-                    <p className="mt-2 text-xs text-red-500 flex items-center gap-1.5">
-                      <span className="inline-block w-1 h-1 rounded-full bg-red-500 shrink-0" />
+                    <p className="mt-2 text-sm text-red-700 flex items-center gap-1.5" role="alert">
+                      <span className="inline-block w-1 h-1 rounded-full bg-red-700 shrink-0" />
                       {error}
                     </p>
                   )}

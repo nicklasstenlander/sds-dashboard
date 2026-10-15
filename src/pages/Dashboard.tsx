@@ -391,6 +391,12 @@ export function Dashboard({ darkMode, onToggleDarkMode }: DashboardProps) {
         title={activeFilter ? panelTitles[activeFilter] : ''}
         bookings={filteredForPanel}
         onClose={() => setActiveFilter(null)}
+        footerLink={activeFilter === 'ejBetalda'
+          ? {
+              to: `/anmalningar?betalning=obetalda${eventBlockId ? `&period=${encodeURIComponent(eventBlockId)}` : ''}`,
+              label: 'Visa i Anmälningar',
+            }
+          : undefined}
       />
 
       <GroupSmsModal
@@ -442,15 +448,16 @@ function DashboardGreeting({
 
   return (
     <div>
-      <p className="text-xs font-semibold text-brand-forest tracking-widest uppercase mb-3">
+      <p className="text-xs font-semibold text-brand-forest tracking-widest uppercase mb-2">
         {dayName} {dateStr}{periodLabel ? ` · ${periodLabel}` : ''}
       </p>
       <h1
         className="text-brand-dark"
-        style={{ fontSize: 'clamp(36px, 4vw, 56px)', lineHeight: 1.15, letterSpacing: '-0.03em' }}
+        style={{ fontSize: 'clamp(32px, 3.2vw, 48px)', lineHeight: 1.15, letterSpacing: '-0.03em' }}
       >
         <span style={{ fontWeight: 300, fontStyle: 'italic' }}>{greeting},</span>
-        <br />
+        <br className="lg:hidden" />
+        <span className="hidden lg:inline">{' '}</span>
         <span style={{ fontWeight: 400 }}>{greetingName}.</span>
       </h1>
       {statNodes.length > 0 && (
