@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { ArrowUpDown, ChevronRight, RefreshCw, DatabaseZap, MessageSquare } from 'lucide-react'
 import { buildCourseMetrics, bookingEventId, isAcceptedBooking, metricsForEvent } from '../utils/courseMetrics'
 import { collectKnownEventBlockIds, resolveEventBlockName } from '../utils/eventBlock'
@@ -11,6 +11,10 @@ interface EventsTableProps {
   search: string
   activePeriod?: string
   onSelect?: (event: Event) => void
+  /** Id för den kurs vars detaljpanel är öppen (markeras i listan). */
+  selectedId?: string | null
+  /** Rapporterar kursernas ordning som den visas (filter + sortering), för föregående/nästa i panelen. */
+  onVisibleOrderChange?: (ids: string[]) => void
   onRefresh?: () => void
   onDirectRefresh?: () => void
   onGroupSms?: (event: Event, courseBookings: Booking[]) => void
@@ -46,7 +50,7 @@ function fillBadgeClass(pct: number) {
   return 'bg-status-okSoft text-brand-forest dark:bg-[rgba(93,184,138,0.14)] dark:text-[var(--dark-positive)]'
 }
 
-export function EventsTable({ events, bookings = [], loading, search, activePeriod, onSelect, onRefresh, onDirectRefresh, onGroupSms, isRefreshing, isDirectRefreshing }: EventsTableProps) {
+export function EventsTable({ events, bookings = [], loading, search, activePeriod, onSelect, selectedId, onVisibleOrderChange, onRefresh, onDirectRefresh, onGroupSms, isRefreshing, isDirectRefreshing }: EventsTableProps) {
   const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: 'accepted', dir: 'desc' })
 
   const metricsByEvent = useMemo(() => buildCourseMetrics(bookings), [bookings])
@@ -79,6 +83,17 @@ export function EventsTable({ events, bookings = [], loading, search, activePeri
       }
       return sort.dir === 'asc' ? diff : -diff
     })
+
+  const orderKey = filtered.map((e) => String(e.id)).join(',')
+  useEffect(() => {
+    onVisibleOrderChange?.(orderKey ? orderKey.split(',') : [])
+  }, [orderKey, onVisibleOrderChange])
+
+  // Håll vald rad synlig när man bläddrar med föregående/nästa eller öppnar via länk.
+  useEffect(() => {
+    if (!selectedId) return
+    document.querySelector(`[data-event-id="${CSS.escape(selectedId)}"]`)?.scrollIntoView({ block: 'nearest' })
+  }, [selectedId])
 
   function toggleSort(key: SortKey) {
     setSort((s) => s.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'desc' })
@@ -182,8 +197,17 @@ export function EventsTable({ events, bookings = [], loading, search, activePeri
             {filtered.map((e) => (
               <tr
                 key={e.key}
+                data-event-id={String(e.id)}
                 onClick={() => onSelect?.(e)}
-                className={`hover:bg-brand-mint dark:hover:bg-[rgba(255,255,255,0.03)] transition-colors ${onSelect ? 'cursor-pointer' : ''}`}
+                {...(onSelect ? {
+                  tabIndex: 0,
+                  onKeyDown: (ev: React.KeyboardEvent) => {
+                    if (ev.target !== ev.currentTarget) return
+                    if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); onSelect(e) }
+                  },
+                } : {})}
+                aria-current={selectedId === String(e.id) ? 'true' : undefined}
+                className={`hover:bg-brand-mint dark:hover:bg-[rgba(255,255,255,0.03)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-forest ${selectedId === String(e.id) ? 'bg-brand-mint dark:bg-[rgba(255,255,255,0.06)]' : ''} ${onSelect ? 'cursor-pointer' : ''}`}
               >
                 <td className="py-3 px-4 text-sm font-medium text-brand-dark">
                   <div className="flex items-start gap-1.5 flex-wrap">

@@ -16,34 +16,11 @@ import { PeriodFilter } from '../components/PeriodFilter'
 import { ParticipantPanel } from '../components/ParticipantPanel'
 import { formatBookingStatus } from '../lib/status'
 import type { Booking, BookingPayment, Event } from '../types/cogwork'
+import { paymentStatus, daysOverdue, OVERDUE_BADGE_CLASS, overdueLabel } from '../utils/payment'
 
 // ---------------------------------------------------------------------------
 // Payment helpers
 // ---------------------------------------------------------------------------
-function paymentStatus(b: Booking): 'paid' | 'unpaid' | 'partial' | 'unknown' {
-  const p = b.payment
-  if (!p) return 'unknown'
-  if (p.paid === true) return 'paid'
-  if (p.paid === false) {
-    if (p.amountPaid != null && p.priceAgreed != null && p.amountPaid > 0 && p.amountPaid < p.priceAgreed)
-      return 'partial'
-    return 'unpaid'
-  }
-  return 'unknown'
-}
-
-// Antal hela dagar sedan förfallodatumet passerat (0 = ej förfallen / ej obetald).
-function daysOverdue(b: Booking): number {
-  const due = b.payment?.paymentDue
-  if (!due || paymentStatus(b) !== 'unpaid') return 0
-  // Datum utan klockslag gäller hela förfallodagen, så de räknas som förfallna först efter dagens slut.
-  const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(due.trim())
-  const dueDate = new Date(dateOnly ? `${due.trim()}T23:59:59` : due.replace(' ', 'T'))
-  if (Number.isNaN(dueDate.getTime())) return 0
-  const diff = Date.now() - dueDate.getTime()
-  return diff > 0 ? Math.max(1, Math.floor(diff / 86_400_000)) : 0
-}
-
 function formatDueDate(due: string): string {
   try {
     return format(parseISO(due.replace(' ', 'T')), 'd MMM', { locale: sv })
@@ -61,10 +38,10 @@ function PayBadge({ booking }: { booking: Booking }) {
   if (overdue > 0) {
     return (
       <span
-        className="inline-block text-xs font-semibold px-2.5 py-0.5 rounded-full bg-status-critical text-white"
+        className={`inline-block text-xs font-semibold px-2.5 py-0.5 rounded-full ${OVERDUE_BADGE_CLASS}`}
         title={`Förföll ${p?.paymentDue ?? ''}`}
       >
-        Förfallen · {overdue} {overdue === 1 ? 'dag' : 'dagar'}
+        {overdueLabel(overdue)}
       </span>
     )
   }
