@@ -378,46 +378,49 @@ export function Dashboard({ darkMode, onToggleDarkMode }: DashboardProps) {
         isDirectRefreshing={isDirectRefreshing}
       />
 
-      {/* Course detail slide-in */}
-      <CourseDetailPanel
-        event={selectedEvent}
-        bookingCountByParticipant={bookingCountByParticipant}
-        courseChangeByParticipant={courseChangeByParticipant}
-        onClose={() => setSelectedEvent(null)}
-      />
+      {/* Paneler/modaler: i en display:contents-wrapper så att space-y-6 inte ger dem margin-top (förskjuter fixed-element ~24px) */}
+      <div className="contents">
+        {/* Course detail slide-in */}
+        <CourseDetailPanel
+          event={selectedEvent}
+          bookingCountByParticipant={bookingCountByParticipant}
+          courseChangeByParticipant={courseChangeByParticipant}
+          onClose={() => setSelectedEvent(null)}
+        />
 
-      {/* Booking list slide-in for KPI cards */}
-      <BookingListPanel
-        title={activeFilter ? panelTitles[activeFilter] : ''}
-        bookings={filteredForPanel}
-        onClose={() => setActiveFilter(null)}
-        footerLink={activeFilter === 'ejBetalda'
-          ? {
-              to: `/anmalningar?betalning=obetalda${eventBlockId ? `&period=${encodeURIComponent(eventBlockId)}` : ''}`,
-              label: 'Visa i Anmälningar',
-            }
-          : undefined}
-      />
+        {/* Booking list slide-in for KPI cards */}
+        <BookingListPanel
+          title={activeFilter ? panelTitles[activeFilter] : ''}
+          bookings={filteredForPanel}
+          onClose={() => setActiveFilter(null)}
+          footerLink={activeFilter === 'ejBetalda'
+            ? {
+                to: `/anmalningar?betalning=obetalda${eventBlockId ? `&period=${encodeURIComponent(eventBlockId)}` : ''}`,
+                label: 'Visa i Anmälningar',
+              }
+            : undefined}
+        />
 
-      <GroupSmsModal
-        isOpen={Boolean(groupSms)}
-        onClose={() => setGroupSms(null)}
-        courseName={groupSms?.courseName ?? ''}
-        bookings={groupSms?.bookings ?? []}
-      />
+        <GroupSmsModal
+          isOpen={Boolean(groupSms)}
+          onClose={() => setGroupSms(null)}
+          courseName={groupSms?.courseName ?? ''}
+          bookings={groupSms?.bookings ?? []}
+        />
 
-      {/* Alerts slide-in for "Väntar återkoppling" */}
-      <AlertsPanel
-        open={alertsOpen}
-        alerts={alerts}
-        onClose={() => setAlertsOpen(false)}
-      />
+        {/* Alerts slide-in for "Väntar återkoppling" */}
+        <AlertsPanel
+          open={alertsOpen}
+          alerts={alerts}
+          onClose={() => setAlertsOpen(false)}
+        />
 
-      <GoalModal
-        isOpen={goalModal.open}
-        onClose={() => setGoalModal({ open: false })}
-        goal={goalModal.goal}
-      />
+        <GoalModal
+          isOpen={goalModal.open}
+          onClose={() => setGoalModal({ open: false })}
+          goal={goalModal.goal}
+        />
+      </div>
     </div>
   )
 }
