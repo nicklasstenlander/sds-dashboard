@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react'
+import React, { useCallback, useState, useMemo } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { format } from 'date-fns'
 import { sv } from 'date-fns/locale'
@@ -41,7 +42,10 @@ export function Dashboard({ darkMode, onToggleDarkMode }: DashboardProps) {
   const [eventBlockId, setEventBlockId] = useState(() => getDefaultEventBlockId())
   const [categoryFilter, setCategoryFilter] = useState('')
   const [search, setSearch] = useState('')
-  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
+  // Vald kurs ligger i adressen (#/?kurs=<id>) så att den går att länka till och Tillbaka fungerar.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const selectedEventId = searchParams.get('kurs')
+  const [visibleEventIds, setVisibleEventIds] = useState<string[]>([])
   const [activeFilter, setActiveFilter] = useState<'total' | 'antagna' | 'ejBetalda' | null>(null)
   const [alertsOpen, setAlertsOpen] = useState(false)
   const [groupSms, setGroupSms] = useState<{ courseName: string; bookings: Booking[] } | null>(null)
@@ -60,6 +64,23 @@ export function Dashboard({ darkMode, onToggleDarkMode }: DashboardProps) {
   const isRefreshing  = isManualRefreshing || isDirectRefreshing
 
   const rawEvents = allDataQuery.data?.events.events ?? []
+  const selectedEvent: Event | null = selectedEventId
+    ? rawEvents.find((e) => String(e.id) === selectedEventId) ?? null
+    : null
+  const selectEvent = useCallback((event: Event | null) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      if (event) next.set('kurs', String(event.id))
+      else next.delete('kurs')
+      return next
+    }, { replace: Boolean(selectedEventId) })
+  }, [setSearchParams, selectedEventId])
+  const selectedIndex = selectedEventId ? visibleEventIds.indexOf(selectedEventId) : -1
+  const stepEvent = (delta: number) => {
+    const id = visibleEventIds[selectedIndex + delta]
+    const next = id ? rawEvents.find((e) => String(e.id) === id) : undefined
+    if (next) selectEvent(next)
+  }
   const rawBookings = allDataQuery.data?.bookings.bookings ?? []
   const goalEvents = rawEvents
   // Bokningar från VARJE känd termin (VT/HT) — behövs för new_students-målet,
@@ -370,7 +391,9 @@ export function Dashboard({ darkMode, onToggleDarkMode }: DashboardProps) {
         loading={allDataQuery.isLoading}
         search={search}
         activePeriod={eventBlockId}
-        onSelect={setSelectedEvent}
+        onSelect={selectEvent}
+        selectedId={selectedEventId}
+        onVisibleOrderChange={setVisibleEventIds}
         onRefresh={handleCacheRefresh}
         onDirectRefresh={handleDirectRefresh}
         onGroupSms={(event, courseBookings) => setGroupSms({ courseName: event.name, bookings: courseBookings })}
@@ -385,7 +408,10 @@ export function Dashboard({ darkMode, onToggleDarkMode }: DashboardProps) {
           event={selectedEvent}
           bookingCountByParticipant={bookingCountByParticipant}
           courseChangeByParticipant={courseChangeByParticipant}
-          onClose={() => setSelectedEvent(null)}
+          onClose={() => selectEvent(null)}
+          position={selectedIndex >= 0 ? { index: selectedIndex, total: visibleEventIds.length } : undefined}
+          onPrev={selectedIndex > 0 ? () => stepEvent(-1) : undefined}
+          onNext={selectedIndex >= 0 && selectedIndex < visibleEventIds.length - 1 ? () => stepEvent(1) : undefined}
         />
 
         {/* Booking list slide-in for KPI cards */}

@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react'
-import { X, Users, Clock, MapPin, User, Banknote, CalendarDays } from 'lucide-react'
+import { X, ChevronLeft, ChevronRight, Users, Clock, MapPin, User, Banknote, CalendarDays } from 'lucide-react'
 import { useEventBookings } from '../hooks/useEventBookings'
 import { ParticipantPanel } from './ParticipantPanel'
 import { formatBookingStatus } from '../lib/status'
@@ -32,6 +32,10 @@ interface CourseDetailPanelProps {
   bookingCountByParticipant: Map<string, number>
   courseChangeByParticipant: Map<string, CourseChangeInfo>
   onClose: () => void
+  /** Placering i den visade kurslistan, samt föregående/nästa (utelämnas om kursen inte finns i listan). */
+  position?: { index: number; total: number }
+  onPrev?: () => void
+  onNext?: () => void
 }
 
 function BookingSection({
@@ -167,7 +171,7 @@ function BookingRow({
   )
 }
 
-export function CourseDetailPanel({ event, bookingCountByParticipant, courseChangeByParticipant, onClose }: CourseDetailPanelProps) {
+export function CourseDetailPanel({ event, bookingCountByParticipant, courseChangeByParticipant, onClose, position, onPrev, onNext }: CourseDetailPanelProps) {
   const { data: bookings = [], isLoading } = useEventBookings(event?.id ?? null)
   const [selectedParticipant, setSelectedParticipant] = useState<string | null>(null)
   const metrics = useMemo(() => {
@@ -231,6 +235,28 @@ export function CourseDetailPanel({ event, bookingCountByParticipant, courseChan
               {event?.name ?? ''}
             </h2>
           </div>
+          <div className="flex shrink-0 items-center gap-0.5">
+            {position && (
+              <span className="mr-1 text-xs tabular-nums text-slate-500" aria-live="polite">
+                {position.index + 1} / {position.total}
+              </span>
+            )}
+            <button
+              onClick={onPrev}
+              disabled={!onPrev}
+              aria-label="Föregående kurs"
+              className="p-1.5 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors disabled:opacity-30 disabled:hover:bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-forest"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <button
+              onClick={onNext}
+              disabled={!onNext}
+              aria-label="Nästa kurs"
+              className="p-1.5 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors disabled:opacity-30 disabled:hover:bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-forest"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
           <button
             onClick={onClose}
             aria-label="Stäng"
@@ -238,6 +264,7 @@ export function CourseDetailPanel({ event, bookingCountByParticipant, courseChan
           >
             <X className="w-5 h-5" />
           </button>
+          </div>
         </div>
 
         {/* Meta */}

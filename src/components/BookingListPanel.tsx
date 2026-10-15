@@ -3,9 +3,11 @@ import { Link } from 'react-router-dom'
 import { X, ArrowRight } from 'lucide-react'
 import { ParticipantPanel } from './ParticipantPanel'
 import { bookingTicketQuantity } from '../utils/courseMetrics'
-import type { Booking, BookingPayment } from '../types/cogwork'
+import { daysOverdue, OVERDUE_BADGE_CLASS, overdueLabel } from '../utils/payment'
+import type { Booking } from '../types/cogwork'
 
-function PayBadge({ payment }: { payment?: BookingPayment }) {
+function PayBadge({ booking }: { booking: Booking }) {
+  const payment = booking.payment
   if (!payment) return null
   if (payment.paid === true) {
     const amount = payment.priceAgreed ?? payment.amountPaid
@@ -16,6 +18,17 @@ function PayBadge({ payment }: { payment?: BookingPayment }) {
     )
   }
   if (payment.paid === false) {
+    const overdue = daysOverdue(booking)
+    if (overdue > 0) {
+      return (
+        <span
+          className={`shrink-0 text-xs font-semibold px-3 py-1 rounded-full whitespace-nowrap ${OVERDUE_BADGE_CLASS}`}
+          title={`Förföll ${payment.paymentDue ?? ''}`}
+        >
+          {overdueLabel(overdue)}
+        </span>
+      )
+    }
     return (
       <span className="shrink-0 text-xs font-semibold px-3 py-1 rounded-full bg-status-criticalSoft text-status-critical whitespace-nowrap">
         Obetald{payment.paymentDue ? ` · ${payment.paymentDue.slice(0, 10)}` : ''}
@@ -36,6 +49,7 @@ interface BookingListPanelProps {
 export function BookingListPanel({ title, bookings, onClose, footerLink }: BookingListPanelProps) {
   const [selectedName, setSelectedName] = useState<string | null>(null)
   const open = Boolean(title)
+  const overdueCount = bookings.filter((b) => daysOverdue(b) > 0).length
   const ticketCount = bookings.reduce((sum, booking) => sum + bookingTicketQuantity(booking), 0)
 
   return (
@@ -61,6 +75,7 @@ export function BookingListPanel({ title, bookings, onClose, footerLink }: Booki
               {ticketCount === bookings.length
                 ? `${bookings.length} personer`
                 : `${ticketCount} biljetter · ${bookings.length} köp`}
+              {overdueCount > 0 && <span className="font-semibold text-[#b4234f]"> · {overdueCount} förfallna</span>}
             </p>
           </div>
           <button
@@ -109,7 +124,7 @@ export function BookingListPanel({ title, bookings, onClose, footerLink }: Booki
                         {ticketQuantity} biljetter
                       </span>
                     )}
-                    <PayBadge payment={b.payment} />
+                    <PayBadge booking={b} />
                   </li>
                 )
               })}
