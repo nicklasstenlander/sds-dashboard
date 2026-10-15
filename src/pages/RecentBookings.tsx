@@ -438,7 +438,9 @@ export function RecentBookings() {
         )}
       </div>
 
-      <ParticipantPanel name={selectedName} onClose={() => setSelectedName(null)} />
+      <div className="contents">
+        <ParticipantPanel name={selectedName} onClose={() => setSelectedName(null)} />
+      </div>
     </div>
   )
 }

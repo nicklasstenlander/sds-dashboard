@@ -151,10 +151,12 @@ export function Customers() {
         onSelectName={setSelectedFollowUpName}
       />
 
-      <ParticipantPanel
-        name={selectedFollowUpName}
-        onClose={() => setSelectedFollowUpName(null)}
-      />
+      <div className="contents">
+        <ParticipantPanel
+          name={selectedFollowUpName}
+          onClose={() => setSelectedFollowUpName(null)}
+        />
+      </div>
     </div>
   )
 }
