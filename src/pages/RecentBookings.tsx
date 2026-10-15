@@ -36,7 +36,9 @@ function paymentStatus(b: Booking): 'paid' | 'unpaid' | 'partial' | 'unknown' {
 function daysOverdue(b: Booking): number {
   const due = b.payment?.paymentDue
   if (!due || paymentStatus(b) !== 'unpaid') return 0
-  const dueDate = new Date(due.replace(' ', 'T'))
+  // Datum utan klockslag gäller hela förfallodagen, så de räknas som förfallna först efter dagens slut.
+  const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(due.trim())
+  const dueDate = new Date(dateOnly ? `${due.trim()}T23:59:59` : due.replace(' ', 'T'))
   if (Number.isNaN(dueDate.getTime())) return 0
   const diff = Date.now() - dueDate.getTime()
   return diff > 0 ? Math.max(1, Math.floor(diff / 86_400_000)) : 0
