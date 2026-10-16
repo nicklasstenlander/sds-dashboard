@@ -54,6 +54,11 @@ const NEUTRAL_COLOR_SWATCHES: Array<{ hex: string; label: string }> = [
 
 const COLOR_SWATCHES = [...BRAND_COLOR_SWATCHES, ...NEUTRAL_COLOR_SWATCHES]
 
+// Speglar standardfärgerna i hemsidans .sods-hero-btn (docs/squarespace-nyhetshero.html),
+// så att förhandsvisningen visar samma sak som besökaren får när "Standard" är valt.
+const DEFAULT_BUTTON_BG = '#dd5c86'
+const DEFAULT_BUTTON_TEXT = '#ffffff'
+
 const TYPE_BADGE_CLASS: Record<ContentCardType, string> = {
   news: 'bg-identity-sky text-brand-dark',
   event: 'bg-identity-violet text-brand-dark',
@@ -75,10 +80,14 @@ interface CardDraft {
   image_url: string
   link_url: string
   link_label: string
+  link_url_2: string
+  link_label_2: string
   title_color: string | null
   body_color: string | null
   button_bg_color: string | null
   button_text_color: string | null
+  button_bg_color_2: string | null
+  button_text_color_2: string | null
   link_type: LinkType
   course_event_id: string
   starts_at: string
@@ -246,6 +255,7 @@ function CardModal({
   const [draft, setDraft] = useState<CardDraft>(() => toDraft(card))
   const [titleError, setTitleError] = useState<string | null>(null)
   const [destinationError, setDestinationError] = useState<string | null>(null)
+  const [buttonError, setButtonError] = useState<string | null>(null)
   const [uploadProgress, setUploadProgress] = useState<number | null>(null)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [dragOver, setDragOver] = useState(false)
@@ -261,6 +271,7 @@ function CardModal({
     setDraft(toDraft(card))
     setTitleError(null)
     setDestinationError(null)
+    setButtonError(null)
   }, [card])
 
   const saving = createCard.isLoading || updateCard.isLoading
@@ -272,6 +283,14 @@ function CardModal({
       return
     }
     setTitleError(null)
+
+    // Knapp 2 är den högra knappen. Utan knapp 1 skulle den bli ensam kvar på
+    // vänsterplatsen, vilket nästan alltid är ett misstag i formuläret.
+    if (draft.link_url_2.trim() && !draft.link_url.trim()) {
+      setButtonError('Fyll i länk-URL för knapp 1 — knapp 2 är den högra av de två.')
+      return
+    }
+    setButtonError(null)
 
     if (draft.link_type === 'course' && !draft.course_event_id) {
       setDestinationError('Välj vilken kurs kortet ska länka till')
@@ -293,10 +312,14 @@ function CardModal({
       image_url: draft.image_url.trim() || null,
       link_url: draft.link_url.trim() || null,
       link_label: draft.link_label.trim() || null,
+      link_url_2: draft.link_url_2.trim() || null,
+      link_label_2: draft.link_label_2.trim() || null,
       title_color: draft.title_color,
       body_color: draft.body_color,
       button_bg_color: draft.button_bg_color,
       button_text_color: draft.button_text_color,
+      button_bg_color_2: draft.button_bg_color_2,
+      button_text_color_2: draft.button_text_color_2,
       app_destination: appDestination,
       starts_at: fromDatetimeLocal(draft.starts_at),
       expires_at: draft.noEndDate ? null : fromDatetimeLocal(draft.expires_at),
@@ -481,19 +504,50 @@ function CardModal({
             )}
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Input label="Länk-URL" value={draft.link_url} onChange={(link_url) => setDraft({ ...draft, link_url })} />
-            <Input label="Länktext" value={draft.link_label} onChange={(link_label) => setDraft({ ...draft, link_label })} />
-          </div>
-
           <div className="space-y-3 rounded-2xl border border-slate-100 bg-slate-50/60 p-3">
             <p className="text-xs font-semibold text-slate-600">Textfärger (för kort med bakgrundsbild)</p>
             <div className="grid gap-4 sm:grid-cols-2">
               <ColorPicker label="Rubrik" value={draft.title_color} onChange={(title_color) => setDraft({ ...draft, title_color })} />
               <ColorPicker label="Ingress" value={draft.body_color} onChange={(body_color) => setDraft({ ...draft, body_color })} />
-              <ColorPicker label="Knappbakgrund" value={draft.button_bg_color} onChange={(button_bg_color) => setDraft({ ...draft, button_bg_color })} />
-              <ColorPicker label="Knapptext" value={draft.button_text_color} onChange={(button_text_color) => setDraft({ ...draft, button_text_color })} />
             </div>
+          </div>
+
+          <div className="space-y-3">
+            <div>
+              <p className="text-xs font-semibold text-slate-600">Knappar</p>
+              <p className="mt-0.5 text-xs text-slate-400">
+                Fyll i knapp 2 om du vill ha två knappar. På hemsidan ligger de bredvid varandra (under varandra på mobil)
+                och varje knapp har sina egna färger. Lämnar du knapp 2 tom visas bara en knapp, precis som förut.
+              </p>
+            </div>
+
+            <ButtonFields
+              title="Knapp 1"
+              url={draft.link_url}
+              label={draft.link_label}
+              bgColor={draft.button_bg_color}
+              textColor={draft.button_text_color}
+              onUrlChange={(link_url) => setDraft({ ...draft, link_url })}
+              onLabelChange={(link_label) => setDraft({ ...draft, link_label })}
+              onBgColorChange={(button_bg_color) => setDraft({ ...draft, button_bg_color })}
+              onTextColorChange={(button_text_color) => setDraft({ ...draft, button_text_color })}
+            />
+
+            <ButtonFields
+              title="Knapp 2 (valfri)"
+              url={draft.link_url_2}
+              label={draft.link_label_2}
+              bgColor={draft.button_bg_color_2}
+              textColor={draft.button_text_color_2}
+              onUrlChange={(link_url_2) => setDraft({ ...draft, link_url_2 })}
+              onLabelChange={(link_label_2) => setDraft({ ...draft, link_label_2 })}
+              onBgColorChange={(button_bg_color_2) => setDraft({ ...draft, button_bg_color_2 })}
+              onTextColorChange={(button_text_color_2) => setDraft({ ...draft, button_text_color_2 })}
+            />
+
+            {buttonError && <p className="text-xs text-status-critical">{buttonError}</p>}
+
+            <ButtonPreview draft={draft} />
           </div>
 
           <div className="space-y-2">
@@ -510,8 +564,9 @@ function CardModal({
               </select>
             </label>
             <p className="text-xs text-slate-400">
-              Om ett appmål väljs navigerar appen dit direkt istället för att öppna länk-URL. Länk-URL används
-              ändå av andra ytor (t.ex. hemsidan) och som reserv om appen inte har något appmål satt.
+              Om ett appmål väljs navigerar appen dit direkt istället för att öppna länk-URL för knapp 1. Länk-URL
+              används ändå av andra ytor (t.ex. hemsidan) och som reserv om appen inte har något appmål satt.
+              Appen visar bara knapp 1 — knapp 2 är en webbknapp.
             </p>
           </div>
 
@@ -660,6 +715,70 @@ function Input({ label, value, onChange }: { label: string; value: string; onCha
   )
 }
 
+function ButtonFields({
+  title,
+  url,
+  label,
+  bgColor,
+  textColor,
+  onUrlChange,
+  onLabelChange,
+  onBgColorChange,
+  onTextColorChange,
+}: {
+  title: string
+  url: string
+  label: string
+  bgColor: string | null
+  textColor: string | null
+  onUrlChange: (value: string) => void
+  onLabelChange: (value: string) => void
+  onBgColorChange: (value: string | null) => void
+  onTextColorChange: (value: string | null) => void
+}) {
+  return (
+    <div className="space-y-3 rounded-2xl border border-slate-100 bg-slate-50/60 p-3">
+      <p className="text-xs font-semibold text-slate-600">{title}</p>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Input label="Länk-URL" value={url} onChange={onUrlChange} />
+        <Input label="Länktext" value={label} onChange={onLabelChange} />
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <ColorPicker label="Knappbakgrund" value={bgColor} onChange={onBgColorChange} />
+        <ColorPicker label="Knapptext" value={textColor} onChange={onTextColorChange} />
+      </div>
+    </div>
+  )
+}
+
+// Visar knapparna som de hamnar på hemsidan: samma ordning, samma
+// standardfärger och samma reservtext som i webb-embeddningen.
+function ButtonPreview({ draft }: { draft: CardDraft }) {
+  const buttons = [
+    { url: draft.link_url, label: draft.link_label, bg: draft.button_bg_color, text: draft.button_text_color },
+    { url: draft.link_url_2, label: draft.link_label_2, bg: draft.button_bg_color_2, text: draft.button_text_color_2 },
+  ].filter((button) => button.url.trim())
+
+  if (buttons.length === 0) return null
+
+  return (
+    <div>
+      <span className="text-xs font-semibold text-slate-600">Förhandsvisning</span>
+      <div className="mt-1.5 flex flex-wrap items-center justify-center gap-3 rounded-2xl bg-slate-700 px-4 py-6">
+        {buttons.map((button, index) => (
+          <span
+            key={index}
+            className="rounded-full px-6 py-2.5 text-sm font-bold shadow-lg"
+            style={{ backgroundColor: button.bg ?? DEFAULT_BUTTON_BG, color: button.text ?? DEFAULT_BUTTON_TEXT }}
+          >
+            {button.label.trim() || 'Läs mer'}
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function ColorPicker({
   label,
   value,
@@ -768,10 +887,14 @@ function toDraft(card: ContentCard | null): CardDraft {
       image_url: '',
       link_url: '',
       link_label: '',
+      link_url_2: '',
+      link_label_2: '',
       title_color: null,
       body_color: null,
       button_bg_color: null,
       button_text_color: null,
+      button_bg_color_2: null,
+      button_text_color_2: null,
       link_type: 'external',
       course_event_id: '',
       starts_at: toDatetimeLocal(new Date().toISOString()),
@@ -794,10 +917,14 @@ function toDraft(card: ContentCard | null): CardDraft {
     image_url: card.image_url ?? '',
     link_url: card.link_url ?? '',
     link_label: card.link_label ?? '',
+    link_url_2: card.link_url_2 ?? '',
+    link_label_2: card.link_label_2 ?? '',
     title_color: card.title_color ?? null,
     body_color: card.body_color ?? null,
     button_bg_color: card.button_bg_color ?? null,
     button_text_color: card.button_text_color ?? null,
+    button_bg_color_2: card.button_bg_color_2 ?? null,
+    button_text_color_2: card.button_text_color_2 ?? null,
     link_type,
     course_event_id,
     starts_at: toDatetimeLocal(card.starts_at),

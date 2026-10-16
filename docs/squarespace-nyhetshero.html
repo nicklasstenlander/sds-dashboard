@@ -1,0 +1,188 @@
+<!--
+  Nyhetshero på sollentunadansochscenskola.se
+
+  Klistras in som ett kodblock (Code Block) på startsidan i Squarespace —
+  blocket ligger i dag i sektionen högst upp på startsidan. Den här filen är
+  källkopian: ändra här, kopiera hela innehållet och ersätt kodblockets
+  innehåll i Squarespace.
+
+  Korten kommer från Supabase-tabellen content_cards och redigeras i CORE
+  under Nyheter (src/pages/News.tsx). Varje kort kan ha upp till två knappar:
+    knapp 1 = link_url / link_label / button_bg_color / button_text_color
+    knapp 2 = link_url_2 / link_label_2 / button_bg_color_2 / button_text_color_2
+  Knapp 2 är valfri. Saknas den renderas bara en knapp, precis som tidigare.
+-->
+
+<style>
+  .sods-hero-wrap{
+    position:relative;
+    width:100vw;
+    left:50%;
+    right:50%;
+    margin-left:-50vw;
+    margin-right:-50vw;
+    font-family:inherit;
+  }
+  .sods-hero{
+    position:relative;
+    min-height:clamp(740px, 82vh, 1090px);
+    background-color:#1e4025;          /* fallback bakom/utan bild */
+    background-size:cover;
+    background-position:center;
+    background-repeat:no-repeat;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    padding:clamp(2rem, 6vw, 5rem) 1.25rem;
+    box-sizing:border-box;
+  }
+  .sods-hero + .sods-hero{
+    margin-top:1rem;   /* vit marginal mellan nyheterna */
+  }
+  .sods-hero-inner{
+    position:relative;
+    z-index:1;
+    max-width:760px;
+    margin:0 auto;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:1.25rem;
+  }
+  .sods-hero-title{
+    margin:0;
+    color:#dd5c86;                      /* standard, kan överstyras per kort */
+    font-weight:700;
+    line-height:1.05;
+    font-size:clamp(2.2rem, 6.5vw, 4.5rem);
+    text-shadow:0 2px 16px rgba(0,0,0,.15);
+  }
+  .sods-hero-ingress{
+    margin:0;
+    color:#919294;                      /* standard, kan överstyras per kort */
+    font-size:clamp(1.05rem, 2.4vw, 1.5rem);
+    line-height:1.5;
+    max-width:640px;
+    text-shadow:0 1px 10px rgba(0,0,0,.1);
+  }
+  /* Knapparna ligger bredvid varandra. Med en knapp ser det ut exakt som förut,
+     eftersom flex centrerar det enda barnet. */
+  .sods-hero-actions{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    justify-content:center;
+    gap:1rem;
+    margin-top:.75rem;
+  }
+  .sods-hero-btn{
+    display:inline-block;
+    padding:.9rem 2.2rem;
+    background:#dd5c86;                 /* standard, kan överstyras per kort */
+    color:#fff;                         /* standard, kan överstyras per kort */
+    border-radius:999px;
+    text-decoration:none;
+    font-weight:700;
+    font-size:clamp(1rem, 1.6vw, 1.15rem);
+    box-shadow:0 6px 20px rgba(0,0,0,.25);
+    transition:filter .2s ease, transform .2s ease;
+  }
+  /* Hover via filter istället för hårdkodad hover-färg, så att den
+     fungerar oavsett vilken knappbakgrund som valts i CORE. */
+  .sods-hero-btn:hover{ filter:brightness(.92); transform:translateY(-2px); }
+
+  /* På smal skärm blir två knappar bredvid varandra för trånga — stapla dem
+     och låt dem dela bredd så de ser avsiktliga ut. */
+  @media (max-width:560px){
+    .sods-hero-actions{
+      flex-direction:column;
+      align-items:stretch;
+      width:min(100%, 320px);
+      gap:.75rem;
+    }
+    .sods-hero-btn{ text-align:center; }
+  }
+</style>
+
+<div id="sods-nyheter" class="sods-hero-wrap"></div>
+
+<script>
+(function() {
+  var SUPABASE_URL = 'https://vuokkdtyhmhkvfizsnwm.supabase.co';
+  var SUPABASE_ANON_KEY = 'sb_publishable_CILuJjoJOUHUKI-dwN1T2w_8BX_GXIN';
+
+  function esc(s){
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+  function cssUrl(u){ return String(u == null ? '' : u).replace(/["'()\\\s]/g, ''); }
+
+  // Släpper bara igenom rena hex-färger. Allt annat (null, tomt, skräp)
+  // faller tillbaka på standardfärgen i CSS:en ovan.
+  function color(value){
+    return /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(String(value || '')) ? value : null;
+  }
+  function styleProp(prop, value){
+    var c = color(value);
+    return c ? prop + ':' + c + ';' : '';
+  }
+
+  // En knapp renderas bara om den har en URL. Varje knapp bär sina egna färger.
+  function button(url, label, bgColor, textColor){
+    if (!url) return '';
+    var style = styleProp('background', bgColor) + styleProp('color', textColor);
+    return '<a class="sods-hero-btn" style="' + style + '" href="' + esc(url) + '">'
+      + esc(label || 'Läs mer') + '</a>';
+  }
+
+  var now = new Date().toISOString();
+  var url = SUPABASE_URL + '/rest/v1/content_cards'
+    + '?select=title,body,image_url,link_url,link_label,link_url_2,link_label_2,type,'
+    + 'title_color,body_color,button_bg_color,button_text_color,'
+    + 'button_bg_color_2,button_text_color_2'
+    + '&published=eq.true'
+    + '&show_on_web=eq.true'
+    + '&starts_at=lte.' + now
+    + '&or=(expires_at.is.null,expires_at.gte.' + now + ')'
+    + '&order=sort_order.asc'
+    + '&limit=3';
+
+  fetch(url, { headers: { 'apikey': SUPABASE_ANON_KEY } })
+    .then(function(res){ return res.json(); })
+    .then(function(cards){
+      var container = document.getElementById('sods-nyheter');
+      if (!cards.length) { container.style.display = 'none'; return; }
+      container.innerHTML = cards.map(function(card){
+        var bg = card.image_url
+          ? 'background-image:url(' + cssUrl(card.image_url) + ');'
+          : '';
+
+        var titleStyle = styleProp('color', card.title_color);
+        var bodyStyle  = styleProp('color', card.body_color);
+
+        var ingress = card.body
+          ? '<p class="sods-hero-ingress" style="' + bodyStyle + '">' + esc(card.body) + '</p>'
+          : '';
+
+        var buttons = button(card.link_url, card.link_label, card.button_bg_color, card.button_text_color)
+                    + button(card.link_url_2, card.link_label_2, card.button_bg_color_2, card.button_text_color_2);
+        var actions = buttons
+          ? '<div class="sods-hero-actions">' + buttons + '</div>'
+          : '';
+
+        return '<section class="sods-hero" style="' + bg + '">'
+          + '<div class="sods-hero-inner">'
+          + '<h2 class="sods-hero-title" style="' + titleStyle + '">' + esc(card.title) + '</h2>'
+          + ingress
+          + actions
+          + '</div>'
+          + '</section>';
+      }).join('');
+    })
+    .catch(function(err){
+      console.error('Kunde inte hämta nyheter:', err);
+    });
+})();
+</script>
