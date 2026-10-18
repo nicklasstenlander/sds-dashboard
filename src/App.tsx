@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useLayoutEffect, lazy, Suspense } from 'react'
 import { Routes, Route, Navigate, NavLink, useLocation } from 'react-router-dom'
-import { LayoutDashboard, ClipboardList, Users, Settings, LogOut, ShoppingBag, PanelLeft, Phone, ClipboardCheck, Monitor, CalendarDays, MoreHorizontal, Loader2, FileText, Newspaper, Bell, Ticket } from 'lucide-react'
+import { LayoutDashboard, ClipboardList, Users, Settings, LogOut, ShoppingBag, PanelLeft, Phone, Monitor, CalendarDays, MoreHorizontal, Loader2, FileText, Newspaper, Bell, Ticket } from 'lucide-react'
 import { ApiProvider, useApiConfig } from './context/ApiContext'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { LoginPage } from './pages/LoginPage'
@@ -61,7 +61,7 @@ const NAV_GROUPS: NavGroup[] = [
       { to: '/anmalningar', label: 'Anmälningar', Icon: ClipboardList },
       { to: '/kunder',      label: 'Kunder',      Icon: Users },
       { to: '/schema',      label: 'Schema',      Icon: CalendarDays },
-      { to: '/narvaro',     label: 'Närvaro',     Icon: ClipboardCheck },
+      // Närvaro är dold i menyn (funktionen är inte live). Sidan och rutten /narvaro finns kvar.
       { to: '/samtal',      label: 'Samtal',      Icon: Phone },
     ],
   },
@@ -296,7 +296,6 @@ function AppShell() {
         ]
         const MORE: { to: string; label: string; Icon: React.ElementType; adminOnly?: boolean }[] = [
           { to: '/samtal',    label: 'Samtal',    Icon: Phone         },
-          { to: '/narvaro',   label: 'Närvaro',   Icon: ClipboardCheck },
           { to: '/skyltning', label: 'Skyltning', Icon: Monitor       },
           { to: '/schema',    label: 'Schema',    Icon: CalendarDays  },
           { to: '/formular',  label: 'Formulär',  Icon: FileText      },
