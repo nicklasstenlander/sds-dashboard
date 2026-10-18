@@ -41,7 +41,9 @@ export function overdueLabel(days: number): string {
 export function daysUntilDue(b: Booking): number | null {
   const due = b.payment?.paymentDue
   if (!due || paymentStatus(b) !== 'unpaid' || daysOverdue(b) > 0) return null
-  const dueDate = new Date(due.trim().replace(' ', 'T'))
+  const t = due.trim()
+  // Datum utan klockslag tolkas som lokalt datum (new Date('YYYY-MM-DD') är UTC).
+  const dueDate = new Date(/^\d{4}-\d{2}-\d{2}$/.test(t) ? `${t}T00:00:00` : t.replace(' ', 'T'))
   if (Number.isNaN(dueDate.getTime())) return null
   return Math.max(0, differenceInCalendarDays(dueDate, new Date()))
 }
