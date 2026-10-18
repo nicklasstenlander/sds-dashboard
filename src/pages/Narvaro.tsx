@@ -565,7 +565,7 @@ export function Narvaro() {
         <div className="min-h-[70vh] flex items-center justify-center">
           <div className="card w-full max-w-md p-8 text-center space-y-6">
             <div>
-              <h1 className="text-2xl font-bold text-brand-dark">Närvaro</h1>
+              <h1 className="text-3xl font-bold tracking-tight text-brand-dark">Närvaro</h1>
               <p className="text-sm text-slate-400 mt-2">Välj lärare för att se dagens klasser.</p>
             </div>
 
@@ -625,7 +625,7 @@ export function Narvaro() {
         {/* Header */}
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div>
-            <h1 className="text-2xl font-bold text-brand-dark">Närvaro</h1>
+            <h1 className="text-3xl font-bold tracking-tight text-brand-dark">Närvaro</h1>
             <p className="text-sm text-slate-400 mt-1">
               {lastFetched
                 ? `Uppdaterad ${lastFetched.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })}`

@@ -647,7 +647,7 @@ export function Signage() {
       {/* ── Header ── */}
       <div className="flex items-end justify-between mb-6 gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold text-brand-dark m-0 tracking-tight">Skyltning</h1>
+          <h1 className="text-3xl font-bold text-brand-dark m-0 tracking-tight">Skyltning</h1>
           <p className="mt-1 text-sm text-slate-500">
             {items.length} objekt · ca {Math.round(totalDuration / 60)} min per loop
           </p>
