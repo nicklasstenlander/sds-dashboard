@@ -360,7 +360,7 @@ export function Dashboard({ darkMode, onToggleDarkMode }: DashboardProps) {
         />
         {canSeeFinancials && (
           <KPICard
-            title="Fakturerat"
+            title="Aviserat"
             value={revenueKpi.aviserat > 0 ? `${Math.round(revenueKpi.aviserat / 1000).toLocaleString('sv-SE')} tkr` : '—'}
             subtitle={revenueKpi.aviserat > 0 ? `${revenueKpi.aviserat.toLocaleString('sv-SE')} kr` : undefined}
             icon={<Banknote className="w-6 h-6" />}
@@ -369,9 +369,9 @@ export function Dashboard({ darkMode, onToggleDarkMode }: DashboardProps) {
         )}
         {canSeeFinancials && (
           <KPICard
-            title="Inbetalt"
+            title="Mottaget"
             value={revenueKpi.mottaget > 0 ? `${Math.round(revenueKpi.mottaget / 1000).toLocaleString('sv-SE')} tkr` : '—'}
-            subtitle={revenueKpi.mottaget > 0 ? `${revenueKpi.mottaget.toLocaleString('sv-SE')} kr${revenueKpi.aviserat > 0 ? ` · ${Math.round((revenueKpi.mottaget / revenueKpi.aviserat) * 100)}% av fakturerat` : ''}` : undefined}
+            subtitle={revenueKpi.mottaget > 0 ? `${revenueKpi.mottaget.toLocaleString('sv-SE')} kr${revenueKpi.aviserat > 0 ? ` · ${Math.round((revenueKpi.mottaget / revenueKpi.aviserat) * 100)}% av aviserat` : ''}` : undefined}
             icon={<Banknote className="w-6 h-6" />}
             color="dark"
           />
