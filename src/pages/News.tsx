@@ -131,7 +131,7 @@ export function News() {
     <div className="space-y-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-brand-dark">Nyheter</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-brand-dark">Nyheter</h1>
           <p className="mt-1 text-sm text-slate-500">Hantera nyheter, events och banners som visas på appens Hem-sida.</p>
         </div>
         <button

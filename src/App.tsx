@@ -49,23 +49,42 @@ function PreparingLoader() {
   )
 }
 
-const NAV = [
-  { to: '/',            label: 'Översikt',    Icon: LayoutDashboard },
-  { to: '/anmalningar', label: 'Anmälningar', Icon: ClipboardList   },
-  { to: '/kunder',      label: 'Kunder',       Icon: Users           },
-  { to: '/shop',        label: 'Shop',          Icon: ShoppingBag    },
-  { to: '/samtal',      label: 'Samtal',        Icon: Phone           },
-  { to: '/narvaro',     label: 'Närvaro',       Icon: ClipboardCheck  },
-  { to: '/skyltning',   label: 'Skyltning',     Icon: Monitor         },
-  { to: '/schema',      label: 'Schema',        Icon: CalendarDays    },
-  { to: '/formular',    label: 'Formulär',      Icon: FileText        },
-  { to: '/nyheter',     label: 'Nyheter',       Icon: Newspaper       },
-  { to: '/notiser',     label: 'Notiser',       Icon: Bell            },
-  // Synlig ENDAST för rollen admin (ordern "Föreställningar-statistik
-  // från Rideau till CORE" 2026-10-13, Fas 3) - filtreras bort nedan i
-  // BÅDA nav-listorna (desktop + mobil "Mer") om profile.role !== 'admin'.
-  // Servern (Workern) nekar ändå oberoende av detta - se Forestallningar.tsx.
-  { to: '/forestallningar', label: 'Föreställningar', Icon: Ticket, adminOnly: true },
+type NavItem = { to: string; label: string; Icon: React.ElementType; adminOnly?: boolean }
+type NavGroup = { label?: string; items: NavItem[] }
+
+// Grupperad meny (2.0): Översikt för sig, sedan efter hur ofta/varför man använder sidan.
+const NAV_GROUPS: NavGroup[] = [
+  { items: [{ to: '/', label: 'Översikt', Icon: LayoutDashboard }] },
+  {
+    label: 'Dagligt arbete',
+    items: [
+      { to: '/anmalningar', label: 'Anmälningar', Icon: ClipboardList },
+      { to: '/kunder',      label: 'Kunder',      Icon: Users },
+      { to: '/schema',      label: 'Schema',      Icon: CalendarDays },
+      { to: '/narvaro',     label: 'Närvaro',     Icon: ClipboardCheck },
+      { to: '/samtal',      label: 'Samtal',      Icon: Phone },
+    ],
+  },
+  {
+    label: 'Kommunikation',
+    items: [
+      { to: '/nyheter',   label: 'Nyheter',   Icon: Newspaper },
+      { to: '/notiser',   label: 'Notiser',   Icon: Bell },
+      { to: '/formular',  label: 'Formulär',  Icon: FileText },
+      { to: '/skyltning', label: 'Skyltning', Icon: Monitor },
+    ],
+  },
+  {
+    label: 'Försäljning',
+    items: [
+      { to: '/shop', label: 'Shop', Icon: ShoppingBag },
+      // Synlig ENDAST för rollen admin (ordern "Föreställningar-statistik
+      // från Rideau till CORE" 2026-10-13, Fas 3) - filtreras bort nedan i
+      // BÅDA nav-listorna (desktop + mobil "Mer") om profile.role !== 'admin'.
+      // Servern (Workern) nekar ändå oberoende av detta - se Forestallningar.tsx.
+      { to: '/forestallningar', label: 'Föreställningar', Icon: Ticket, adminOnly: true },
+    ],
+  },
 ]
 
 function AppShell() {
@@ -137,7 +156,7 @@ function AppShell() {
     <div className="flex h-dvh bg-white dark:bg-[var(--dark-page)] overflow-hidden">
       {/* ── Sidebar (desktop) ── */}
       <aside
-        className="sds-sidebar hidden md:flex shrink-0 flex-col bg-slate-50 border-r border-slate-200 transition-all duration-250 ease-out"
+        className="sds-sidebar hidden md:flex shrink-0 flex-col bg-white border-r border-slate-200 transition-all duration-250 ease-out"
         style={{ width: collapsed ? 68 : 224 }}
       >
         {/* Logo */}
@@ -155,25 +174,38 @@ function AppShell() {
         <nav ref={navRef} className="flex-1 p-3 space-y-0.5 relative">
           {pill.height > 0 && (
             <div
-              className="sds-sidebar-pill absolute left-3 right-3 bg-brand-mint rounded-xl transition-all duration-200 ease-out pointer-events-none"
+              className="sds-sidebar-pill absolute left-3 right-3 bg-surface-selected rounded-xl transition-all duration-200 ease-out pointer-events-none"
               style={{ top: pill.top, height: pill.height }}
             />
           )}
-          {NAV.filter(({ adminOnly }) => !adminOnly || profile?.role === 'admin').map(({ to, label, Icon }) => {
-            const active = isActive(to)
+          {NAV_GROUPS.map((group, gi) => {
+            const items = group.items.filter(({ adminOnly }) => !adminOnly || profile?.role === 'admin')
+            if (items.length === 0) return null
             return (
-              <NavLink
-                key={to}
-                to={to}
-                data-active={String(active)}
-                title={collapsed ? label : undefined}
-                className={`sds-nav-item relative z-10 w-full flex items-center gap-3 rounded-xl text-sm font-medium transition-colors ${
-                  collapsed ? 'justify-center px-0 py-2.5' : 'px-3 py-2.5'
-                } ${active ? 'sds-nav-item-active text-brand-dark' : 'text-slate-500 hover:text-brand-dark'}`}
-              >
-                <Icon className="w-4 h-4 shrink-0" />
-                {!collapsed && label}
-              </NavLink>
+              <div key={group.label ?? 'top'} className={gi > 0 ? 'pt-3' : ''}>
+                {group.label && (collapsed
+                  ? <div className="h-px bg-slate-200 mx-3 mb-2" aria-hidden="true" />
+                  : <p className="px-3 pb-1.5 text-[11px] font-semibold tracking-[0.12em] uppercase text-slate-500">{group.label}</p>)}
+                <div className="space-y-0.5">
+                  {items.map(({ to, label, Icon }) => {
+                    const active = isActive(to)
+                    return (
+                      <NavLink
+                        key={to}
+                        to={to}
+                        data-active={String(active)}
+                        title={collapsed ? label : undefined}
+                        className={`sds-nav-item relative z-10 w-full flex items-center gap-3 rounded-xl text-sm font-medium transition-colors ${
+                          collapsed ? 'justify-center px-0 py-2.5' : 'px-3 py-2.5'
+                        } ${active ? 'sds-nav-item-active text-brand-dark' : 'text-slate-600 hover:text-brand-dark'}`}
+                      >
+                        <Icon className="w-4 h-4 shrink-0" />
+                        {!collapsed && label}
+                      </NavLink>
+                    )
+                  })}
+                </div>
+              </div>
             )
           })}
         </nav>
@@ -231,7 +263,7 @@ function AppShell() {
       </aside>
 
       {/* ── Main ── */}
-      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0 bg-surface-page dark:bg-[var(--dark-page)]">
         {/* extra bottom padding on mobile so content isn't hidden behind bottom nav */}
         <main className="flex-1 overflow-y-auto px-4 py-4 md:px-6 md:py-6 pb-24 md:pb-6">
           <Suspense fallback={<PageLoader />}>

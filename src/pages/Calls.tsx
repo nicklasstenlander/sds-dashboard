@@ -172,7 +172,7 @@ export function Calls() {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold text-brand-dark">Samtal</h1>
+        <h1 className="text-3xl font-bold tracking-tight text-brand-dark">Samtal</h1>
         <button
           onClick={() => refetch()}
           disabled={isFetching}

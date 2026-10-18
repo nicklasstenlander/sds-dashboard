@@ -129,7 +129,7 @@ export function Shop() {
   if (isError || !data) {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold text-brand-dark">Shop</h1>
+        <h1 className="text-3xl font-bold tracking-tight text-brand-dark">Shop</h1>
         <div className="card p-10 flex flex-col items-center justify-center text-center gap-3">
           <ShoppingBag className="w-10 h-10 text-slate-200" />
           <p className="font-semibold text-slate-500">Ingen Shopify-data tillgänglig</p>
@@ -151,7 +151,7 @@ export function Shop() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold text-brand-dark">Shop</h1>
+        <h1 className="text-3xl font-bold tracking-tight text-brand-dark">Shop</h1>
         {data.updatedAt && (
           <span className="flex items-center gap-1.5 text-xs text-slate-600">
             <Clock className="w-3.5 h-3.5" />

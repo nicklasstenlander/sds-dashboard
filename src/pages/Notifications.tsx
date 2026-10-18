@@ -69,7 +69,7 @@ export function Notifications() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-bold text-brand-dark">Notiser</h1>
+        <h1 className="text-3xl font-bold tracking-tight text-brand-dark">Notiser</h1>
         <p className="mt-1 text-sm text-slate-500">Skicka en pushnotis direkt till alla med appen, eller till följare av en specifik kurs.</p>
       </div>
 
