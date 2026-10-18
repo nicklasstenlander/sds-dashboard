@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react'
-import { ArrowUpDown, ChevronRight, RefreshCw, DatabaseZap, MessageSquare } from 'lucide-react'
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronRight, RefreshCw, DatabaseZap, MessageSquare } from 'lucide-react'
 import { buildCourseMetrics, bookingEventId, isAcceptedBooking, metricsForEvent } from '../utils/courseMetrics'
 import { collectKnownEventBlockIds, resolveEventBlockName } from '../utils/eventBlock'
 import type { Event, Booking } from '../types/cogwork'
@@ -22,7 +22,7 @@ interface EventsTableProps {
   isDirectRefreshing?: boolean
 }
 
-type SortKey = 'name' | 'accepted' | 'antagna' | 'fill' | 'price' | 'revenue' | 'category'
+type SortKey = 'name' | 'accepted' | 'fill' | 'revenue'
 type SortDir = 'asc' | 'desc'
 
 function fillRate(e: Event, accepted: number): number {
@@ -50,6 +50,48 @@ function fillBadgeClass(pct: number) {
   return 'bg-status-okSoft text-brand-forest dark:bg-[rgba(93,184,138,0.14)] dark:text-[var(--dark-positive)]'
 }
 
+/** "Fre 16.30-17.45" -> "Fre 16.30–17.45" (tankstreck i tidsintervall). */
+function formatDayTime(s?: string): string {
+  return s ? s.replace(/(\d)\s*-\s*(\d)/g, '$1–$2') : ''
+}
+
+interface ThProps {
+  label: string
+  title?: string
+  sortKey?: SortKey
+  sort: { key: SortKey; dir: SortDir }
+  onSort: (key: SortKey) => void
+  hide?: string
+  align?: 'left' | 'right'
+}
+
+function Th({ label, title, sortKey, sort, onSort, hide, align }: ThProps) {
+  const active = !!sortKey && sort.key === sortKey
+  const Icon = !active ? ArrowUpDown : sort.dir === 'asc' ? ArrowUp : ArrowDown
+  const right = align === 'right'
+  return (
+    <th
+      scope="col"
+      aria-sort={active ? (sort.dir === 'asc' ? 'ascending' : 'descending') : sortKey ? 'none' : undefined}
+      title={title}
+      className={`sticky top-0 z-10 bg-slate-50 dark:bg-[var(--dark-card)] border-y border-slate-100 text-xs font-semibold py-2.5 px-3 whitespace-nowrap ${right ? 'text-right' : 'text-left'} ${hide ?? ''}`}
+    >
+      {sortKey ? (
+        <button
+          type="button"
+          onClick={() => onSort(sortKey)}
+          className={`inline-flex items-center gap-1 rounded sds-focus-ring hover:text-brand-dark ${active ? 'text-brand-dark' : 'text-slate-600'} ${right ? 'flex-row-reverse' : ''}`}
+        >
+          {label}
+          <Icon className={`w-3 h-3 ${active ? '' : 'opacity-50'}`} aria-hidden="true" />
+        </button>
+      ) : (
+        <span className="text-slate-600">{label}</span>
+      )}
+    </th>
+  )
+}
+
 export function EventsTable({ events, bookings = [], loading, search, activePeriod, onSelect, selectedId, onVisibleOrderChange, onRefresh, onDirectRefresh, onGroupSms, isRefreshing, isDirectRefreshing }: EventsTableProps) {
   const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: 'accepted', dir: 'desc' })
 
@@ -75,11 +117,8 @@ export function EventsTable({ events, bookings = [], loading, search, activePeri
       switch (sort.key) {
         case 'name':     diff = a.name.localeCompare(b.name, 'sv'); break
         case 'accepted': diff = a._registered - b._registered; break
-        case 'antagna':  diff = a._accepted - b._accepted; break
         case 'fill':     diff = a._fill - b._fill; break
-        case 'price':    diff = a._price - b._price; break
         case 'revenue':  diff = a._revenue - b._revenue; break
-        case 'category': diff = (a.grouping?.primaryEventGroup?.name ?? '').localeCompare(b.grouping?.primaryEventGroup?.name ?? '', 'sv'); break
       }
       return sort.dir === 'asc' ? diff : -diff
     })
@@ -99,18 +138,6 @@ export function EventsTable({ events, bookings = [], loading, search, activePeri
     setSort((s) => s.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'desc' })
   }
 
-  const Th = ({ label, sortKey, hide, align }: { label: string; sortKey?: SortKey; hide?: string; align?: 'left' | 'right' }) => (
-    <th
-      className={`text-xs font-semibold text-slate-600 py-3 px-4 whitespace-nowrap ${align === 'right' ? 'text-right' : 'text-left'} ${sortKey ? 'cursor-pointer select-none hover:text-brand-dark' : ''} ${hide ?? ''}`}
-      onClick={() => sortKey && toggleSort(sortKey)}
-    >
-      <span className={`flex items-center gap-1 ${align === 'right' ? 'justify-end' : ''}`}>
-        {label}
-        {sortKey && <ArrowUpDown className="w-3 h-3" />}
-      </span>
-    </th>
-  )
-
   if (loading) {
     return (
       <div className="card p-5">
@@ -125,18 +152,18 @@ export function EventsTable({ events, bookings = [], loading, search, activePeri
   }
 
   return (
-    <div className="card">
+    <div className="card overflow-clip">
       <div className="p-5 pb-0 flex items-center justify-between">
         <h2 className="text-sm font-bold text-brand-dark">
           Kursöversikt{' '}
-          <span className="text-slate-600 font-light">({filtered.length} kurser)</span>
+          <span className="text-slate-600 font-normal">· {filtered.length} kurser</span>
         </h2>
         <div className="flex items-center gap-1">
           {onRefresh && (
             <button
               onClick={onRefresh}
               disabled={isRefreshing}
-              title="Uppdatera från proxy-cache"
+              title="Ladda om listan (snabbt, från cache)"
               className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-brand-dark px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing && !isDirectRefreshing ? 'animate-spin' : ''}`} />
@@ -147,54 +174,44 @@ export function EventsTable({ events, bookings = [], loading, search, activePeri
             <button
               onClick={onDirectRefresh}
               disabled={isDirectRefreshing}
-              title="Hämta färsk data direkt från CogWork (långsammare)"
+              title="Hämta färsk data direkt från CogWork (tar längre tid)"
               className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-brand-forest px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
             >
               {isDirectRefreshing
                 ? <RefreshCw className="w-3.5 h-3.5 animate-spin" />
                 : <DatabaseZap className="w-3.5 h-3.5" />}
-              <span className="hidden sm:inline">{isDirectRefreshing ? 'Hämtar…' : 'Från CogWork'}</span>
+              <span className="hidden sm:inline">{isDirectRefreshing ? 'Hämtar…' : 'Hämta från CogWork'}</span>
             </button>
           )}
         </div>
       </div>
-      <div className="overflow-x-auto mt-3 rounded-b-2xl">
-        <table className="w-full min-w-[1140px] table-fixed">
-          <colgroup>
-            <col className="w-[18rem]" />
-            <col className="w-[13rem]" />
-            <col className="w-[12rem]" />
-            <col className="w-[6rem]" />
-            <col className="w-[6rem]" />
-            <col className="w-[5rem]" />
-            <col className="w-[11rem]" />
-            <col className="w-[7rem]" />
-            <col className="w-[8rem]" />
-            <col className="w-[3rem]" />
-          </colgroup>
-          <thead className="border-y border-slate-100 bg-slate-50/60 dark:bg-transparent">
+      <table className="w-full mt-3">
+        <thead>
+          <tr>
+            <Th label="Kurs" sortKey="name" sort={sort} onSort={toggleSort} />
+            <Th label="Anmälda" title="Antal anmälningar, inklusive de som inte antagits" sortKey="accepted" align="right" hide="hidden sm:table-cell" sort={sort} onSort={toggleSort} />
+            <Th label="Antagna / max" title="Antagna elever av max antal platser, med beläggning i procent" sortKey="fill" sort={sort} onSort={toggleSort} />
+            <Th label="Intäkt (kr)" title="Antagna × pris" sortKey="revenue" align="right" hide="hidden md:table-cell" sort={sort} onSort={toggleSort} />
+            <th scope="col" className="sticky top-0 z-10 bg-slate-50 dark:bg-[var(--dark-card)] border-y border-slate-100 w-px">
+              <span className="sr-only">Åtgärder</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-100 dark:divide-transparent">
+          {filtered.length === 0 && (
             <tr>
-              <Th label="Kurs"        sortKey="name"     />
-              <Th label="Kategori"    sortKey="category" hide="hidden sm:table-cell" />
-              <Th label="Dag / tid"   hide="hidden md:table-cell" />
-              <Th label="Anmälda"     sortKey="accepted" align="right" />
-              <Th label="Antagna"     sortKey="antagna"  hide="hidden sm:table-cell" align="right" />
-              <Th label="Max"         hide="hidden sm:table-cell" align="right" />
-              <Th label="Beläggning"  sortKey="fill"     />
-              <Th label="Pris (kr)"   sortKey="price"    hide="hidden lg:table-cell" align="right" />
-              <Th label="Intäkt (kr)" sortKey="revenue"  hide="hidden lg:table-cell" align="right" />
-              <th className="w-8" />
+              <td colSpan={5} className="text-center py-10 text-sm text-slate-600">
+                {search ? `Inga kurser matchar ”${search}”. Prova ett annat sökord.` : 'Inga kurser i den här perioden.'}
+              </td>
             </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-50">
-            {filtered.length === 0 && (
-              <tr>
-                <td colSpan={9} className="text-center py-10 text-sm text-slate-600">
-                  Inga kurser hittades
-                </td>
-              </tr>
-            )}
-            {filtered.map((e) => (
+          )}
+          {filtered.map((e) => {
+            const max = e.requirements?.maxParticipants
+            const over = !!max && e._accepted > max
+            const category = e.grouping?.primaryEventGroup?.name
+            const dayTime = formatDayTime(e.schedule?.dayAndTimeInfo)
+            const meta = [category, dayTime].filter(Boolean).join(' · ')
+            return (
               <tr
                 key={e.key}
                 data-event-id={String(e.id)}
@@ -209,86 +226,92 @@ export function EventsTable({ events, bookings = [], loading, search, activePeri
                 aria-current={selectedId === String(e.id) ? 'true' : undefined}
                 className={`hover:bg-brand-mint dark:hover:bg-[rgba(255,255,255,0.03)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-forest ${selectedId === String(e.id) ? 'bg-brand-mint dark:bg-[rgba(255,255,255,0.06)]' : ''} ${onSelect ? 'cursor-pointer' : ''}`}
               >
-                <td className="py-3 px-4 text-sm font-medium text-brand-dark">
-                  <div className="flex items-start gap-1.5 flex-wrap">
-                    <span className="line-clamp-2">{e.name}</span>
+                {/* Kurs: namn + kategori · dag/tid på en rad. w-full/max-w-0 låter cellen ta resten av bredden och trunkera i stället för att tvinga fram sidled-scroll. */}
+                <td className="w-full max-w-0 py-2.5 px-3">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="truncate text-sm font-medium text-brand-dark" title={e.name}>{e.name}</span>
                     {e.registration?.showing === false && (
                       <span className="shrink-0 text-xs font-medium px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 whitespace-nowrap">
                         Ej publik
                       </span>
                     )}
                     {!activePeriod && resolveEventBlockName(e, knownEventBlockIds) && (
-                      <span className="shrink-0 text-[11px] font-medium px-1.5 py-0.5 rounded bg-slate-50 text-slate-400 whitespace-nowrap">
+                      <span className="shrink-0 text-[11px] font-medium px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 whitespace-nowrap">
                         {shortPeriod(resolveEventBlockName(e, knownEventBlockIds)!)}
                       </span>
                     )}
                   </div>
+                  {meta && (
+                    <div className="truncate text-xs text-slate-500 mt-0.5" title={meta}>{meta}</div>
+                  )}
                 </td>
-                <td className="hidden sm:table-cell py-3 px-4 text-sm text-slate-500">
-                  <span className="block truncate" title={e.grouping?.primaryEventGroup?.name}>
-                    {e.grouping?.primaryEventGroup?.name ?? '—'}
-                  </span>
-                </td>
-                <td className="hidden md:table-cell py-3 px-4 text-sm text-slate-500">
-                  <span className="block truncate" title={e.schedule?.dayAndTimeInfo}>
-                    {e.schedule?.dayAndTimeInfo || '—'}
-                  </span>
-                </td>
-                <td className="py-3 px-4 text-sm text-slate-600 tabular-nums text-right">
+                <td className="hidden sm:table-cell py-2.5 px-3 text-sm text-slate-700 tabular-nums text-right whitespace-nowrap">
                   {e._registered}
                 </td>
-                <td className="hidden sm:table-cell py-3 px-4 text-sm font-semibold text-brand-forest tabular-nums text-right">
-                  {e._accepted}
-                </td>
-                <td className="hidden sm:table-cell py-3 px-4 text-sm text-slate-500 tabular-nums text-right">
-                  {e.requirements?.maxParticipants ?? '—'}
-                </td>
-                <td className="py-3 px-4">
-                  {e.requirements?.maxParticipants ? (
-                    <div className="flex items-center gap-2">
-                      <div className="w-14 h-1.5 bg-slate-100 dark:bg-[var(--fill-track)] rounded-full overflow-hidden shrink-0">
+                <td className="py-2.5 px-3 whitespace-nowrap">
+                  {max ? (
+                    <div className="flex items-center gap-2.5">
+                      <span
+                        className={`w-[4.5rem] text-right text-sm tabular-nums ${over ? 'font-semibold text-[#b4234f] dark:text-[var(--dark-warning)]' : 'text-slate-700'}`}
+                        title={over ? `${e._accepted - max} över max` : undefined}
+                      >
+                        <span className="font-semibold">{e._accepted}</span>
+                        <span className="text-slate-500 font-normal"> / {max}</span>
+                      </span>
+                      <div className="hidden sm:block w-12 h-1.5 bg-slate-100 dark:bg-[var(--fill-track)] rounded-full overflow-hidden shrink-0" aria-hidden="true">
                         <div
                           className="h-full rounded-full"
                           style={{ width: `${Math.min(e._fill, 100)}%`, background: fillBarColor(e._fill) }}
                         />
                       </div>
-                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${fillBadgeClass(e._fill)}`}>
+                      <span className={`w-12 text-center text-xs font-semibold px-2 py-0.5 rounded-full ${fillBadgeClass(e._fill)}`}>
                         {e._fill}%
                       </span>
                     </div>
                   ) : (
-                    <span className="text-sm text-slate-600">—</span>
+                    <div className="flex items-center gap-2.5">
+                      <span className="w-[4.5rem] text-right text-sm tabular-nums text-slate-700">
+                        <span className="font-semibold">{e._accepted}</span>
+                      </span>
+                      <span className="hidden sm:inline text-xs text-slate-500">Ingen maxgräns</span>
+                    </div>
                   )}
                 </td>
-                <td className="hidden lg:table-cell py-3 px-4 text-sm text-slate-600 tabular-nums whitespace-nowrap text-right">
-                  {e._price > 0 ? e._price.toLocaleString('sv-SE') : '—'}
+                <td className="hidden md:table-cell py-2.5 px-3 text-right tabular-nums whitespace-nowrap">
+                  {e._revenue > 0 ? (
+                    <>
+                      <div className="text-sm font-medium text-slate-700">{e._revenue.toLocaleString('sv-SE')}</div>
+                      {e._price > 0 && <div className="text-xs text-slate-500">à {e._price.toLocaleString('sv-SE')}</div>}
+                    </>
+                  ) : (
+                    <span className="text-sm text-slate-500" title="Inget pris inlagt i CogWork">—</span>
+                  )}
                 </td>
-                <td className="hidden lg:table-cell py-3 px-4 text-sm font-medium text-slate-700 tabular-nums whitespace-nowrap text-right">
-                  {e._revenue > 0 ? e._revenue.toLocaleString('sv-SE') : '—'}
-                </td>
-                <td className="py-3 px-2">
-                  <div className="flex items-center gap-1">
+                <td className="py-2.5 pl-1 pr-3">
+                  <div className="flex items-center justify-end gap-0.5">
                     {onGroupSms && (() => {
                       const courseBookings = bookings.filter(b => bookingEventId(b) === String(e.id))
                       const hasAccepted = courseBookings.some(isAcceptedBooking)
                       return hasAccepted ? (
                         <button
+                          type="button"
                           onClick={ev => { ev.stopPropagation(); onGroupSms(e, courseBookings) }}
                           title="Skicka SMS till gruppen"
-                          className="p-1 rounded text-slate-500 hover:text-brand-dark hover:bg-slate-100 transition-colors"
+                          aria-label={`Skicka SMS till gruppen i ${e.name}`}
+                          className="p-1.5 rounded text-slate-500 hover:text-brand-dark hover:bg-slate-100 transition-colors sds-focus-ring"
                         >
                           <MessageSquare className="w-4 h-4" />
                         </button>
                       ) : null
                     })()}
-                    {onSelect && <ChevronRight className="w-4 h-4 text-slate-500" />}
+                    {onSelect && <ChevronRight className="w-4 h-4 text-slate-500" aria-hidden="true" />}
                   </div>
                 </td>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            )
+          })}
+        </tbody>
+      </table>
     </div>
   )
 }
