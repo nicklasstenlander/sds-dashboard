@@ -3,13 +3,12 @@ import { useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { format } from 'date-fns'
 import { sv } from 'date-fns/locale'
-import { Users, UserCheck, CreditCard, Clock, GraduationCap, TrendingUp, Banknote, Search, Moon, Sun } from 'lucide-react'
+import { Search, Moon, Sun } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
-import { KPICard } from '../components/KPICard'
 import { PeriodFilter } from '../components/PeriodFilter'
 import { BookingsChart } from '../components/BookingsChart'
 import { CategoryChart } from '../components/CategoryChart'
-import { EventsTable } from '../components/EventsTable'
+import { EventsTable, type CourseFilter } from '../components/EventsTable'
 import { CourseDetailPanel } from '../components/CourseDetailPanel'
 import { BookingListPanel } from '../components/BookingListPanel'
 import { AlertsPanel } from '../components/AlertsPanel'
@@ -48,6 +47,7 @@ export function Dashboard({ darkMode, onToggleDarkMode }: DashboardProps) {
   const [visibleEventIds, setVisibleEventIds] = useState<string[]>([])
   const [activeFilter, setActiveFilter] = useState<'total' | 'antagna' | 'ejBetalda' | null>(null)
   const [alertsOpen, setAlertsOpen] = useState(false)
+  const [courseFilter, setCourseFilter] = useState<CourseFilter>('all')
   const [groupSms, setGroupSms] = useState<{ courseName: string; bookings: Booking[] } | null>(null)
   const [goalModal, setGoalModal] = useState<{ open: boolean; goal?: import('../services/goalsService').Goal }>({ open: false })
   const [isManualRefreshing, setIsManualRefreshing] = useState(false)
@@ -173,6 +173,14 @@ export function Dashboard({ darkMode, onToggleDarkMode }: DashboardProps) {
     return [...list.filter((g) => !done(g)), ...list.filter(done)]
   }, [goals, statisticalGoalBookings, goalEvents])
   const { alerts, duplicateCount, pendingCount } = useAlerts(statisticalBookings)
+  // Antal kurser som är fulla eller nästan fulla (>= 90 %), samma underlag som kurstabellens filter.
+  const over90Count = useMemo(() => {
+    const metrics = buildCourseMetrics(bookings)
+    return events.filter((e) => {
+      const max = e.requirements?.maxParticipants
+      return !!max && metricsForEvent(metrics, e, false).accepted / max >= 0.9
+    }).length
+  }, [events, bookings])
 
   async function handleCacheRefresh() {
     setIsManualRefreshing(true)
@@ -288,96 +296,99 @@ export function Dashboard({ darkMode, onToggleDarkMode }: DashboardProps) {
         </div>
       )}
 
-      {/* KPI — anmälningsstatus (från bokningar) */}
-      <section aria-label="Anmälningar">
-        <p className="text-xs font-semibold text-slate-600 dark:text-slate-500 uppercase tracking-widest mb-3">Anmälningar</p>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPICard
-          title="Totalt anmälda"
-          value={bookingsTotal > 0 ? bookingsTotal.toLocaleString('sv-SE') : kpi.totalAccepted.toLocaleString('sv-SE')}
-          subtitle={`${events.length} kurser`}
-          delta={newToday > 0 ? { count: newToday, label: 'nya idag' } : undefined}
-          icon={<Users className="w-6 h-6" />}
-          color="violet"
-          onClick={() => setActiveFilter('total')}
-        />
-        <KPICard
-          title="Antagna"
-          value={bookingKpi.antagna.toLocaleString('sv-SE')}
-          subtitle={bookingKpi.total > 0 ? `${Math.round((bookingKpi.antagna / bookingKpi.total) * 100)}% av anmälda` : undefined}
-          icon={<UserCheck className="w-6 h-6" />}
-          color="ok"
-          onClick={() => setActiveFilter('antagna')}
-        />
-        <KPICard
-          title="Ej betalda"
-          value={bookingKpi.ejBetalda.toLocaleString('sv-SE')}
-          subtitle={bookingKpi.ejBetalda > 0 ? 'Kräver åtgärd' : 'Alla betalda'}
-          icon={<CreditCard className="w-6 h-6" />}
-          color={bookingKpi.ejBetalda > 0 ? 'critical' : 'ok'}
-          onClick={() => setActiveFilter('ejBetalda')}
-        />
-        <KPICard
-          title="Att följa upp"
-          value={alerts.length.toLocaleString('sv-SE')}
-          subtitle={pendingCount > 0 && duplicateCount > 0
-            ? `${pendingCount} manuell check · ${duplicateCount} dubbelanmälda`
-            : pendingCount > 0 ? `${pendingCount} behöver manuell check`
-            : duplicateCount > 0 ? `${duplicateCount} dubbelanmälda`
-            : 'Inga ärenden'}
-          icon={
-            <div className="relative">
-              <Clock className="w-6 h-6" />
-              {duplicateCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-status-warning ring-1 ring-white" />
-              )}
-            </div>
-          }
-          color={alerts.length > 0 ? 'warning' : 'ok'}
-          onClick={() => setAlertsOpen(true)}
-        />
-      </div>
-
+      {/* Att följa upp: det som kräver handling idag */}
+      <section aria-labelledby="h-todo">
+        <h2 id="h-todo" className={SECTION_LABEL}>Att följa upp</h2>
+        <div className="card overflow-hidden grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 lg:divide-x divide-slate-100 dark:divide-white/5">
+          <AttentionTile
+            count={bookingKpi.ejBetalda}
+            label="Ej betalda"
+            hint={bookingKpi.ejBetalda > 0 ? 'Kortbetalning inte slutförd. Tre dagar att betala.' : 'Alla har betalat.'}
+            action="Visa bokningarna"
+            tone={bookingKpi.ejBetalda > 0 ? 'critical' : 'calm'}
+            onClick={() => setActiveFilter('ejBetalda')}
+          />
+          <AttentionTile
+            count={alerts.length}
+            label="Att granska"
+            hint={pendingCount > 0 && duplicateCount > 0
+              ? `${duplicateCount} dubbelanmälda och ${pendingCount} som behöver manuell kontroll.`
+              : pendingCount > 0 ? `${pendingCount} behöver manuell kontroll.`
+              : duplicateCount > 0 ? `${duplicateCount} dubbelanmälda.`
+              : 'Inget behöver granskas.'}
+            action="Granska"
+            tone={alerts.length > 0 ? 'warning' : 'calm'}
+            onClick={() => setAlertsOpen(true)}
+          />
+          <AttentionTile
+            count={over90Count}
+            label="Kurser över 90 %"
+            hint={over90Count > 0 ? 'Fulla eller överfulla. Kolla om det behövs kö eller en extra grupp.' : 'Inga kurser är nästan fulla.'}
+            action="Visa kurserna"
+            tone={over90Count > 0 ? 'warning' : 'calm'}
+            onClick={() => {
+              setCourseFilter('over90')
+              document.getElementById('kurslista')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+            }}
+          />
+          <AttentionTile
+            count={newToday}
+            label="Ny anmälan idag"
+            hint={`Totalt ${bookingsTotal.toLocaleString('sv-SE')} anmälda ${periodLabel ? `i ${periodLabel}` : 'under perioden'}.`}
+            action="Se alla anmälda"
+            tone="info"
+            onClick={() => setActiveFilter('total')}
+          />
+        </div>
       </section>
 
-      {/* KPI — kursstatus */}
-      <section aria-label="Kurser och ekonomi">
-        <p className="text-xs font-semibold text-slate-600 dark:text-slate-500 uppercase tracking-widest mb-3">{canSeeFinancials ? 'Kurser och ekonomi' : 'Kurser'}</p>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPICard
-          title="Antal elever"
-          value={activeStudents.toLocaleString('sv-SE')}
-          subtitle="unika med aktiv antagning"
-          icon={<GraduationCap className="w-6 h-6" />}
-          color="sky"
-        />
-        <KPICard
-          title="Medelbeläggning"
-          value={`${kpi.avgFill}%`}
-          subtitle="av tillgängliga platser"
-          icon={<TrendingUp className="w-6 h-6" />}
-          color="emerald"
-        />
-        {canSeeFinancials && (
-          <KPICard
-            title="Aviserat"
-            value={revenueKpi.aviserat > 0 ? `${Math.round(revenueKpi.aviserat / 1000).toLocaleString('sv-SE')} tkr` : '—'}
-            subtitle={revenueKpi.aviserat > 0 ? `${revenueKpi.aviserat.toLocaleString('sv-SE')} kr` : undefined}
-            icon={<Banknote className="w-6 h-6" />}
-            color="emerald"
+      {/* Terminen i siffror */}
+      <section aria-labelledby="h-kpi">
+        <h2 id="h-kpi" className={SECTION_LABEL}>Terminen i siffror</h2>
+        <div className="card overflow-hidden flex flex-wrap">
+          <StatCell
+            label="Antagna"
+            value={bookingKpi.antagna.toLocaleString('sv-SE')}
+            sub={bookingKpi.total > 0 ? `${Math.round((bookingKpi.antagna / bookingKpi.total) * 100)}% av anmälda` : undefined}
+            onClick={() => setActiveFilter('antagna')}
           />
-        )}
-        {canSeeFinancials && (
-          <KPICard
-            title="Mottaget"
-            value={revenueKpi.mottaget > 0 ? `${Math.round(revenueKpi.mottaget / 1000).toLocaleString('sv-SE')} tkr` : '—'}
-            subtitle={revenueKpi.mottaget > 0 ? `${revenueKpi.mottaget.toLocaleString('sv-SE')} kr${revenueKpi.aviserat > 0 ? ` · ${Math.round((revenueKpi.mottaget / revenueKpi.aviserat) * 100)}% av aviserat` : ''}` : undefined}
-            icon={<Banknote className="w-6 h-6" />}
-            color="dark"
+          <StatCell
+            label="Anmälda"
+            value={bookingsTotal > 0 ? bookingsTotal.toLocaleString('sv-SE') : kpi.totalAccepted.toLocaleString('sv-SE')}
+            sub={`${events.length} kurser`}
+            onClick={() => setActiveFilter('total')}
           />
-        )}
-      </div>
-
+          <StatCell label="Elever" value={activeStudents.toLocaleString('sv-SE')} sub="unika med aktiv antagning" />
+          <StatCell label="Medelbeläggning" value={`${kpi.avgFill}%`} sub="av tillgängliga platser" />
+          {canSeeFinancials && (
+            <div className="flex-[2_1_320px] p-5 bg-brand-dark text-white">
+              <div className="flex items-baseline justify-between gap-3">
+                <p className="text-sm text-brand-mint">Betalning</p>
+                {revenueKpi.aviserat > revenueKpi.mottaget && (
+                  <p className="text-xs text-brand-mint">{(revenueKpi.aviserat - revenueKpi.mottaget).toLocaleString('sv-SE')} kr återstår</p>
+                )}
+              </div>
+              <p className="mt-1 text-4xl font-bold tabular-nums leading-none">
+                {revenueKpi.mottaget > 0 ? revenueKpi.mottaget.toLocaleString('sv-SE') : '—'}
+                {revenueKpi.mottaget > 0 && <span className="ml-2 text-base font-normal text-brand-mint">kr mottaget</span>}
+              </p>
+              {revenueKpi.aviserat > 0 && (
+                <>
+                  <div
+                    className="mt-3 h-2 rounded-full bg-white/20 overflow-hidden"
+                    role="img"
+                    aria-label={`${Math.min(100, Math.round((revenueKpi.mottaget / revenueKpi.aviserat) * 100))} procent av aviserat belopp är mottaget`}
+                  >
+                    <div className="h-full rounded-full bg-[#7fd0cc]" style={{ width: `${Math.min(100, (revenueKpi.mottaget / revenueKpi.aviserat) * 100)}%` }} />
+                  </div>
+                  <p className="mt-2 text-xs text-brand-mint">
+                    {Math.round((revenueKpi.mottaget / revenueKpi.aviserat) * 100)}% av {revenueKpi.aviserat.toLocaleString('sv-SE')} kr aviserat
+                  </p>
+                </>
+              )}
+            </div>
+          )}
+        </div>
       </section>
 
       {/* Mål */}
@@ -413,6 +424,8 @@ export function Dashboard({ darkMode, onToggleDarkMode }: DashboardProps) {
         onSelect={selectEvent}
         selectedId={selectedEventId}
         onVisibleOrderChange={setVisibleEventIds}
+        filter={courseFilter}
+        onFilterChange={setCourseFilter}
         onRefresh={handleCacheRefresh}
         onDirectRefresh={handleDirectRefresh}
         onGroupSms={(event, courseBookings) => setGroupSms({ courseName: event.name, bookings: courseBookings })}
@@ -490,8 +503,8 @@ function DashboardGreeting({
   const dateStr = format(now, 'd MMMM', { locale: sv }).toUpperCase()
 
   const statNodes: React.ReactNode[] = []
-  if (newToday > 0) statNodes.push(<><strong>{newToday}</strong> nya anmälningar idag</>)
-  if (ejBetalda > 0) statNodes.push(<><strong>{ejBetalda}</strong> fakturor väntar betalning</>)
+  if (newToday > 0) statNodes.push(<><strong>{newToday}</strong> {newToday === 1 ? "ny anmälan" : "nya anmälningar"} idag</>)
+  if (ejBetalda > 0) statNodes.push(<><strong>{ejBetalda}</strong> betalningar väntar</>)
   if (avgFill > 0) statNodes.push(<>Terminen ligger på <strong>{avgFill}%</strong> beläggning</>)
 
   return (
@@ -500,7 +513,7 @@ function DashboardGreeting({
         {dayName} {dateStr}{periodLabel ? ` · ${periodLabel}` : ''}
       </p>
       <h1
-        className="text-brand-dark"
+        className="text-brand-dark dark:text-slate-100"
         style={{ fontSize: 'clamp(32px, 3.2vw, 48px)', lineHeight: 1.15, letterSpacing: '-0.03em' }}
       >
         <span style={{ fontWeight: 300 }}>{greeting},</span>
@@ -516,6 +529,60 @@ function DashboardGreeting({
         </p>
       )}
     </div>
+  )
+}
+
+const SECTION_LABEL = 'mb-3 text-xs font-semibold text-slate-600 dark:text-slate-500 uppercase tracking-widest'
+
+const ATTENTION_TONES = {
+  critical: { bar: 'border-l-[#dd5c86]', number: 'text-[#b4234f] dark:text-[var(--dark-warning)]' },
+  warning:  { bar: 'border-l-[#E0A23B]', number: 'text-[#5f4700] dark:text-[var(--dark-attention)]' },
+  info:     { bar: 'border-l-[#a3c0b2]', number: 'text-brand-forest dark:text-[var(--dark-positive)]' },
+  calm:     { bar: 'border-l-transparent', number: 'text-slate-600' },
+} as const
+
+/** En sak som kräver handling: stor siffra, kort förklaring och en tydlig åtgärd. */
+function AttentionTile({
+  count, label, hint, action, tone, onClick,
+}: {
+  count: number
+  label: string
+  hint: string
+  action: string
+  tone: keyof typeof ATTENTION_TONES
+  onClick: () => void
+}) {
+  const t = ATTENTION_TONES[tone]
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`sds-focus-ring text-left p-5 border-l-4 ${t.bar} hover:bg-slate-50 dark:hover:bg-white/5 transition-colors flex flex-col gap-1.5`}
+    >
+      <span className="flex items-baseline gap-2.5">
+        <span className={`text-4xl font-bold tabular-nums leading-none ${t.number}`}>{count.toLocaleString('sv-SE')}</span>
+        <span className="text-base font-medium text-brand-dark">{label}</span>
+      </span>
+      <span className="text-sm text-slate-600">{hint}</span>
+      <span className="text-sm font-medium text-brand-forest dark:text-[var(--dark-positive)] mt-1">{action} →</span>
+    </button>
+  )
+}
+
+/** Ett nyckeltal i bandet. Klickbart (knapp) när siffran har en detaljvy. */
+function StatCell({ label, value, sub, onClick }: { label: string; value: string; sub?: string; onClick?: () => void }) {
+  const inner = (
+    <>
+      <span className="block text-sm text-slate-600">{label}</span>
+      <span className="block mt-1 text-4xl font-bold tabular-nums leading-tight text-brand-dark">{value}</span>
+      {sub && <span className="block mt-1 text-sm text-slate-600">{sub}</span>}
+    </>
+  )
+  const cls = 'flex-[1_1_150px] p-5 border-r border-slate-100 dark:border-white/5 text-left'
+  return onClick ? (
+    <button type="button" onClick={onClick} aria-label={`${label}: ${value}. Visa detaljer`} className={`${cls} sds-focus-ring hover:bg-slate-50 dark:hover:bg-white/5 transition-colors`}>{inner}</button>
+  ) : (
+    <div className={cls}>{inner}</div>
   )
 }
 
