@@ -278,9 +278,11 @@ export function EventsTable({ events, bookings = [], loading, search, activePeri
                   )}
                 </td>
                 <td className="hidden md:table-cell py-2.5 px-3 text-right tabular-nums whitespace-nowrap">
-                  {e._revenue > 0 ? (
+                  {e._revenue > 0 || e._price > 0 ? (
                     <>
-                      <div className="text-sm font-medium text-slate-700">{e._revenue.toLocaleString('sv-SE')}</div>
+                      <div className={`text-sm ${e._revenue > 0 ? 'font-medium text-slate-700' : 'text-slate-500'}`}>
+                        {e._revenue > 0 ? e._revenue.toLocaleString('sv-SE') : '—'}
+                      </div>
                       {e._price > 0 && <div className="text-xs text-slate-500">à {e._price.toLocaleString('sv-SE')}</div>}
                     </>
                   ) : (
