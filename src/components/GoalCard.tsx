@@ -47,10 +47,10 @@ export function GoalCard({ goal, currentValue, onClick, loading = false }: GoalC
   const barColor = achieved ? 'var(--goal-achieved)' : overdue ? 'var(--goal-overdue)' : 'var(--goal-progress)'
 
   const daysColor = days > 14
-    ? 'text-brand-forest'
+    ? 'text-brand-forest dark:text-[var(--dark-positive)]'
     : days >= 1
-    ? 'text-amber-700'
-    : 'text-red-700'
+    ? 'text-amber-700 dark:text-[var(--dark-attention)]'
+    : 'text-red-700 dark:text-[var(--dark-warning)]'
 
   return (
     <div
