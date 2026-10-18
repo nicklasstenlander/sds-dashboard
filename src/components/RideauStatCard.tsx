@@ -26,7 +26,7 @@ export function RideauStatCard({ event, revenueBasis }: RideauStatCardProps) {
         </div>
         <span
           className={`shrink-0 inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
-            isMarkedStatus(event.status) ? 'bg-slate-100 text-slate-500' : 'bg-status-okSoft text-brand-forest'
+            isMarkedStatus(event.status) ? 'bg-slate-100 text-slate-500' : 'bg-status-okSoft text-[#1e4025]'
           }`}
         >
           {statusLabel(event.status)}
@@ -41,7 +41,7 @@ export function RideauStatCard({ event, revenueBasis }: RideauStatCardProps) {
         </div>
         <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
           <div
-            className="h-full rounded-full bg-brand-forest transition-[width]"
+            className="h-full rounded-full bg-brand-accent transition-[width]"
             style={{ width: `${Math.min(pct, 100)}%` }}
           />
         </div>

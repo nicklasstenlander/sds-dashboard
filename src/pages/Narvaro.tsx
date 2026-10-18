@@ -313,7 +313,7 @@ function EventCard({
             className={`w-full text-sm border rounded-full pl-9 pr-4 py-2 focus:outline-none focus:ring-2 transition-colors
               ${scanError
                 ? 'border-red-400 focus:ring-red-200'
-                : 'border-slate-200 focus:ring-brand-mint'
+                : 'border-slate-200 focus:ring-brand-accent/40'
               }`}
           />
         </div>
@@ -579,7 +579,7 @@ export function Narvaro() {
                   setTeacherChoice(e.target.value)
                   setLoginError(null)
                 }}
-                className="w-full text-sm border border-slate-200 rounded-xl px-4 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-brand-mint"
+                className="w-full text-sm border border-slate-200 rounded-xl px-4 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-brand-accent/40"
                 disabled={loading && teachers.length === 0}
               >
                 <option value="">
@@ -642,7 +642,7 @@ export function Narvaro() {
             </div>
             <button
               onClick={handleLogout}
-              className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-2 text-sm text-slate-500 hover:text-brand-dark hover:border-brand-mint transition-colors"
+              className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-2 text-sm text-slate-500 hover:text-brand-dark hover:border-slate-200 transition-colors"
             >
               <LogOut className="w-4 h-4" />
               <span className="hidden sm:inline">Byt lärare</span>
@@ -701,7 +701,7 @@ export function Narvaro() {
             {teacherFilter !== '__all__' && events.length > 0 && (
               <button
                 onClick={() => setTeacherFilter('__all__')}
-                className="rounded-full border border-slate-200 px-4 py-2 text-sm text-slate-500 hover:text-brand-dark hover:border-brand-mint transition-colors"
+                className="rounded-full border border-slate-200 px-4 py-2 text-sm text-slate-500 hover:text-brand-dark hover:border-slate-200 transition-colors"
               >
                 Visa alla dagens kurser
               </button>

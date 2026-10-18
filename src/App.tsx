@@ -24,7 +24,7 @@ const Forestallningar = lazy(() => import('./pages/Forestallningar').then(m => (
 function PageLoader() {
   return (
     <div className="flex items-center justify-center py-24">
-      <Loader2 className="w-6 h-6 animate-spin text-brand-forest" />
+      <Loader2 className="w-6 h-6 animate-spin text-brand-dark" />
     </div>
   )
 }
@@ -32,7 +32,7 @@ function PageLoader() {
 function FullPageLoader() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-white">
-      <Loader2 className="w-6 h-6 animate-spin text-brand-forest" />
+      <Loader2 className="w-6 h-6 animate-spin text-brand-dark" />
     </div>
   )
 }
@@ -41,7 +41,7 @@ function PreparingLoader() {
   return (
     <div
       className="min-h-screen flex flex-col items-center justify-center gap-4"
-      style={{ background: 'linear-gradient(145deg, #007a80 0%, #009399 40%, #45aba5 100%)' }}
+      style={{ background: 'linear-gradient(145deg, #c94a74 0%, #dd5c86 50%, #ee7a9f 100%)' }}
     >
       <Loader2 className="w-6 h-6 animate-spin text-white" />
       <p className="text-white/80 text-sm font-light tracking-wide">Förbereder CORE …</p>
@@ -164,7 +164,7 @@ function AppShell() {
           <img src="logo.png" alt="SDS" className="w-8 h-8 object-contain shrink-0 dark:brightness-0 dark:invert" />
           {!collapsed && (
             <div>
-              <p className="text-xl font-bold tracking-widest text-brand-forest leading-none">CORE</p>
+              <p className="text-xl font-bold tracking-widest text-brand-dark leading-none">CORE</p>
               <p className="text-[10px] text-slate-400 font-medium tracking-wider uppercase leading-tight mt-0.5">by SDS</p>
             </div>
           )}
@@ -174,7 +174,7 @@ function AppShell() {
         <nav ref={navRef} className="flex-1 p-3 space-y-0.5 relative">
           {pill.height > 0 && (
             <div
-              className="sds-sidebar-pill absolute left-3 right-3 bg-surface-selected rounded-xl transition-all duration-200 ease-out pointer-events-none"
+              className="sds-sidebar-pill absolute left-3 right-3 bg-surface-selected shadow-[inset_3px_0_0_#dd5c86] rounded-xl transition-all duration-200 ease-out pointer-events-none"
               style={{ top: pill.top, height: pill.height }}
             />
           )}
@@ -324,7 +324,7 @@ function AppShell() {
                         aria-label={label}
                         aria-current={active ? 'page' : undefined}
                         className={`flex flex-col items-center justify-center gap-0.5 transition-colors ${
-                          active ? 'text-[#1e4025] dark:text-[var(--dark-positive)]' : 'text-[#9ca3af] dark:text-[var(--dark-text-muted)]'
+                          active ? 'text-brand-dark dark:text-[var(--dark-accent)]' : 'text-[#9ca3af] dark:text-[var(--dark-text-muted)]'
                         }`}
                       >
                         <Icon
@@ -342,7 +342,7 @@ function AppShell() {
                   onClick={() => setDrawerOpen(o => !o)}
                   aria-label="Mer"
                   className={`sds-bottom-nav relative flex h-16 w-16 shrink-0 flex-col items-center justify-center gap-0.5 rounded-full border border-white/30 bg-white/70 shadow-[0_16px_40px_rgba(15,23,42,0.18)] backdrop-blur-2xl transition-colors dark:border-white/10 dark:bg-black/35 dark:shadow-[0_18px_48px_rgba(0,0,0,0.34)] ${
-                    isMoreActive || drawerOpen ? 'text-[#1e4025] dark:text-[var(--dark-positive)]' : 'text-[#9ca3af] dark:text-[var(--dark-text-muted)]'
+                    isMoreActive || drawerOpen ? 'text-brand-dark dark:text-[var(--dark-accent)]' : 'text-[#9ca3af] dark:text-[var(--dark-text-muted)]'
                   }`}
                 >
                   <div className="relative">
@@ -406,7 +406,7 @@ function AppShell() {
                     aria-label={label}
                     aria-current={active ? 'page' : undefined}
                     className={`w-full flex items-center gap-4 px-6 hover:bg-slate-50 transition-colors ${
-                      active ? 'text-[#1e4025] dark:text-[var(--dark-positive)]' : 'text-[#374151] dark:text-[var(--dark-text-primary)]'
+                      active ? 'text-brand-dark dark:text-[var(--dark-accent)]' : 'text-[#374151] dark:text-[var(--dark-text-primary)]'
                     }`}
                     style={{ minHeight: 56 }}
                   >

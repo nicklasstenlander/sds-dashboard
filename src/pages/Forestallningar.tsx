@@ -70,7 +70,7 @@ export function Forestallningar() {
         <p className="text-sm font-medium text-brand-dark">{describeRideauStatsError(status)}</p>
         <button
           onClick={() => query.refetch()}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-brand-mint text-brand-dark hover:opacity-90 transition-opacity"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-slate-100 text-brand-dark hover:opacity-90 transition-opacity"
         >
           <RefreshCw className="w-4 h-4" />
           Försök igen

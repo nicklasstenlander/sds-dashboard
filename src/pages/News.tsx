@@ -63,11 +63,11 @@ const TYPE_BADGE_CLASS: Record<ContentCardType, string> = {
   news: 'bg-identity-sky text-brand-dark',
   event: 'bg-identity-violet text-brand-dark',
   featured_course: 'bg-identity-amber text-brand-dark',
-  banner: 'bg-brand-mint text-brand-dark',
+  banner: 'bg-slate-100 text-brand-dark',
 }
 
 const STATUS_CONFIG: Record<CardStatus, { label: string; emoji: string; className: string }> = {
-  active: { label: 'Aktiv nu', emoji: '🟢', className: 'bg-status-okSoft text-brand-forest' },
+  active: { label: 'Aktiv nu', emoji: '🟢', className: 'bg-status-okSoft text-[#1e4025]' },
   draft: { label: 'Utkast', emoji: '⚪', className: 'bg-slate-100 text-slate-600' },
   upcoming: { label: 'Kommande', emoji: '🔵', className: 'bg-sky-100 text-sky-700' },
   expired: { label: 'Utgången', emoji: '⚫', className: 'bg-slate-200 text-slate-500' },
@@ -136,7 +136,7 @@ export function News() {
         </div>
         <button
           onClick={() => setModalCard('new')}
-          className="inline-flex items-center justify-center gap-2 rounded-full bg-brand-dark px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-forest"
+          className="inline-flex items-center justify-center gap-2 rounded-full bg-brand-dark px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-accent"
         >
           <Plus className="h-4 w-4" />
           Nytt kort
@@ -154,7 +154,7 @@ export function News() {
       <div className="card overflow-hidden">
         {cardsQuery.isLoading ? (
           <div className="flex items-center justify-center py-16">
-            <Loader2 className="h-5 w-5 animate-spin text-brand-forest" />
+            <Loader2 className="h-5 w-5 animate-spin text-brand-dark" />
           </div>
         ) : cardsQuery.isError ? (
           <p className="px-4 py-8 text-sm text-status-critical">
@@ -408,7 +408,7 @@ function CardModal({
             <select
               value={draft.type}
               onChange={(event) => setDraft({ ...draft, type: event.target.value as ContentCardType })}
-              className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-mint"
+              className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-accent/40"
             >
               {TYPE_OPTIONS.map((option) => (
                 <option key={option.type} value={option.type}>{option.label}</option>
@@ -422,7 +422,7 @@ function CardModal({
               <input
                 value={draft.title}
                 onChange={(event) => setDraft({ ...draft, title: event.target.value })}
-                className={`mt-1 w-full rounded-xl border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-mint ${titleError ? 'border-red-400' : 'border-slate-200'}`}
+                className={`mt-1 w-full rounded-xl border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-accent/40 ${titleError ? 'border-red-400' : 'border-slate-200'}`}
               />
             </label>
             {titleError && <p className="mt-1 text-xs text-status-critical">{titleError}</p>}
@@ -434,7 +434,7 @@ function CardModal({
               value={draft.body}
               onChange={(event) => setDraft({ ...draft, body: event.target.value })}
               rows={4}
-              className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-mint"
+              className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-accent/40"
             />
           </label>
 
@@ -456,7 +456,7 @@ function CardModal({
                 }}
                 disabled={uploadProgress !== null}
                 className={`flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed px-3 py-4 text-sm transition-colors disabled:opacity-60 ${
-                  dragOver ? 'border-brand-mint bg-brand-mint/10 text-brand-dark' : 'border-slate-200 text-slate-500 hover:border-brand-mint hover:bg-brand-mint/10'
+                  dragOver ? 'border-slate-200 bg-slate-50 text-brand-dark' : 'border-slate-200 text-slate-500 hover:border-slate-200 hover:bg-slate-50'
                 }`}
               >
                 {uploadProgress !== null ? (
@@ -490,7 +490,7 @@ function CardModal({
               <input
                 value={draft.image_url}
                 onChange={(event) => setDraft({ ...draft, image_url: event.target.value })}
-                className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-mint"
+                className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-accent/40"
               />
             </label>
             {draft.image_url.trim() && (
@@ -556,7 +556,7 @@ function CardModal({
               <select
                 value={draft.link_type}
                 onChange={(event) => setDraft({ ...draft, link_type: event.target.value as LinkType })}
-                className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-mint"
+                className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-accent/40"
               >
                 {LINK_TYPE_OPTIONS.map((option) => (
                   <option key={option.type} value={option.type}>{option.label}</option>
@@ -578,7 +578,7 @@ function CardModal({
                   value={draft.course_event_id}
                   onChange={(event) => setDraft({ ...draft, course_event_id: event.target.value })}
                   disabled={eventsQuery.isLoading}
-                  className={`mt-1 w-full rounded-xl border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-mint disabled:bg-slate-50 disabled:text-slate-400 ${destinationError ? 'border-red-400' : 'border-slate-200'}`}
+                  className={`mt-1 w-full rounded-xl border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-accent/40 disabled:bg-slate-50 disabled:text-slate-400 ${destinationError ? 'border-red-400' : 'border-slate-200'}`}
                 >
                   <option value="">{eventsQuery.isLoading ? 'Hämtar kurser…' : 'Välj kurs…'}</option>
                   {courseOptions.map((event) => (
@@ -597,7 +597,7 @@ function CardModal({
                 type="datetime-local"
                 value={draft.starts_at}
                 onChange={(event) => setDraft({ ...draft, starts_at: event.target.value })}
-                className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-mint"
+                className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-accent/40"
               />
             </label>
             <div>
@@ -608,7 +608,7 @@ function CardModal({
                   value={draft.expires_at}
                   disabled={draft.noEndDate}
                   onChange={(event) => setDraft({ ...draft, expires_at: event.target.value })}
-                  className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-mint disabled:bg-slate-50 disabled:text-slate-400"
+                  className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-accent/40 disabled:bg-slate-50 disabled:text-slate-400"
                 />
               </label>
               <label className="mt-2 flex items-center gap-2 text-xs font-medium text-slate-600">
@@ -616,7 +616,7 @@ function CardModal({
                   type="checkbox"
                   checked={draft.noEndDate}
                   onChange={(event) => setDraft({ ...draft, noEndDate: event.target.checked })}
-                  className="h-4 w-4 rounded border-slate-300 text-brand-forest focus:ring-brand-mint"
+                  className="h-4 w-4 rounded border-slate-300 text-brand-dark focus:ring-brand-accent/40"
                 />
                 Ingen slutdag
               </label>
@@ -629,7 +629,7 @@ function CardModal({
                 type="checkbox"
                 checked={draft.published}
                 onChange={(event) => setDraft({ ...draft, published: event.target.checked })}
-                className="h-4 w-4 rounded border-slate-300 text-brand-forest focus:ring-brand-mint"
+                className="h-4 w-4 rounded border-slate-300 text-brand-dark focus:ring-brand-accent/40"
               />
               Publicerad
             </label>
@@ -639,7 +639,7 @@ function CardModal({
                 type="number"
                 value={draft.sort_order}
                 onChange={(event) => setDraft({ ...draft, sort_order: event.target.value })}
-                className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-mint"
+                className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-accent/40"
               />
             </label>
           </div>
@@ -650,7 +650,7 @@ function CardModal({
                 type="checkbox"
                 checked={draft.show_on_web}
                 onChange={(event) => setDraft({ ...draft, show_on_web: event.target.checked })}
-                className="h-4 w-4 rounded border-slate-300 text-brand-forest focus:ring-brand-mint"
+                className="h-4 w-4 rounded border-slate-300 text-brand-dark focus:ring-brand-accent/40"
               />
               Visa på webben
             </label>
@@ -659,7 +659,7 @@ function CardModal({
                 type="checkbox"
                 checked={draft.show_on_app}
                 onChange={(event) => setDraft({ ...draft, show_on_app: event.target.checked })}
-                className="h-4 w-4 rounded border-slate-300 text-brand-forest focus:ring-brand-mint"
+                className="h-4 w-4 rounded border-slate-300 text-brand-dark focus:ring-brand-accent/40"
               />
               Visa i appen
             </label>
@@ -672,12 +672,12 @@ function CardModal({
                 checked={card?.push_sent_at ? true : draft.send_push}
                 disabled={Boolean(card?.push_sent_at)}
                 onChange={(event) => setDraft({ ...draft, send_push: event.target.checked })}
-                className="h-4 w-4 rounded border-slate-300 text-brand-forest focus:ring-brand-mint disabled:opacity-60"
+                className="h-4 w-4 rounded border-slate-300 text-brand-dark focus:ring-brand-accent/40 disabled:opacity-60"
               />
               Skicka pushnotis när kortet publiceras
             </label>
             {card?.push_sent_at ? (
-              <p className="mt-1.5 flex items-center gap-1 text-xs font-medium text-brand-forest">
+              <p className="mt-1.5 flex items-center gap-1 text-xs font-medium text-brand-dark">
                 <CheckCircle className="h-3.5 w-3.5" />
                 Notis skickad {formatTime(card.push_sent_at)}
               </p>
@@ -691,7 +691,7 @@ function CardModal({
           <button
             onClick={handleSave}
             disabled={!canManageCards || saving}
-            className="inline-flex items-center gap-2 rounded-full bg-brand-dark px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-forest disabled:opacity-60"
+            className="inline-flex items-center gap-2 rounded-full bg-brand-dark px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-accent disabled:opacity-60"
           >
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             Spara
@@ -709,7 +709,7 @@ function Input({ label, value, onChange }: { label: string; value: string; onCha
       <input
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-mint"
+        className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-accent/40"
       />
     </label>
   )
@@ -830,7 +830,7 @@ function PushIndicator({ card }: { card: ContentCard }) {
 
   if (card.push_sent_at) {
     return (
-      <span className="inline-flex items-center gap-1 text-xs font-semibold text-brand-forest">
+      <span className="inline-flex items-center gap-1 text-xs font-semibold text-brand-dark">
         <CheckCircle className="h-3.5 w-3.5" />
         Skickad
       </span>

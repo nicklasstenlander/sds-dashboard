@@ -36,7 +36,7 @@ export function PublicForm() {
     return (
       <PublicShell>
         <div className="flex items-center justify-center py-24">
-          <Loader2 className="w-6 h-6 animate-spin text-brand-forest" />
+          <Loader2 className="w-6 h-6 animate-spin text-brand-dark" />
         </div>
       </PublicShell>
     )
@@ -57,7 +57,7 @@ export function PublicForm() {
     return (
       <PublicShell>
         <div className="card p-8 text-center">
-          <CheckCircle2 className="mx-auto mb-4 h-10 w-10 text-brand-forest" />
+          <CheckCircle2 className="mx-auto mb-4 h-10 w-10 text-[#1e4025]" />
           <p className="text-xl font-bold text-brand-dark">Tack, vi har tagit emot ditt svar.</p>
           <p className="mt-2 text-sm text-slate-500">Din anmälan är nu registrerad.</p>
         </div>
@@ -92,7 +92,7 @@ export function PublicForm() {
         <button
           type="submit"
           disabled={submit.isLoading}
-          className="inline-flex items-center gap-2 rounded-full bg-brand-dark px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-forest disabled:opacity-60"
+          className="inline-flex items-center gap-2 rounded-full bg-brand-dark px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-accent disabled:opacity-60"
         >
           {submit.isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
           Skicka svar
@@ -125,7 +125,7 @@ function PublicField({
   error?: string
   onChange: (value: unknown) => void
 }) {
-  const commonInput = 'w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-mint'
+  const commonInput = 'w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-accent/40'
 
   return (
     <div className="p-5">
@@ -148,7 +148,7 @@ function PublicField({
             {options.map((option) => {
               const selected = Array.isArray(value) && value.includes(option.key)
               return (
-                <label key={option.key} className={`rounded-xl border p-3 transition-colors ${selected ? 'border-brand-forest bg-brand-mint' : 'border-slate-200 bg-white'}`}>
+                <label key={option.key} className={`rounded-xl border p-3 transition-colors ${selected ? 'border-brand-accent bg-slate-100' : 'border-slate-200 bg-white'}`}>
                   <span className="flex items-start gap-3">
                     <input
                       type="checkbox"
@@ -157,7 +157,7 @@ function PublicField({
                         const current = Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
                         onChange(event.target.checked ? [...current, option.key] : current.filter((item) => item !== option.key))
                       }}
-                      className="mt-1 h-4 w-4 rounded border-slate-300 text-brand-forest focus:ring-brand-mint"
+                      className="mt-1 h-4 w-4 rounded border-slate-300 text-brand-dark focus:ring-brand-accent/40"
                     />
                     <OptionText option={option} />
                   </span>
@@ -168,14 +168,14 @@ function PublicField({
         ) : field.type === 'radio' ? (
           <div className="grid gap-2">
             {options.map((option) => (
-              <label key={option.key} className={`rounded-xl border p-3 transition-colors ${value === option.key ? 'border-brand-forest bg-brand-mint' : 'border-slate-200 bg-white'}`}>
+              <label key={option.key} className={`rounded-xl border p-3 transition-colors ${value === option.key ? 'border-brand-accent bg-slate-100' : 'border-slate-200 bg-white'}`}>
                 <span className="flex items-start gap-3">
                   <input
                     type="radio"
                     name={field.key}
                     checked={value === option.key}
                     onChange={() => onChange(option.key)}
-                    className="mt-1 h-4 w-4 border-slate-300 text-brand-forest focus:ring-brand-mint"
+                    className="mt-1 h-4 w-4 border-slate-300 text-brand-dark focus:ring-brand-accent/40"
                   />
                   <OptionText option={option} />
                 </span>

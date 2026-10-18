@@ -125,7 +125,7 @@ export function GoalModal({ isOpen, onClose, goal }: GoalModalProps) {
               value={title}
               onChange={e => setTitle(e.target.value)}
               placeholder="t.ex. Fyll HT26-klasserna"
-              className={`w-full text-sm border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-mint ${errors.title ? 'border-red-400' : 'border-slate-200'}`}
+              className={`w-full text-sm border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent/40 ${errors.title ? 'border-red-400' : 'border-slate-200'}`}
             />
             {errors.title && <p className="text-xs text-red-500 mt-1">{errors.title}</p>}
           </div>
@@ -137,7 +137,7 @@ export function GoalModal({ isOpen, onClose, goal }: GoalModalProps) {
               value={description}
               onChange={e => setDescription(e.target.value)}
               rows={2}
-              className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-mint resize-none"
+              className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent/40 resize-none"
             />
           </div>
 
@@ -148,7 +148,7 @@ export function GoalModal({ isOpen, onClose, goal }: GoalModalProps) {
               <select
                 value={metric}
                 onChange={e => setMetric(e.target.value as GoalMetric)}
-                className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-brand-mint"
+                className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-brand-accent/40"
               >
                 {METRIC_OPTIONS.map(o => (
                   <option key={o.value} value={o.value}>{o.label}</option>
@@ -162,7 +162,7 @@ export function GoalModal({ isOpen, onClose, goal }: GoalModalProps) {
                 value={target}
                 onChange={e => setTarget(e.target.value)}
                 min="1"
-                className={`w-full text-sm border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-mint ${errors.target ? 'border-red-400' : 'border-slate-200'}`}
+                className={`w-full text-sm border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent/40 ${errors.target ? 'border-red-400' : 'border-slate-200'}`}
               />
               {errors.target && <p className="text-xs text-red-500 mt-1">{errors.target}</p>}
             </div>
@@ -174,7 +174,7 @@ export function GoalModal({ isOpen, onClose, goal }: GoalModalProps) {
             <select
               value={eventBlockId}
               onChange={e => setEventBlockId(e.target.value)}
-              className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-brand-mint"
+              className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-brand-accent/40"
             >
               {TERM_OPTIONS.map(o => (
                 <option key={o.value} value={o.value}>{o.label}</option>
@@ -189,7 +189,7 @@ export function GoalModal({ isOpen, onClose, goal }: GoalModalProps) {
               type="date"
               value={deadline}
               onChange={e => setDeadline(e.target.value)}
-              className={`w-full text-sm border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-mint ${errors.deadline ? 'border-red-400' : 'border-slate-200'}`}
+              className={`w-full text-sm border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-accent/40 ${errors.deadline ? 'border-red-400' : 'border-slate-200'}`}
             />
             {errors.deadline && <p className="text-xs text-red-500 mt-1">{errors.deadline}</p>}
           </div>

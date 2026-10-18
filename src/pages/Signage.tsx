@@ -654,7 +654,7 @@ export function Signage() {
         </div>
         <div className="flex items-center gap-2">
           {saveMsg && (
-            <span className="text-[11px] font-semibold mr-1" style={{ color: saveMsg.ok ? "#009399" : "#dd5c86" }}>
+            <span className="text-[11px] font-semibold mr-1" style={{ color: saveMsg.ok ? "#1e4025" : "#dd5c86" }}>
               {saveMsg.text}
             </span>
           )}

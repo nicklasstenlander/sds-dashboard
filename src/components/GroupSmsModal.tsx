@@ -117,9 +117,9 @@ export function GroupSmsModal({ isOpen, onClose, courseName, bookings }: GroupSm
         <div className="p-5 space-y-4 overflow-y-auto flex-1">
           {/* Result */}
           {result && (
-            <div className={`rounded-xl p-4 flex items-start gap-3 ${result.failed === 0 ? 'bg-brand-mint' : 'bg-amber-50'}`}>
+            <div className={`rounded-xl p-4 flex items-start gap-3 ${result.failed === 0 ? 'bg-slate-100' : 'bg-amber-50'}`}>
               {result.failed === 0
-                ? <CheckCircle className="w-5 h-5 text-brand-forest shrink-0 mt-0.5" />
+                ? <CheckCircle className="w-5 h-5 text-[#1e4025] shrink-0 mt-0.5" />
                 : <XCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />}
               <div>
                 <p className="text-sm font-medium text-brand-dark">
@@ -163,7 +163,7 @@ export function GroupSmsModal({ isOpen, onClose, courseName, bookings }: GroupSm
               <button
                 key={t}
                 onClick={() => setMessage(t)}
-                className="text-xs px-3 py-1.5 rounded-full border border-slate-200 text-slate-600 hover:border-brand-forest hover:text-brand-forest transition-colors text-left"
+                className="text-xs px-3 py-1.5 rounded-full border border-slate-200 text-slate-600 hover:border-brand-accent hover:text-brand-dark transition-colors text-left"
               >
                 {t.length > 40 ? t.slice(0, 40) + '…' : t}
               </button>
@@ -177,7 +177,7 @@ export function GroupSmsModal({ isOpen, onClose, courseName, bookings }: GroupSm
               onChange={e => setMessage(e.target.value.slice(0, MAX_CHARS))}
               placeholder="Skriv ditt meddelande…"
               rows={4}
-              className="w-full text-sm border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-mint resize-none"
+              className="w-full text-sm border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-accent/40 resize-none"
             />
             <span className={`absolute bottom-2 right-3 text-xs ${message.length >= MAX_CHARS ? 'text-red-500' : 'text-slate-400'}`}>
               {message.length}/{MAX_CHARS}

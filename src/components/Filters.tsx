@@ -77,7 +77,7 @@ export function Filters({ filters, onChange, showSearch = true }: FiltersProps) 
         <select
           value={filters.catId}
           onChange={(e) => update({ catId: e.target.value })}
-          className="text-sm border border-slate-200 rounded-full px-4 py-2 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-mint min-w-[160px]"
+          className="text-sm border border-slate-200 rounded-full px-4 py-2 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-accent/40 min-w-[160px]"
         >
           <option value="">Alla kategorier</option>
           {categories.map((c) => (
@@ -95,7 +95,7 @@ export function Filters({ filters, onChange, showSearch = true }: FiltersProps) 
               placeholder="Sök kurs…"
               value={filters.search}
               onChange={(e) => update({ search: e.target.value })}
-              className="w-full text-sm border border-slate-200 rounded-full pl-9 pr-4 py-2 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-mint"
+              className="w-full text-sm border border-slate-200 rounded-full pl-9 pr-4 py-2 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-accent/40"
             />
           </div>
         )}

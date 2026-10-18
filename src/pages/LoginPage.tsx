@@ -102,7 +102,7 @@ export function LoginPage() {
                 className={`h-11 w-full rounded-full border bg-[#fff] px-4 text-sm text-black placeholder:text-[#6b7280] outline-none transition-colors focus:ring-2 ${
                   sbError
                     ? 'border-red-400 focus:ring-red-100'
-                    : 'border-black focus:border-brand-forest focus:ring-brand-mint'
+                    : 'border-black focus:border-brand-accent focus:ring-brand-accent/40'
                 }`}
               />
             </div>
@@ -123,13 +123,13 @@ export function LoginPage() {
                   className={`h-11 w-full rounded-full border bg-[#fff] px-4 pr-12 text-sm text-black placeholder:text-[#6b7280] outline-none transition-colors focus:ring-2 ${
                     sbError
                       ? 'border-red-400 focus:ring-red-100'
-                      : 'border-black focus:border-brand-forest focus:ring-brand-mint'
+                      : 'border-black focus:border-brand-accent focus:ring-brand-accent/40'
                   }`}
                 />
                 <button
                   type="button"
                   onClick={() => setSbShowPw(s => !s)}
-                  className="absolute right-0 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full text-[#4b5563] transition-colors hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-forest"
+                  className="absolute right-0 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full text-[#4b5563] transition-colors hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent"
                   aria-label={sbShowPw ? 'Dölj lösenord' : 'Visa lösenord'}
                 >
                   {sbShowPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -210,13 +210,13 @@ export function LoginPage() {
                       className={`w-full rounded-xl border bg-white px-4 py-3 pr-12 text-sm text-brand-dark placeholder:text-[#6b7280] transition-colors focus:outline-none focus:ring-2 ${
                         error
                           ? 'border-red-300 focus:ring-red-200'
-                          : 'border-slate-200 focus:ring-brand-mint focus:border-brand-forest'
+                          : 'border-slate-200 focus:ring-brand-accent/40 focus:border-brand-accent'
                       }`}
                     />
                     <button
                       type="button"
                       onClick={() => setShow(s => !s)}
-                      className="absolute right-0 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full text-[#4b5563] transition-colors hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-forest"
+                      className="absolute right-0 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full text-[#4b5563] transition-colors hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent"
                       aria-label={show ? 'Dölj tillfälligt lösenord' : 'Visa tillfälligt lösenord'}
                     >
                       {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}

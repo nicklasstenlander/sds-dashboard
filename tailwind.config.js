@@ -22,13 +22,13 @@ export default {
         },
         // Neutrala ytor (2.0): grå sidbakgrund bakom vita kort. Ingen grön ton.
         surface: {
-          page:     '#f3f4f4',
+          page:     '#ffffff',
           selected: '#e9ecec',
         },
         brand: {
           // Teal/mint family
           dark:       '#1a2e2e',  // mörk text-färg (teal-tinted near-black)
-          forest:     '#009399',  // primär accent — ikoner, länkar, aktiv nav
+          accent:     '#dd5c86',  // SDS Rosa — den enda accentfärgen (fyllningar, markeringar, fokus)
           teal:       '#45aba5',
           sage:       '#a0c4b9',  // ljus teal-sage
           mint:       '#cfded2',  // ljusgrön mint — borders, dividers

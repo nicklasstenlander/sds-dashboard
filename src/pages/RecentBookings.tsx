@@ -108,7 +108,7 @@ function FilterTile({
       onClick={onClick}
       className={`sds-focus-ring flex-1 min-w-[140px] text-left px-5 py-4 border-b-4 transition-colors ${
         active
-          ? 'border-brand-forest bg-surface-page dark:bg-white/5'
+          ? 'border-brand-accent bg-surface-page dark:bg-white/5'
           : 'border-transparent hover:bg-slate-50 dark:hover:bg-white/5'
       }`}
     >
@@ -298,7 +298,7 @@ export function RecentBookings() {
             placeholder="Sök deltagare eller kurs…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full text-sm border border-slate-200 bg-white rounded-full pl-10 pr-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-forest/40"
+            className="w-full text-sm border border-slate-200 bg-white rounded-full pl-10 pr-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-accent/40"
           />
         </div>
       </div>
@@ -333,7 +333,7 @@ export function RecentBookings() {
             )}
           </p>
           {hasActiveFilter && (
-            <button type="button" onClick={clearFilters} className="text-sm text-brand-forest hover:underline sds-focus-ring rounded">
+            <button type="button" onClick={clearFilters} className="text-sm text-brand-dark hover:underline sds-focus-ring rounded">
               Rensa filter
             </button>
           )}
@@ -356,7 +356,7 @@ export function RecentBookings() {
               {hasActiveFilter ? 'Inga anmälningar matchar dina filter.' : 'Inga anmälningar i den här perioden.'}
             </p>
             {hasActiveFilter && (
-              <button type="button" onClick={clearFilters} className="text-sm font-medium text-brand-forest hover:underline sds-focus-ring rounded">
+              <button type="button" onClick={clearFilters} className="text-sm font-medium text-brand-dark hover:underline sds-focus-ring rounded">
                 Visa alla anmälningar
               </button>
             )}
@@ -386,7 +386,7 @@ export function RecentBookings() {
                           <button
                             type="button"
                             onClick={(ev) => { ev.stopPropagation(); setSelectedName(b.participant!.name!) }}
-                            className="text-sm font-semibold text-brand-dark hover:text-brand-forest hover:underline text-left sds-focus-ring rounded"
+                            className="text-sm font-semibold text-brand-dark hover:text-brand-dark hover:underline text-left sds-focus-ring rounded"
                           >
                             {b.participant.name}
                           </button>
