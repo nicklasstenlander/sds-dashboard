@@ -163,6 +163,15 @@ export function Dashboard({ darkMode, onToggleDarkMode }: DashboardProps) {
     [statisticalBookings],
   )
   const { data: goals = [] } = useGoals()
+  // Pågående mål först, uppnådda sist – det som kräver uppmärksamhet ska synas överst.
+  const goalsWithValue = useMemo(() => {
+    const list = goals.map((goal) => ({
+      goal,
+      currentValue: computeCurrentValue(goal, statisticalGoalBookings, goalEvents.filter(isStatisticalEvent)),
+    }))
+    const done = (g: { goal: { target: number }; currentValue: number }) => g.goal.target > 0 && g.currentValue >= g.goal.target
+    return [...list.filter((g) => !done(g)), ...list.filter(done)]
+  }, [goals, statisticalGoalBookings, goalEvents])
   const { alerts, duplicateCount, pendingCount } = useAlerts(statisticalBookings)
 
   async function handleCacheRefresh() {
@@ -280,6 +289,8 @@ export function Dashboard({ darkMode, onToggleDarkMode }: DashboardProps) {
       )}
 
       {/* KPI — anmälningsstatus (från bokningar) */}
+      <section aria-label="Anmälningar">
+        <p className="text-xs font-semibold text-slate-600 dark:text-slate-500 uppercase tracking-widest mb-3">Anmälningar</p>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard
           title="Totalt anmälda"
@@ -307,7 +318,7 @@ export function Dashboard({ darkMode, onToggleDarkMode }: DashboardProps) {
           onClick={() => setActiveFilter('ejBetalda')}
         />
         <KPICard
-          title="Väntar återkoppling"
+          title="Att följa upp"
           value={alerts.length.toLocaleString('sv-SE')}
           subtitle={pendingCount > 0 && duplicateCount > 0
             ? `${pendingCount} manuell check · ${duplicateCount} dubbelanmälda`
@@ -327,7 +338,11 @@ export function Dashboard({ darkMode, onToggleDarkMode }: DashboardProps) {
         />
       </div>
 
+      </section>
+
       {/* KPI — kursstatus */}
+      <section aria-label="Kurser och ekonomi">
+        <p className="text-xs font-semibold text-slate-600 dark:text-slate-500 uppercase tracking-widest mb-3">{canSeeFinancials ? 'Kurser och ekonomi' : 'Kurser'}</p>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard
           title="Antal elever"
@@ -346,7 +361,7 @@ export function Dashboard({ darkMode, onToggleDarkMode }: DashboardProps) {
         {canSeeFinancials && (
           <KPICard
             title="Aviserat"
-            value={revenueKpi.aviserat > 0 ? `${(revenueKpi.aviserat / 1000).toFixed(0)} tkr` : '—'}
+            value={revenueKpi.aviserat > 0 ? `${Math.round(revenueKpi.aviserat / 1000).toLocaleString('sv-SE')} tkr` : '—'}
             subtitle={revenueKpi.aviserat > 0 ? `${revenueKpi.aviserat.toLocaleString('sv-SE')} kr` : undefined}
             icon={<Banknote className="w-6 h-6" />}
             color="emerald"
@@ -355,24 +370,26 @@ export function Dashboard({ darkMode, onToggleDarkMode }: DashboardProps) {
         {canSeeFinancials && (
           <KPICard
             title="Mottaget"
-            value={revenueKpi.mottaget > 0 ? `${(revenueKpi.mottaget / 1000).toFixed(0)} tkr` : '—'}
-            subtitle={revenueKpi.mottaget > 0 ? `${revenueKpi.mottaget.toLocaleString('sv-SE')} kr` : undefined}
+            value={revenueKpi.mottaget > 0 ? `${Math.round(revenueKpi.mottaget / 1000).toLocaleString('sv-SE')} tkr` : '—'}
+            subtitle={revenueKpi.mottaget > 0 ? `${revenueKpi.mottaget.toLocaleString('sv-SE')} kr${revenueKpi.aviserat > 0 ? ` · ${Math.round((revenueKpi.mottaget / revenueKpi.aviserat) * 100)}% av aviserat` : ''}` : undefined}
             icon={<Banknote className="w-6 h-6" />}
             color="dark"
           />
         )}
       </div>
 
+      </section>
+
       {/* Mål */}
       {goals.length > 0 && (
         <div>
           <p className="text-xs font-semibold text-slate-600 dark:text-slate-500 uppercase tracking-widest mb-3">Mål</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {goals.map(goal => (
+            {goalsWithValue.map(({ goal, currentValue }) => (
               <GoalCard
                 key={goal.id}
                 goal={goal}
-                currentValue={computeCurrentValue(goal, statisticalGoalBookings, goalEvents.filter(isStatisticalEvent))}
+                currentValue={currentValue}
                 loading={goalsLoading}
                 onClick={() => setGoalModal({ open: true, goal })}
               />
