@@ -189,7 +189,7 @@ export function Calls() {
           onClick={() => setPreset('today')}
           className={`text-sm px-4 py-1.5 rounded-full border transition-colors font-medium ${
             date === todayStr
-              ? 'bg-brand-dark text-white border-brand-dark'
+              ? 'bg-brand-accentDark text-white border-brand-accentDark'
               : 'border-slate-200 text-slate-500 hover:border-brand-dark hover:text-brand-dark'
           }`}
         >
@@ -199,7 +199,7 @@ export function Calls() {
           onClick={() => setPreset('yesterday')}
           className={`text-sm px-4 py-1.5 rounded-full border transition-colors font-medium ${
             date === yesterdayStr
-              ? 'bg-brand-dark text-white border-brand-dark'
+              ? 'bg-brand-accentDark text-white border-brand-accentDark'
               : 'border-slate-200 text-slate-500 hover:border-brand-dark hover:text-brand-dark'
           }`}
         >

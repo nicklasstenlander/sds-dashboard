@@ -92,7 +92,7 @@ export function PublicForm() {
         <button
           type="submit"
           disabled={submit.isLoading}
-          className="inline-flex items-center gap-2 rounded-full bg-brand-dark px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-accentDark disabled:opacity-60"
+          className="inline-flex items-center gap-2 rounded-full bg-brand-accentDark px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#a82d5c] disabled:opacity-60"
         >
           {submit.isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
           Skicka svar

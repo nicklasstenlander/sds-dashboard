@@ -50,7 +50,7 @@ export function Filters({ filters, onChange, showSearch = true }: FiltersProps) 
             onClick={() => update({ eventBlockId: '' })}
             className={`text-sm px-4 py-1.5 rounded-full border transition-colors font-medium ${
               !filters.eventBlockId
-                ? 'bg-brand-dark text-white border-brand-dark'
+                ? 'bg-brand-accentDark text-white border-brand-accentDark'
                 : 'border-slate-200 text-slate-500 hover:border-brand-dark hover:text-brand-dark'
             }`}
           >
@@ -62,7 +62,7 @@ export function Filters({ filters, onChange, showSearch = true }: FiltersProps) 
               onClick={() => selectPeriodCode(code)}
               className={`text-sm px-4 py-1.5 rounded-full border transition-colors font-medium ${
                 activeCode === code
-                  ? 'bg-brand-dark text-white border-brand-dark'
+                  ? 'bg-brand-accentDark text-white border-brand-accentDark'
                   : 'border-slate-200 text-slate-500 hover:border-brand-dark hover:text-brand-dark'
               }`}
             >

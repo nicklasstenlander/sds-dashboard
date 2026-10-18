@@ -182,7 +182,7 @@ export function ForgotPasswordPage() {
                   <button
                     type="submit"
                     disabled={sendLoading || !email.trim()}
-                    className="mt-7 flex h-[68px] w-full items-center justify-center rounded-xl bg-brand-accentDark px-6 text-[22px] font-bold text-white transition-colors hover:bg-[#008489] disabled:cursor-not-allowed disabled:bg-brand-accent disabled:opacity-100"
+                    className="mt-7 flex h-[68px] w-full items-center justify-center rounded-xl bg-brand-accentDark px-6 text-[22px] font-bold text-white transition-colors hover:bg-[#a82d5c] disabled:cursor-not-allowed disabled:bg-brand-accent disabled:opacity-100"
                   >
                     {sendLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : 'Skicka kod'}
                   </button>
@@ -277,7 +277,7 @@ export function ForgotPasswordPage() {
                   <button
                     type="submit"
                     disabled={submitLoading || code.length !== CODE_LENGTH || !password || !confirmPassword}
-                    className="mt-7 flex h-[68px] w-full items-center justify-center rounded-xl bg-brand-accentDark px-6 text-[22px] font-bold text-white transition-colors hover:bg-[#008489] disabled:cursor-not-allowed disabled:bg-brand-accent disabled:opacity-100"
+                    className="mt-7 flex h-[68px] w-full items-center justify-center rounded-xl bg-brand-accentDark px-6 text-[22px] font-bold text-white transition-colors hover:bg-[#a82d5c] disabled:cursor-not-allowed disabled:bg-brand-accent disabled:opacity-100"
                   >
                     {submitLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : 'Sätt lösenord'}
                   </button>

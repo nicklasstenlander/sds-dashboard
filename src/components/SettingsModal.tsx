@@ -85,7 +85,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
           </button>
           <button
             onClick={save}
-            className="flex-1 px-4 py-2 text-sm bg-brand-dark text-white rounded-full hover:bg-brand-accentDark transition-colors font-medium"
+            className="flex-1 px-4 py-2 text-sm bg-brand-accentDark text-white rounded-full hover:bg-[#a82d5c] transition-colors font-medium"
           >
             Spara
           </button>

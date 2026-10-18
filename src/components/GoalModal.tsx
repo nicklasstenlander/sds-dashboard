@@ -213,7 +213,7 @@ export function GoalModal({ isOpen, onClose, goal }: GoalModalProps) {
               <button
                 onClick={handleSave}
                 disabled={saving}
-                className="text-sm px-5 py-2 rounded-lg bg-brand-dark text-white font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+                className="text-sm px-5 py-2 rounded-lg bg-brand-accentDark text-white font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
               >
                 {saving ? 'Sparar…' : isEditing ? 'Spara' : 'Skapa mål'}
               </button>

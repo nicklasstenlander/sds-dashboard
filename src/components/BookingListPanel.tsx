@@ -137,7 +137,7 @@ export function BookingListPanel({ title, bookings, onClose, footerLink }: Booki
             <Link
               to={footerLink.to}
               onClick={onClose}
-              className="flex items-center justify-center gap-2 rounded-full bg-brand-dark px-4 py-2 text-sm font-medium text-white hover:opacity-90 transition-opacity"
+              className="flex items-center justify-center gap-2 rounded-full bg-brand-accentDark px-4 py-2 text-sm font-medium text-white hover:opacity-90 transition-opacity"
             >
               {footerLink.label}
               <ArrowRight className="w-4 h-4" />

@@ -114,7 +114,7 @@ export function SmsModal({ isOpen, onClose, recipientName, recipientNumber }: Sm
             <button
               onClick={handleSend}
               disabled={sending || !message.trim()}
-              className="text-sm px-5 py-2 rounded-lg bg-brand-dark text-white font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+              className="text-sm px-5 py-2 rounded-lg bg-brand-accentDark text-white font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
             >
               {sending ? 'Skickar…' : 'Skicka SMS'}
             </button>

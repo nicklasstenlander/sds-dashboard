@@ -229,7 +229,7 @@ export function EventsTable({ events, bookings = [], loading, search, activePeri
               onClick={() => setFilter(id)}
               className={`sds-focus-ring text-sm px-3.5 py-1.5 rounded-full border transition-colors ${
                 active
-                  ? 'bg-brand-dark text-white border-brand-dark font-medium'
+                  ? 'bg-brand-accentDark text-white border-brand-accentDark font-medium'
                   : 'bg-white border-slate-200 text-brand-dark hover:border-brand-dark'
               }`}
             >

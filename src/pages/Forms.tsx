@@ -225,7 +225,7 @@ export function Forms() {
         </div>
         <button
           onClick={startNewForm}
-          className="inline-flex items-center justify-center gap-2 rounded-full bg-brand-dark px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-accentDark"
+          className="inline-flex items-center justify-center gap-2 rounded-full bg-brand-accentDark px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#a82d5c]"
         >
           <Plus className="h-4 w-4" />
           Nytt formulär
@@ -431,7 +431,7 @@ function Builder({
       <button
         onClick={onSave}
         disabled={!canManageForms || saving || !formDraft.title.trim() || fields.length === 0}
-        className="inline-flex items-center gap-2 rounded-full bg-brand-dark px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-accentDark disabled:opacity-60"
+        className="inline-flex items-center gap-2 rounded-full bg-brand-accentDark px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#a82d5c] disabled:opacity-60"
       >
         {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
         Spara formulär

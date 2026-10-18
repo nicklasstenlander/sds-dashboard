@@ -597,7 +597,7 @@ export function Narvaro() {
             <button
               onClick={handleLogin}
               disabled={loading && teachers.length === 0}
-              className="w-full rounded-xl bg-brand-dark text-white text-sm font-semibold py-3 hover:bg-[#2a5735] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="w-full rounded-xl bg-brand-accentDark text-white text-sm font-semibold py-3 hover:bg-[#a82d5c] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               Fortsätt
             </button>
@@ -634,7 +634,7 @@ export function Narvaro() {
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 bg-brand-dark text-white rounded-full pl-1.5 pr-3 py-1.5">
+            <div className="flex items-center gap-2 bg-brand-accentDark text-white rounded-full pl-1.5 pr-3 py-1.5">
               <span className="w-7 h-7 rounded-full bg-[#dd5c86] flex items-center justify-center text-xs font-bold">
                 {teacherFilter === '__all__' ? 'A' : initials(teacherName).toUpperCase()}
               </span>
@@ -662,7 +662,7 @@ export function Narvaro() {
                 onClick={() => setSelectedDay(dayStr)}
                 className={`text-sm px-4 py-1.5 rounded-full border transition-colors font-medium ${
                   active
-                    ? 'bg-[#1e4025] text-white border-[#1e4025]'
+                    ? 'bg-brand-accentDark text-white border-brand-accentDark'
                     : 'border-slate-200 text-slate-500 hover:border-[#1e4025] hover:text-[#1e4025]'
                 }`}
               >

@@ -195,7 +195,7 @@ export function GroupSmsModal({ isOpen, onClose, courseName, bookings }: GroupSm
               <button
                 onClick={handleSend}
                 disabled={sending || !message.trim() || participants.length === 0 || loading}
-                className="text-sm px-5 py-2 rounded-lg bg-brand-dark text-white font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+                className="text-sm px-5 py-2 rounded-lg bg-brand-accentDark text-white font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
               >
                 {sending ? 'Skickar…' : `Skicka till ${participants.length}`}
               </button>

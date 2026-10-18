@@ -158,7 +158,7 @@ export function LoginPage() {
             <button
               type="submit"
               disabled={sbLoading || !email.trim() || !sbPw}
-              className="mt-7 flex h-[68px] w-full items-center justify-center rounded-xl bg-brand-dark px-6 text-[22px] font-bold text-white transition-colors hover:bg-[#243d3d] disabled:cursor-not-allowed disabled:bg-[#4b5563] disabled:opacity-100"
+              className="mt-7 flex h-[68px] w-full items-center justify-center rounded-xl bg-brand-accentDark px-6 text-[22px] font-bold text-white transition-colors hover:bg-[#a82d5c] disabled:cursor-not-allowed disabled:bg-[#4b5563] disabled:opacity-100"
             >
               {sbLoading ? (
                 <Loader2 className="h-6 w-6 animate-spin" />
