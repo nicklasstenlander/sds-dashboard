@@ -503,7 +503,7 @@ function DashboardGreeting({
         className="text-brand-dark"
         style={{ fontSize: 'clamp(32px, 3.2vw, 48px)', lineHeight: 1.15, letterSpacing: '-0.03em' }}
       >
-        <span style={{ fontWeight: 300, fontStyle: 'italic' }}>{greeting},</span>
+        <span style={{ fontWeight: 300 }}>{greeting},</span>
         <br className="lg:hidden" />
         <span className="hidden lg:inline">{' '}</span>
         <span style={{ fontWeight: 400 }}>{greetingName}.</span>

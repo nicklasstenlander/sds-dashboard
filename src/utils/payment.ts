@@ -1,3 +1,4 @@
+import { differenceInCalendarDays } from 'date-fns'
 import type { Booking } from '../types/cogwork'
 
 export type PaymentState = 'paid' | 'unpaid' | 'partial' | 'unknown'
@@ -31,4 +32,23 @@ export const OVERDUE_BADGE_CLASS = 'bg-[#b4234f] text-white'
 
 export function overdueLabel(days: number): string {
   return `Förfallen · ${days} ${days === 1 ? 'dag' : 'dagar'}`
+}
+
+/**
+ * Hela kalenderdagar kvar till förfallodatumet för en obetald bokning (0 = förfaller idag).
+ * null när bokningen inte är obetald, saknar datum eller redan är förfallen (se daysOverdue).
+ */
+export function daysUntilDue(b: Booking): number | null {
+  const due = b.payment?.paymentDue
+  if (!due || paymentStatus(b) !== 'unpaid' || daysOverdue(b) > 0) return null
+  const t = due.trim()
+  // Datum utan klockslag tolkas som lokalt datum (new Date('YYYY-MM-DD') är UTC).
+  const dueDate = new Date(/^\d{4}-\d{2}-\d{2}$/.test(t) ? `${t}T00:00:00` : t.replace(' ', 'T'))
+  if (Number.isNaN(dueDate.getTime())) return null
+  return Math.max(0, differenceInCalendarDays(dueDate, new Date()))
+}
+
+export function daysLeftLabel(days: number): string {
+  if (days === 0) return 'förfaller idag'
+  return `${days} ${days === 1 ? 'dag' : 'dagar'} kvar`
 }

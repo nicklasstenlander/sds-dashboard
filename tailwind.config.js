@@ -20,6 +20,11 @@ export default {
           sky: '#dceff8',
           amber: '#f7dc66',
         },
+        // Neutrala ytor (2.0): grå sidbakgrund bakom vita kort. Ingen grön ton.
+        surface: {
+          page:     '#f3f4f4',
+          selected: '#e9ecec',
+        },
         brand: {
           // Teal/mint family
           dark:       '#1a2e2e',  // mörk text-färg (teal-tinted near-black)

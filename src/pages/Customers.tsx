@@ -64,7 +64,7 @@ export function Customers() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-brand-dark">Kunder</h1>
+      <h1 className="text-3xl font-bold tracking-tight text-brand-dark">Kunder</h1>
 
       <div className="flex gap-4 items-start flex-col lg:flex-row">
         {/* Left — search + results */}
