@@ -12,7 +12,7 @@ function PayBadge({ payment }: { payment?: BookingPayment }) {
   if (payment.paid === true) {
     const amount = payment.priceAgreed ?? payment.amountPaid
     return (
-      <span className="shrink-0 text-xs font-semibold px-3 py-1 rounded-full bg-status-okSoft text-brand-forest whitespace-nowrap">
+      <span className="shrink-0 text-xs font-semibold px-3 py-1 rounded-full bg-status-okSoft dark:bg-[rgba(93,184,138,0.14)] text-[#1e4025] dark:text-[var(--dark-positive)] whitespace-nowrap">
         Betald{amount != null ? ` · ${amount.toLocaleString('sv-SE')} kr` : ''}
       </span>
     )
@@ -56,7 +56,7 @@ function BookingSection({
 
   return (
     <div>
-      <SectionHeader label="Antagna" count={antagnaCount} color="text-brand-forest" />
+      <SectionHeader label="Antagna" count={antagnaCount} color="text-brand-dark" />
       {antagna.length === 0 ? (
         <p className="px-5 py-3 text-sm text-slate-500">Inga antagna ännu</p>
       ) : (
@@ -130,7 +130,7 @@ function BookingRow({
         {name ? (
             <button
               onClick={() => onSelect(name)}
-              className="block max-w-full text-sm font-medium text-brand-dark hover:text-brand-forest hover:underline truncate text-left"
+              className="block max-w-full text-sm font-medium text-brand-dark hover:text-brand-dark hover:underline truncate text-left"
               title={name}
             >
               {name}
@@ -228,7 +228,7 @@ export function CourseDetailPanel({ event, bookingCountByParticipant, courseChan
         {/* Header */}
         <div className="flex items-start justify-between gap-4 p-5 border-b border-slate-100">
           <div className="min-w-0">
-            <p className="text-xs font-medium text-brand-forest uppercase tracking-wide mb-1">
+            <p className="text-xs font-medium text-brand-dark uppercase tracking-wide mb-1">
               {event?.grouping?.primaryEventGroup?.name ?? event?.category?.name ?? 'Kurs'}
             </p>
             <h2 className="text-base font-bold text-brand-dark leading-snug">
@@ -245,7 +245,7 @@ export function CourseDetailPanel({ event, bookingCountByParticipant, courseChan
               onClick={onPrev}
               disabled={!onPrev}
               aria-label="Föregående kurs"
-              className="p-1.5 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors disabled:opacity-30 disabled:hover:bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-forest"
+              className="p-1.5 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors disabled:opacity-30 disabled:hover:bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent"
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
@@ -253,14 +253,14 @@ export function CourseDetailPanel({ event, bookingCountByParticipant, courseChan
               onClick={onNext}
               disabled={!onNext}
               aria-label="Nästa kurs"
-              className="p-1.5 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors disabled:opacity-30 disabled:hover:bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-forest"
+              className="p-1.5 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors disabled:opacity-30 disabled:hover:bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent"
             >
               <ChevronRight className="w-5 h-5" />
             </button>
           <button
             onClick={onClose}
             aria-label="Stäng"
-            className="shrink-0 p-1.5 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-forest"
+            className="shrink-0 p-1.5 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent"
           >
             <X className="w-5 h-5" />
           </button>

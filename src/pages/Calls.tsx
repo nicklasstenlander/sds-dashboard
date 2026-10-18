@@ -209,7 +209,7 @@ export function Calls() {
           type="date"
           value={date}
           onChange={e => setDate(e.target.value)}
-          className="text-sm border border-slate-200 rounded-full px-4 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand-mint"
+          className="text-sm border border-slate-200 rounded-full px-4 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand-accent/40"
         />
       </div>
 
@@ -234,7 +234,7 @@ export function Calls() {
       ) : (
         <div className="space-y-4">
           <Section title="Missade"    icon={<PhoneMissed className="w-4 h-4" />}   accent="text-red-500"       calls={missed}   bookings={bookings} onSms={setSmsNumber} emptyText="Inga missade samtal"    />
-          <Section title="Inkommande" icon={<PhoneIncoming className="w-4 h-4" />} accent="text-brand-forest" calls={incoming} bookings={bookings} onSms={setSmsNumber} emptyText="Inga inkommande samtal" />
+          <Section title="Inkommande" icon={<PhoneIncoming className="w-4 h-4" />} accent="text-brand-dark" calls={incoming} bookings={bookings} onSms={setSmsNumber} emptyText="Inga inkommande samtal" />
           <Section title="Utgående"   icon={<PhoneCall className="w-4 h-4" />}     accent="text-slate-400"    calls={outgoing} bookings={bookings} onSms={setSmsNumber} emptyText="Inga utgående samtal"   />
         </div>
       )}

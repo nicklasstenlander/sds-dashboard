@@ -13,12 +13,12 @@ interface KPICardProps {
 }
 
 const colorMap = {
-  violet:   { cardBg: 'bg-identity-violet', iconBg: 'bg-white/60', icon: 'text-brand-pinkDark',     border: 'border-purple-200',       title: 'text-slate-700',         value: 'text-brand-dark', delta: 'text-brand-forest' },
-  emerald:  { cardBg: 'bg-brand-mint',      iconBg: 'bg-white/60', icon: 'text-brand-forest',       border: 'border-brand-sage',       title: 'text-brand-dark/80',     value: 'text-brand-dark', delta: 'text-brand-forest' },
+  violet:   { cardBg: 'bg-identity-violet', iconBg: 'bg-white/60', icon: 'text-brand-pinkDark',     border: 'border-purple-200',       title: 'text-slate-700',         value: 'text-brand-dark', delta: 'text-brand-dark' },
+  emerald:  { cardBg: 'bg-slate-100',      iconBg: 'bg-white/60', icon: 'text-brand-dark',       border: 'border-brand-sage',       title: 'text-brand-dark/80',     value: 'text-brand-dark', delta: 'text-brand-dark' },
   amber:    { cardBg: 'bg-identity-amber',  iconBg: 'bg-black/10', icon: 'text-[#6b4f00]',          border: 'border-[#e6c940]',        title: 'text-[#6b4f00]',         value: 'text-[#6b4f00]',  delta: 'text-[#6b4f00]' },
-  sky:      { cardBg: 'bg-identity-sky',    iconBg: 'bg-white/60', icon: 'text-sky-800',            border: 'border-sky-200',          title: 'text-slate-700',         value: 'text-brand-dark', delta: 'text-brand-forest' },
+  sky:      { cardBg: 'bg-identity-sky',    iconBg: 'bg-white/60', icon: 'text-sky-800',            border: 'border-sky-200',          title: 'text-slate-700',         value: 'text-brand-dark', delta: 'text-brand-dark' },
   red:      { cardBg: 'bg-status-criticalSoft', iconBg: 'bg-white/60', icon: 'text-status-critical', border: 'border-status-critical/30', title: 'text-brand-dark',        value: 'text-[#b4234f]', delta: 'text-[#b4234f]' },
-  ok:       { cardBg: 'bg-status-okSoft',   iconBg: 'bg-white/60', icon: 'text-brand-forest',       border: 'border-status-ok',        title: 'text-brand-dark/80',     value: 'text-brand-dark', delta: 'text-brand-forest' },
+  ok:       { cardBg: 'bg-status-okSoft',   iconBg: 'bg-white/60', icon: 'text-brand-dark',       border: 'border-status-ok',        title: 'text-brand-dark/80',     value: 'text-brand-dark', delta: 'text-brand-dark' },
   warning:  { cardBg: 'bg-status-warningSoft', iconBg: 'bg-white/60', icon: 'text-[#6b4f00]',       border: 'border-status-warning/40', title: 'text-[#5f4700]',         value: 'text-[#5f4700]',  delta: 'text-[#5f4700]' },
   critical: { cardBg: 'bg-status-criticalSoft', iconBg: 'bg-white/60', icon: 'text-status-critical', border: 'border-status-critical/30', title: 'text-brand-dark',        value: 'text-[#b4234f]', delta: 'text-[#b4234f]' },
   dark:     { cardBg: 'bg-[#1a2e2e]',       iconBg: 'bg-white/10', icon: 'text-white/80',           border: 'border-[#1a2e2e]',        title: 'text-white/80',          value: 'text-white',      delta: 'text-brand-mint' },
@@ -54,7 +54,7 @@ export function KPICard({ title, value, subtitle, icon, trend, delta, color = 'v
             </p>
           )}
           {trend && (
-            <p className={`mt-2 text-xs font-medium ${trend.value >= 0 ? 'text-brand-forest' : 'text-status-critical'}`}>
+            <p className={`mt-2 text-xs font-medium ${trend.value >= 0 ? 'text-[#1e4025] dark:text-[var(--dark-positive)]' : 'text-status-critical'}`}>
               {trend.value >= 0 ? '↑' : '↓'} {Math.abs(trend.value)}% {trend.label}
             </p>
           )}

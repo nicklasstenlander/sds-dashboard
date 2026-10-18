@@ -225,7 +225,7 @@ export function Forms() {
         </div>
         <button
           onClick={startNewForm}
-          className="inline-flex items-center justify-center gap-2 rounded-full bg-brand-dark px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-forest"
+          className="inline-flex items-center justify-center gap-2 rounded-full bg-brand-dark px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-accentDark"
         >
           <Plus className="h-4 w-4" />
           Nytt formulär
@@ -239,7 +239,7 @@ export function Forms() {
           </div>
           {formsQuery.isLoading ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-5 w-5 animate-spin text-brand-forest" />
+              <Loader2 className="h-5 w-5 animate-spin text-brand-dark" />
             </div>
           ) : forms.length === 0 ? (
             <div className="px-4 py-8 text-sm text-slate-500">Inga formulär ännu.</div>
@@ -253,7 +253,7 @@ export function Forms() {
                     setSelectedId(form.id)
                     setActiveTab('responses')
                   }}
-                  className={`w-full px-4 py-3 text-left transition-colors ${!isCreatingNew && selectedId === form.id ? 'bg-brand-mint' : 'hover:bg-slate-50'}`}
+                  className={`w-full px-4 py-3 text-left transition-colors ${!isCreatingNew && selectedId === form.id ? 'bg-slate-100' : 'hover:bg-slate-50'}`}
                 >
                   <span className="block truncate text-sm font-bold text-brand-dark">{form.title}</span>
                   <span className="mt-1 flex items-center justify-between gap-3 text-xs text-slate-500">
@@ -277,11 +277,11 @@ export function Forms() {
                 {selectedForm && (
                   <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
                     <span className="truncate">{publicUrl}</span>
-                    <button onClick={() => copyUrl(publicUrl, setCopied)} className="inline-flex items-center gap-1 text-brand-forest hover:underline">
+                    <button onClick={() => copyUrl(publicUrl, setCopied)} className="inline-flex items-center gap-1 text-brand-dark hover:underline">
                       {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                       {copied ? 'Kopierad' : 'Kopiera'}
                     </button>
-                    <a href={`#/f/${selectedForm.slug}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-brand-forest hover:underline">
+                    <a href={`#/f/${selectedForm.slug}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-brand-dark hover:underline">
                       <ExternalLink className="h-3.5 w-3.5" />
                       Öppna
                     </a>
@@ -370,7 +370,7 @@ function Builder({
             value={formDraft.description}
             onChange={(event) => onFormChange({ ...formDraft, description: event.target.value })}
             rows={3}
-            className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-mint"
+            className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-accent/40"
           />
         </label>
         <label className="block">
@@ -378,7 +378,7 @@ function Builder({
           <select
             value={formDraft.status}
             onChange={(event) => onFormChange({ ...formDraft, status: event.target.value as FormStatus })}
-            className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-mint"
+            className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-accent/40"
           >
             <option value="draft">Utkast</option>
             <option value="published">Publicerad</option>
@@ -390,7 +390,7 @@ function Builder({
             type="checkbox"
             checked={formDraft.enable_checkin}
             onChange={(event) => onFormChange({ ...formDraft, enable_checkin: event.target.checked })}
-            className="h-4 w-4 rounded border-slate-300 text-brand-forest focus:ring-brand-mint"
+            className="h-4 w-4 rounded border-slate-300 text-brand-dark focus:ring-brand-accent/40"
           />
           Aktivera incheckning för detta formulär
         </label>
@@ -404,7 +404,7 @@ function Builder({
               <button
                 key={fieldType.type}
                 onClick={() => onFieldsChange([...fields, createField(fieldType.type)])}
-                className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:border-brand-forest hover:text-brand-dark"
+                className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:border-brand-accent hover:text-brand-dark"
               >
                 {fieldType.label}
               </button>
@@ -431,7 +431,7 @@ function Builder({
       <button
         onClick={onSave}
         disabled={!canManageForms || saving || !formDraft.title.trim() || fields.length === 0}
-        className="inline-flex items-center gap-2 rounded-full bg-brand-dark px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-forest disabled:opacity-60"
+        className="inline-flex items-center gap-2 rounded-full bg-brand-dark px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-accentDark disabled:opacity-60"
       >
         {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
         Spara formulär
@@ -467,7 +467,7 @@ function FieldEditor({
           <select
             value={field.type}
             onChange={(event) => onChange({ ...field, type: event.target.value as FormFieldType })}
-            className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-mint"
+            className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-accent/40"
           >
             {FIELD_TYPES.map((fieldType) => <option key={fieldType.type} value={fieldType.type}>{fieldType.label}</option>)}
           </select>
@@ -488,7 +488,7 @@ function FieldEditor({
             type="checkbox"
             checked={field.required}
             onChange={(event) => onChange({ ...field, required: event.target.checked })}
-            className="h-4 w-4 rounded border-slate-300 text-brand-forest focus:ring-brand-mint"
+            className="h-4 w-4 rounded border-slate-300 text-brand-dark focus:ring-brand-accent/40"
           />
           Obligatoriskt
         </label>
@@ -500,7 +500,7 @@ function FieldEditor({
             <p className="text-xs font-semibold text-slate-600">{field.type === 'course_choice' ? 'Valbara kurser' : 'Alternativ'}</p>
             <button
               onClick={() => onChange({ ...field, options: [...field.options, createOption(field.type === 'course_choice' ? 'Ny kurs' : 'Nytt alternativ')] })}
-              className="inline-flex items-center gap-1 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:border-brand-forest hover:text-brand-dark"
+              className="inline-flex items-center gap-1 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:border-brand-accent hover:text-brand-dark"
             >
               <Plus className="h-3.5 w-3.5" />
               Lägg till
@@ -554,7 +554,7 @@ function OptionEditor({
               min="0"
               value={option.capacity ?? ''}
               onChange={(event) => onChange({ ...option, capacity: event.target.value ? Number(event.target.value) : null })}
-              className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-mint"
+              className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-accent/40"
             />
           </label>
           <label className="block lg:col-span-4">
@@ -562,7 +562,7 @@ function OptionEditor({
             <input
               value={option.description ?? ''}
               onChange={(event) => onChange({ ...option, description: event.target.value })}
-              className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-mint"
+              className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-accent/40"
             />
           </label>
         </div>
@@ -572,7 +572,7 @@ function OptionEditor({
           type="checkbox"
           checked={option.active}
           onChange={(event) => onChange({ ...option, active: event.target.checked })}
-          className="h-4 w-4 rounded border-slate-300 text-brand-forest focus:ring-brand-mint"
+          className="h-4 w-4 rounded border-slate-300 text-brand-dark focus:ring-brand-accent/40"
         />
         Aktiv
       </label>
@@ -632,13 +632,13 @@ function Responses({
               placeholder="Sök svar..."
               value={search}
               onChange={(event) => onSearchChange(event.target.value)}
-              className="w-full rounded-full border border-slate-200 py-2 pl-9 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-brand-mint"
+              className="w-full rounded-full border border-slate-200 py-2 pl-9 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-brand-accent/40"
             />
           </div>
           <select
             value={courseFilter}
             onChange={(event) => onCourseFilterChange(event.target.value)}
-            className="rounded-full border border-slate-200 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-mint"
+            className="rounded-full border border-slate-200 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-accent/40"
           >
             <option value="">Alla kurser</option>
             {courseOptions.map((option) => <option key={option.key} value={option.key}>{option.label}</option>)}
@@ -647,7 +647,7 @@ function Responses({
             <select
               value={checkInFilter}
               onChange={(event) => onCheckInFilterChange(event.target.value as CheckInFilter)}
-              className="rounded-full border border-slate-200 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-mint"
+              className="rounded-full border border-slate-200 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-accent/40"
             >
               <option value="all">Visa: Alla</option>
               <option value="checked_in">Visa: Incheckade</option>
@@ -658,7 +658,7 @@ function Responses({
         <button
           onClick={onExport}
           disabled={rows.length === 0}
-          className="inline-flex items-center justify-center gap-2 rounded-full border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:border-brand-forest hover:text-brand-dark disabled:opacity-50"
+          className="inline-flex items-center justify-center gap-2 rounded-full border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:border-brand-accent hover:text-brand-dark disabled:opacity-50"
         >
           <FileDown className="h-4 w-4" />
           Exportera CSV
@@ -667,7 +667,7 @@ function Responses({
 
       {loading ? (
         <div className="flex items-center justify-center py-16">
-          <Loader2 className="h-5 w-5 animate-spin text-brand-forest" />
+          <Loader2 className="h-5 w-5 animate-spin text-brand-dark" />
         </div>
       ) : rows.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -707,7 +707,7 @@ function Responses({
                         <button
                           onClick={() => onCheckIn(submission.id, false)}
                           disabled={checkingInId === submission.id}
-                          className="inline-flex items-center gap-1.5 text-brand-forest hover:underline disabled:opacity-50"
+                          className="inline-flex items-center gap-1.5 text-brand-dark hover:underline disabled:opacity-50"
                           title="Klicka för att checka ut"
                         >
                           <CheckCircle2 className="h-4 w-4" />
@@ -717,7 +717,7 @@ function Responses({
                         <button
                           onClick={() => onCheckIn(submission.id, true)}
                           disabled={checkingInId === submission.id}
-                          className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-3 py-1 text-xs font-medium text-slate-600 transition-colors hover:border-brand-forest hover:text-brand-dark disabled:opacity-50"
+                          className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-3 py-1 text-xs font-medium text-slate-600 transition-colors hover:border-brand-accent hover:text-brand-dark disabled:opacity-50"
                         >
                           {checkingInId === submission.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
                           Checka in
@@ -744,7 +744,7 @@ function TabButton({ active, onClick, children }: { active: boolean; onClick: ()
   return (
     <button
       onClick={onClick}
-      className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${active ? 'bg-brand-mint text-brand-dark' : 'text-slate-500 hover:text-brand-dark'}`}
+      className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${active ? 'bg-slate-100 text-brand-dark' : 'text-slate-500 hover:text-brand-dark'}`}
     >
       {children}
     </button>
@@ -753,7 +753,7 @@ function TabButton({ active, onClick, children }: { active: boolean; onClick: ()
 
 function StatusBadge({ status }: { status: FormStatus }) {
   const cls = status === 'published'
-    ? 'bg-status-okSoft text-brand-forest'
+    ? 'bg-status-okSoft dark:bg-[rgba(93,184,138,0.14)] text-[#1e4025] dark:text-[var(--dark-positive)]'
     : status === 'closed'
       ? 'bg-slate-100 text-slate-600'
       : 'bg-status-warningSoft text-[#5f4700]'
@@ -772,7 +772,7 @@ function Input({ label, value, onChange }: { label: string; value: string; onCha
       <input
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-mint"
+        className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-accent/40"
       />
     </label>
   )

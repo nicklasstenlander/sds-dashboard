@@ -65,7 +65,7 @@ function AlertRow({
               target="_blank"
               rel="noopener noreferrer"
               onClick={e => e.stopPropagation()}
-              className="text-xs text-brand-forest hover:underline mt-0.5 inline-block"
+              className="text-xs text-brand-dark hover:underline mt-0.5 inline-block"
             >
               Gå till anmälan på Dans.se →
             </a>
@@ -120,7 +120,7 @@ export function AlertsPanel({ open, alerts, onClose }: AlertsPanelProps) {
           {alerts.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-48 gap-2">
               <span className="text-3xl">🎉</span>
-              <p className="text-sm font-medium text-brand-forest dark:text-[var(--dark-positive)]">Inga ärenden just nu</p>
+              <p className="text-sm font-medium text-[#1e4025] dark:text-[var(--dark-positive)]">Inga ärenden just nu</p>
             </div>
           ) : (
             <ul className="divide-y divide-slate-50">

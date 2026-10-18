@@ -168,7 +168,7 @@ export function ForgotPasswordPage() {
                       className={`h-7 w-full rounded-full border bg-[#fff] px-4 text-sm text-black outline-none transition-colors focus:ring-2 ${
                         sendError
                           ? 'border-red-400 focus:ring-red-100'
-                          : 'border-black focus:border-brand-forest focus:ring-brand-mint'
+                          : 'border-black focus:border-brand-accent focus:ring-brand-accent/40'
                       }`}
                     />
                     {sendError && (
@@ -182,7 +182,7 @@ export function ForgotPasswordPage() {
                   <button
                     type="submit"
                     disabled={sendLoading || !email.trim()}
-                    className="mt-7 flex h-[68px] w-full items-center justify-center rounded-xl bg-brand-forest px-6 text-[22px] font-bold text-white transition-colors hover:bg-[#008489] disabled:cursor-not-allowed disabled:bg-brand-forest disabled:opacity-100"
+                    className="mt-7 flex h-[68px] w-full items-center justify-center rounded-xl bg-brand-accentDark px-6 text-[22px] font-bold text-white transition-colors hover:bg-[#008489] disabled:cursor-not-allowed disabled:bg-brand-accent disabled:opacity-100"
                   >
                     {sendLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : 'Skicka kod'}
                   </button>
@@ -215,7 +215,7 @@ export function ForgotPasswordPage() {
                       className={`h-10 w-full rounded-full border bg-[#fff] px-4 text-center text-lg tracking-[0.5em] text-black outline-none transition-colors focus:ring-2 ${
                         submitError
                           ? 'border-red-400 focus:ring-red-100'
-                          : 'border-black focus:border-brand-forest focus:ring-brand-mint'
+                          : 'border-black focus:border-brand-accent focus:ring-brand-accent/40'
                       }`}
                     />
                   </div>
@@ -234,7 +234,7 @@ export function ForgotPasswordPage() {
                         className={`h-7 w-full rounded-full border bg-[#fff] px-4 pr-10 text-sm text-black outline-none transition-colors focus:ring-2 ${
                           submitError
                             ? 'border-red-400 focus:ring-red-100'
-                            : 'border-black focus:border-brand-forest focus:ring-brand-mint'
+                            : 'border-black focus:border-brand-accent focus:ring-brand-accent/40'
                         }`}
                       />
                       <button
@@ -262,7 +262,7 @@ export function ForgotPasswordPage() {
                       className={`h-7 w-full rounded-full border bg-[#fff] px-4 text-sm text-black outline-none transition-colors focus:ring-2 ${
                         submitError
                           ? 'border-red-400 focus:ring-red-100'
-                          : 'border-black focus:border-brand-forest focus:ring-brand-mint'
+                          : 'border-black focus:border-brand-accent focus:ring-brand-accent/40'
                       }`}
                     />
                   </div>
@@ -277,7 +277,7 @@ export function ForgotPasswordPage() {
                   <button
                     type="submit"
                     disabled={submitLoading || code.length !== CODE_LENGTH || !password || !confirmPassword}
-                    className="mt-7 flex h-[68px] w-full items-center justify-center rounded-xl bg-brand-forest px-6 text-[22px] font-bold text-white transition-colors hover:bg-[#008489] disabled:cursor-not-allowed disabled:bg-brand-forest disabled:opacity-100"
+                    className="mt-7 flex h-[68px] w-full items-center justify-center rounded-xl bg-brand-accentDark px-6 text-[22px] font-bold text-white transition-colors hover:bg-[#008489] disabled:cursor-not-allowed disabled:bg-brand-accent disabled:opacity-100"
                   >
                     {submitLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : 'Sätt lösenord'}
                   </button>
@@ -287,11 +287,11 @@ export function ForgotPasswordPage() {
                       type="button"
                       onClick={handleResendCode}
                       disabled={sendLoading}
-                      className="text-xs text-slate-400 transition-colors hover:text-brand-forest disabled:opacity-50"
+                      className="text-xs text-slate-400 transition-colors hover:text-brand-dark disabled:opacity-50"
                     >
                       {sendLoading ? 'Skickar…' : 'Skicka ny kod'}
                     </button>
-                    {resendNotice && <p className="text-xs text-brand-forest">{resendNotice}</p>}
+                    {resendNotice && <p className="text-xs text-brand-dark">{resendNotice}</p>}
                     {sendError && <p className="text-xs text-red-500">{sendError}</p>}
                   </div>
                 </form>
@@ -300,7 +300,7 @@ export function ForgotPasswordPage() {
 
             <Link
               to="/"
-              className="mt-6 flex items-center justify-center gap-1.5 text-xs text-slate-400 transition-colors hover:text-brand-forest"
+              className="mt-6 flex items-center justify-center gap-1.5 text-xs text-slate-400 transition-colors hover:text-brand-dark"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
               Tillbaka till inloggning

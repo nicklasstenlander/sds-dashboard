@@ -41,7 +41,7 @@ export function ParticipantPanel({ name, onClose, elevated }: ParticipantPanelPr
         {/* Header */}
         <div className="flex items-start justify-between gap-4 p-5 border-b border-slate-100">
           <div className="min-w-0">
-            <p className="text-xs font-medium text-brand-forest uppercase tracking-wide mb-1">Deltagare</p>
+            <p className="text-xs font-medium text-brand-dark uppercase tracking-wide mb-1">Deltagare</p>
             <h2 className="text-base font-bold text-brand-dark leading-snug">{name ?? ''}</h2>
           </div>
           <button
@@ -95,7 +95,7 @@ export function ParticipantPanel({ name, onClose, elevated }: ParticipantPanelPr
 
                 {user.emails?.map((e, i) => (
                   <Row key={i} icon={<Mail className="w-4 h-4" />} label="E-post">
-                    <a href={`mailto:${e.email}`} className="text-brand-forest hover:underline">
+                    <a href={`mailto:${e.email}`} className="text-brand-dark hover:underline">
                       {e.email}
                     </a>
                   </Row>
@@ -104,7 +104,7 @@ export function ParticipantPanel({ name, onClose, elevated }: ParticipantPanelPr
                 {user.telephoneNumbers?.map((t, i) => (
                   <Row key={i} icon={<Phone className="w-4 h-4" />} label={t.type ?? 'Telefon'}>
                     <div className="flex items-center gap-2 flex-wrap">
-                      <a href={`tel:${t.telephoneNumber}`} className="text-brand-forest hover:underline">
+                      <a href={`tel:${t.telephoneNumber}`} className="text-brand-dark hover:underline">
                         {t.telephoneNumber}
                       </a>
                       <AgentDial number={t.telephoneNumber} />
@@ -153,7 +153,7 @@ export function ParticipantPanel({ name, onClose, elevated }: ParticipantPanelPr
                           </p>
                           <div className="flex items-center gap-2 mt-0.5">
                             {b.event?.grouping?.eventBlock?.name && (
-                              <span className="text-xs text-brand-forest font-medium">
+                              <span className="text-xs text-brand-dark font-medium">
                                 {blockNameToFullLabel(b.event.grouping.eventBlock.name)}
                               </span>
                             )}

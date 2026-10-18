@@ -37,7 +37,7 @@ export function AgentDial({ number }: AgentDialProps) {
       <button
         onClick={handleDial}
         disabled={dialing}
-        className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white text-slate-500 hover:text-brand-forest hover:bg-brand-mint transition-colors disabled:opacity-50"
+        className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white text-slate-500 hover:text-brand-dark hover:bg-slate-100 transition-colors disabled:opacity-50"
       >
         <Phone className="w-3.5 h-3.5" />
         <span>{dialing ? 'Ringer…' : 'Ring'}</span>

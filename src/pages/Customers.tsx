@@ -77,10 +77,10 @@ export function Customers() {
               placeholder="Sök namn, e-post, adress…"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              className="w-full text-sm border border-slate-200 rounded-full pl-9 pr-4 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-brand-mint"
+              className="w-full text-sm border border-slate-200 rounded-full pl-9 pr-4 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-brand-accent/40"
             />
             {isFetching && (
-              <div className="absolute right-3 top-2.5 w-4 h-4 border-2 border-brand-mint border-t-transparent rounded-full animate-spin" />
+              <div className="absolute right-3 top-2.5 w-4 h-4 border-2 border-slate-200 border-t-transparent rounded-full animate-spin" />
             )}
           </div>
 
@@ -107,7 +107,7 @@ export function Customers() {
                     <li key={u.key}>
                       <button
                         onClick={() => setSelected(u)}
-                        className={`group w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${selected?.key === u.key ? 'bg-brand-mint' : 'bg-white hover:bg-brand-mint'}`}
+                        className={`group w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${selected?.key === u.key ? 'bg-slate-100' : 'bg-white hover:bg-slate-100'}`}
                       >
                         <Avatar user={u} size="sm" active={selected?.key === u.key} />
                         <div className="min-w-0">
@@ -254,13 +254,13 @@ function MissingBookingCustomersCard({
                 placeholder="Sök namn, kurs, datum…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full text-sm border border-slate-200 rounded-full pl-9 pr-4 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-brand-mint"
+                className="w-full text-sm border border-slate-200 rounded-full pl-9 pr-4 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-brand-accent/40"
               />
             </div>
             <select
               value={termFilter}
               onChange={(e) => setTermFilter(e.target.value)}
-              className="text-sm border border-slate-200 rounded-full px-4 py-2 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-mint"
+              className="text-sm border border-slate-200 rounded-full px-4 py-2 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-accent/40"
             >
               <option value="">Alla terminer</option>
               {terms.map((term) => (
@@ -271,7 +271,7 @@ function MissingBookingCustomersCard({
               <button
                 type="button"
                 onClick={() => setCourseMenuOpen((open) => !open)}
-                className="w-full flex items-center justify-between gap-2 text-sm border border-slate-200 rounded-full px-4 py-2 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-mint"
+                className="w-full flex items-center justify-between gap-2 text-sm border border-slate-200 rounded-full px-4 py-2 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-accent/40"
               >
                 <span className="truncate">
                   {selectedCourses.size === 0
@@ -291,7 +291,7 @@ function MissingBookingCustomersCard({
                       <button
                         type="button"
                         onClick={() => setSelectedCourses(new Set())}
-                        className="text-xs font-medium text-brand-forest hover:underline"
+                        className="text-xs font-medium text-brand-dark hover:underline"
                       >
                         Rensa
                       </button>
@@ -307,7 +307,7 @@ function MissingBookingCustomersCard({
                           type="checkbox"
                           checked={selectedCourses.has(course)}
                           onChange={() => toggleCourse(course)}
-                          className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-forest focus:ring-brand-mint"
+                          className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-dark focus:ring-brand-accent/40"
                         />
                         <span className="leading-snug">{course}</span>
                       </label>
@@ -340,7 +340,7 @@ function MissingBookingCustomersCard({
                       <td className="py-3 px-5 text-sm font-medium whitespace-nowrap">
                         <button
                           onClick={() => onSelectName(customer.name)}
-                          className="text-brand-dark hover:text-brand-forest hover:underline text-left"
+                          className="text-brand-dark hover:text-brand-dark hover:underline text-left"
                         >
                           {customer.name}
                         </button>
@@ -510,7 +510,7 @@ function UserCard({ user }: { user: UserType }) {
         <div>
           <h2 className="text-lg font-bold text-brand-dark">{user.name}</h2>
           {user.isMember && (
-            <span className="inline-block text-xs font-medium bg-brand-mint text-brand-forest px-2 py-0.5 rounded-full mt-1">
+            <span className="inline-block text-xs font-medium bg-slate-100 text-brand-dark px-2 py-0.5 rounded-full mt-1">
               Medlem
             </span>
           )}
@@ -533,7 +533,7 @@ function UserCard({ user }: { user: UserType }) {
           )}
           {user.emails?.map((e, i) => (
             <DetailRow key={i} icon={<Mail className="w-4 h-4" />} label="E-post">
-              <a href={`mailto:${e.email}`} className="text-brand-forest hover:underline break-all">
+              <a href={`mailto:${e.email}`} className="text-brand-dark hover:underline break-all">
                 {e.email}
               </a>
             </DetailRow>
@@ -541,7 +541,7 @@ function UserCard({ user }: { user: UserType }) {
           {user.telephoneNumbers?.map((t, i) => (
             <DetailRow key={i} icon={<Phone className="w-4 h-4" />} label={t.type ?? 'Telefon'}>
               <div className="flex items-center gap-2 flex-wrap">
-                <a href={`tel:${t.telephoneNumber}`} className="text-brand-forest hover:underline">
+                <a href={`tel:${t.telephoneNumber}`} className="text-brand-dark hover:underline">
                   {t.telephoneNumber}
                 </a>
                 <AgentDial number={t.telephoneNumber} />

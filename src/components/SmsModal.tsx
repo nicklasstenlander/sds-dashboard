@@ -78,7 +78,7 @@ export function SmsModal({ isOpen, onClose, recipientName, recipientNumber }: Sm
               <button
                 key={t}
                 onClick={() => setMessage(t)}
-                className="text-xs px-3 py-1.5 rounded-full border border-slate-200 text-slate-600 hover:border-brand-forest hover:text-brand-forest transition-colors text-left"
+                className="text-xs px-3 py-1.5 rounded-full border border-slate-200 text-slate-600 hover:border-brand-accent hover:text-brand-dark transition-colors text-left"
               >
                 {t.length > 40 ? t.slice(0, 40) + '…' : t}
               </button>
@@ -92,7 +92,7 @@ export function SmsModal({ isOpen, onClose, recipientName, recipientNumber }: Sm
               onChange={e => setMessage(e.target.value.slice(0, MAX_CHARS))}
               placeholder="Skriv ditt meddelande…"
               rows={4}
-              className="w-full text-sm border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-mint resize-none"
+              className="w-full text-sm border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-accent/40 resize-none"
             />
             <span className={`absolute bottom-2 right-3 text-xs ${message.length >= MAX_CHARS ? 'text-red-500' : 'text-slate-400'}`}>
               {message.length}/{MAX_CHARS}

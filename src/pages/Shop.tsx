@@ -273,7 +273,7 @@ export function Shop() {
             <li className="px-5 py-8 text-center text-sm text-slate-600">Inga försäljningar under perioden</li>
           ) : (
             pageSales.map((s, i) => (
-              <li key={i} className="flex items-center justify-between gap-4 px-5 py-3 hover:bg-brand-mint/30 transition-colors">
+              <li key={i} className="flex items-center justify-between gap-4 px-5 py-3 hover:bg-slate-50 transition-colors">
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-brand-dark truncate">{s.title}</p>
                   <p className="text-xs text-slate-600 mt-0.5">
@@ -312,7 +312,7 @@ export function Shop() {
                 <tr><td colSpan={3} className="px-5 py-8 text-center text-slate-600 text-sm">Inga produkter under perioden</td></tr>
               ) : (
                 productStats.map((p) => (
-                  <tr key={p.title} className="hover:bg-brand-mint/30 transition-colors">
+                  <tr key={p.title} className="hover:bg-slate-50 transition-colors">
                     <td className="px-5 py-3 font-medium text-brand-dark">{p.title}</td>
                     <td className="px-5 py-3 text-right tabular-nums text-slate-600">{p.qty}</td>
                     <td className="px-5 py-3 text-right tabular-nums text-slate-600">{p.revenue.toLocaleString('sv-SE')} kr</td>

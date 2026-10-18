@@ -47,7 +47,7 @@ export function GoalCard({ goal, currentValue, onClick, loading = false }: GoalC
   const barColor = achieved ? 'var(--goal-achieved)' : overdue ? 'var(--goal-overdue)' : 'var(--goal-progress)'
 
   const daysColor = days > 14
-    ? 'text-brand-forest dark:text-[var(--dark-positive)]'
+    ? 'text-[#1e4025] dark:text-[var(--dark-positive)]'
     : days >= 1
     ? 'text-amber-700 dark:text-[var(--dark-attention)]'
     : 'text-red-700 dark:text-[var(--dark-warning)]'
@@ -55,7 +55,7 @@ export function GoalCard({ goal, currentValue, onClick, loading = false }: GoalC
   return (
     <div
       onClick={onClick}
-      className={`card p-5 cursor-pointer hover:shadow-md transition-shadow border [--goal-achieved:#1e4025] [--goal-overdue:#dd5c86] [--goal-progress:#009399] [--goal-loading:#e2e8f0] dark:[--goal-achieved:var(--dark-positive)] dark:[--goal-overdue:var(--dark-warning)] dark:[--goal-progress:var(--dark-positive)] dark:[--goal-loading:rgba(255,255,255,0.10)] ${
+      className={`card p-5 cursor-pointer hover:shadow-md transition-shadow border [--goal-achieved:#1e4025] [--goal-overdue:#dd5c86] [--goal-progress:#dd5c86] [--goal-loading:#e2e8f0] dark:[--goal-achieved:var(--dark-positive)] dark:[--goal-overdue:var(--dark-warning)] dark:[--goal-progress:var(--dark-positive)] dark:[--goal-loading:rgba(255,255,255,0.10)] ${
         achieved ? 'border-status-ok' : overdue ? 'border-[#dd5c86]' : 'border-slate-100'
       } dark:border-[var(--dark-border-card)]`}
     >

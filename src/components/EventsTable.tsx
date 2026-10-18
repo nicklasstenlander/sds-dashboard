@@ -60,7 +60,7 @@ function fillBarColor(pct: number) {
 function fillBadgeClass(pct: number) {
   if (pct >= 90) return 'bg-status-criticalSoft text-status-critical dark:bg-[rgba(232,98,127,0.14)] dark:text-[var(--dark-warning)]'
   if (pct >= 70) return 'bg-status-warningSoft text-[#5f4700] dark:bg-[rgba(234,179,8,0.14)] dark:text-[var(--dark-attention)]'
-  return 'bg-status-okSoft text-brand-forest dark:bg-[rgba(93,184,138,0.14)] dark:text-[var(--dark-positive)]'
+  return 'bg-status-okSoft text-[#1e4025] dark:bg-[rgba(93,184,138,0.14)] dark:text-[var(--dark-positive)]'
 }
 
 /** "Fre 16.30-17.45" -> "Fre 16.30–17.45" (tankstreck i tidsintervall). */
@@ -208,7 +208,7 @@ export function EventsTable({ events, bookings = [], loading, search, activePeri
               onClick={onDirectRefresh}
               disabled={isDirectRefreshing}
               title="Hämta färsk data direkt från CogWork (tar längre tid)"
-              className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-brand-forest px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
+              className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-brand-dark px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
             >
               {isDirectRefreshing
                 ? <RefreshCw className="w-3.5 h-3.5 animate-spin" />
@@ -277,7 +277,7 @@ export function EventsTable({ events, bookings = [], loading, search, activePeri
                   },
                 } : {})}
                 aria-current={selectedId === String(e.id) ? 'true' : undefined}
-                className={`hover:bg-slate-50 dark:hover:bg-[rgba(255,255,255,0.03)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-forest ${selectedId === String(e.id) ? 'bg-surface-selected shadow-[inset_4px_0_0_#009399] dark:bg-[rgba(255,255,255,0.06)]' : ''} ${onSelect ? 'cursor-pointer' : ''}`}
+                className={`hover:bg-slate-50 dark:hover:bg-[rgba(255,255,255,0.03)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-accent ${selectedId === String(e.id) ? 'bg-surface-selected shadow-[inset_4px_0_0_#dd5c86] dark:bg-[rgba(255,255,255,0.06)]' : ''} ${onSelect ? 'cursor-pointer' : ''}`}
               >
                 {/* Kurs: namn + kategori · dag/tid på en rad. w-full/max-w-0 låter cellen ta resten av bredden och trunkera i stället för att tvinga fram sidled-scroll. */}
                 <td className="w-full max-w-0 py-2.5 px-3">

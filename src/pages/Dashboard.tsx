@@ -266,7 +266,7 @@ export function Dashboard({ darkMode, onToggleDarkMode }: DashboardProps) {
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
-            className="text-sm border border-slate-200 dark:border-white/10 rounded-full px-4 py-2 bg-white dark:bg-[var(--dark-card)] text-slate-700 dark:text-[var(--dark-text-primary)] focus:outline-none focus:ring-2 focus:ring-brand-mint dark:focus:ring-[var(--dark-positive)] dark:focus:border-[var(--dark-positive)] min-w-[180px]"
+            className="text-sm border border-slate-200 dark:border-white/10 rounded-full px-4 py-2 bg-white dark:bg-[var(--dark-card)] text-slate-700 dark:text-[var(--dark-text-primary)] focus:outline-none focus:ring-2 focus:ring-brand-accent/40 dark:focus:ring-[var(--dark-positive)] dark:focus:border-[var(--dark-positive)] min-w-[180px]"
           >
             <option value="">Alla kategorier</option>
             {categories.map((c) => (
@@ -283,7 +283,7 @@ export function Dashboard({ darkMode, onToggleDarkMode }: DashboardProps) {
               placeholder="Sök kurs…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full text-sm border border-slate-200 dark:border-white/10 rounded-full pl-9 pr-4 py-2 bg-white dark:bg-[var(--dark-card)] text-slate-700 dark:text-[var(--dark-text-primary)] placeholder:text-slate-500 dark:placeholder:text-[var(--dark-text-muted)] focus:outline-none focus:ring-2 focus:ring-brand-mint dark:focus:ring-[var(--dark-positive)] dark:focus:border-[var(--dark-positive)]"
+              className="w-full text-sm border border-slate-200 dark:border-white/10 rounded-full pl-9 pr-4 py-2 bg-white dark:bg-[var(--dark-card)] text-slate-700 dark:text-[var(--dark-text-primary)] placeholder:text-slate-500 dark:placeholder:text-[var(--dark-text-muted)] focus:outline-none focus:ring-2 focus:ring-brand-accent/40 dark:focus:ring-[var(--dark-positive)] dark:focus:border-[var(--dark-positive)]"
             />
           </div>
         </div>
@@ -361,16 +361,16 @@ export function Dashboard({ darkMode, onToggleDarkMode }: DashboardProps) {
           <StatCell label="Elever" value={activeStudents.toLocaleString('sv-SE')} sub="unika med aktiv antagning" />
           <StatCell label="Medelbeläggning" value={`${kpi.avgFill}%`} sub="av tillgängliga platser" />
           {canSeeFinancials && (
-            <div className="flex-[2_1_320px] p-5 bg-brand-dark text-white">
+            <div className="flex-[2_1_320px] p-5 bg-slate-900 text-white">
               <div className="flex items-baseline justify-between gap-3">
-                <p className="text-sm text-brand-mint">Betalning</p>
+                <p className="text-sm text-white/70">Betalning</p>
                 {revenueKpi.aviserat > revenueKpi.mottaget && (
-                  <p className="text-xs text-brand-mint">{(revenueKpi.aviserat - revenueKpi.mottaget).toLocaleString('sv-SE')} kr återstår</p>
+                  <p className="text-xs text-white/70">{(revenueKpi.aviserat - revenueKpi.mottaget).toLocaleString('sv-SE')} kr återstår</p>
                 )}
               </div>
               <p className="mt-1 text-4xl font-bold tabular-nums leading-none">
                 {revenueKpi.mottaget > 0 ? revenueKpi.mottaget.toLocaleString('sv-SE') : '—'}
-                {revenueKpi.mottaget > 0 && <span className="ml-2 text-base font-normal text-brand-mint">kr mottaget</span>}
+                {revenueKpi.mottaget > 0 && <span className="ml-2 text-base font-normal text-white/70">kr mottaget</span>}
               </p>
               {revenueKpi.aviserat > 0 && (
                 <>
@@ -379,9 +379,9 @@ export function Dashboard({ darkMode, onToggleDarkMode }: DashboardProps) {
                     role="img"
                     aria-label={`${Math.min(100, Math.round((revenueKpi.mottaget / revenueKpi.aviserat) * 100))} procent av aviserat belopp är mottaget`}
                   >
-                    <div className="h-full rounded-full bg-[#7fd0cc]" style={{ width: `${Math.min(100, (revenueKpi.mottaget / revenueKpi.aviserat) * 100)}%` }} />
+                    <div className="h-full rounded-full bg-[#dd5c86]" style={{ width: `${Math.min(100, (revenueKpi.mottaget / revenueKpi.aviserat) * 100)}%` }} />
                   </div>
-                  <p className="mt-2 text-xs text-brand-mint">
+                  <p className="mt-2 text-xs text-white/70">
                     {Math.round((revenueKpi.mottaget / revenueKpi.aviserat) * 100)}% av {revenueKpi.aviserat.toLocaleString('sv-SE')} kr aviserat
                   </p>
                 </>
@@ -509,7 +509,7 @@ function DashboardGreeting({
 
   return (
     <div>
-      <p className="text-xs font-semibold text-brand-forest tracking-widest uppercase mb-2">
+      <p className="text-xs font-semibold text-slate-500 dark:text-[var(--dark-text-secondary)] tracking-widest uppercase mb-2">
         {dayName} {dateStr}{periodLabel ? ` · ${periodLabel}` : ''}
       </p>
       <h1
@@ -535,9 +535,9 @@ function DashboardGreeting({
 const SECTION_LABEL = 'mb-3 text-xs font-semibold text-slate-600 dark:text-slate-500 uppercase tracking-widest'
 
 const ATTENTION_TONES = {
-  critical: { bar: 'border-l-[#dd5c86]', number: 'text-[#b4234f] dark:text-[var(--dark-warning)]' },
+  critical: { bar: 'border-l-[#b4234f]', number: 'text-[#b4234f] dark:text-[var(--dark-warning)]' },
   warning:  { bar: 'border-l-[#E0A23B]', number: 'text-[#5f4700] dark:text-[var(--dark-attention)]' },
-  info:     { bar: 'border-l-[#a3c0b2]', number: 'text-brand-forest dark:text-[var(--dark-positive)]' },
+  info:     { bar: 'border-l-transparent', number: 'text-brand-dark dark:text-[var(--dark-text-primary)]' },
   calm:     { bar: 'border-l-transparent', number: 'text-slate-600' },
 } as const
 
@@ -564,7 +564,7 @@ function AttentionTile({
         <span className="text-base font-medium text-brand-dark">{label}</span>
       </span>
       <span className="text-sm text-slate-600">{hint}</span>
-      <span className="text-sm font-medium text-brand-forest dark:text-[var(--dark-positive)] mt-1">{action} →</span>
+      <span className="text-sm font-medium text-brand-dark dark:text-[var(--dark-accent)] mt-1">{action} →</span>
     </button>
   )
 }
