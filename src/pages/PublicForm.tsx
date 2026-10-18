@@ -57,7 +57,7 @@ export function PublicForm() {
     return (
       <PublicShell>
         <div className="card p-8 text-center">
-          <CheckCircle2 className="mx-auto mb-4 h-10 w-10 text-[#1e4025]" />
+          <CheckCircle2 className="mx-auto mb-4 h-10 w-10 text-[#1e4025] dark:text-[var(--dark-positive)]" />
           <p className="text-xl font-bold text-brand-dark">Tack, vi har tagit emot ditt svar.</p>
           <p className="mt-2 text-sm text-slate-500">Din anmälan är nu registrerad.</p>
         </div>
@@ -92,7 +92,7 @@ export function PublicForm() {
         <button
           type="submit"
           disabled={submit.isLoading}
-          className="inline-flex items-center gap-2 rounded-full bg-brand-dark px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-accent disabled:opacity-60"
+          className="inline-flex items-center gap-2 rounded-full bg-brand-dark px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-accentDark disabled:opacity-60"
         >
           {submit.isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
           Skicka svar

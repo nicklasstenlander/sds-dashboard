@@ -83,7 +83,7 @@ export function Notifications() {
         {result && (
           <div className={`flex items-start gap-3 rounded-xl p-4 ${result.failed === 0 ? 'bg-slate-100' : 'bg-amber-50'}`}>
             {result.failed === 0 ? (
-              <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-[#1e4025]" />
+              <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-[#1e4025] dark:text-[var(--dark-positive)]" />
             ) : (
               <XCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
             )}
@@ -188,7 +188,7 @@ export function Notifications() {
             <button
               onClick={handleSend}
               disabled={!canSubmit || sending}
-              className="inline-flex items-center gap-2 rounded-full bg-brand-dark px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-accent disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-full bg-brand-dark px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-accentDark disabled:opacity-50"
             >
               {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               Skicka notis

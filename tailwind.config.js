@@ -29,6 +29,7 @@ export default {
           // Teal/mint family
           dark:       '#1a2e2e',  // mörk text-färg (teal-tinted near-black)
           accent:     '#dd5c86',  // SDS Rosa — den enda accentfärgen (fyllningar, markeringar, fokus)
+          accentDark: '#c0356b',  // Rosa med vit text (≥ 4,5:1), t.ex. knappar vid hover
           teal:       '#45aba5',
           sage:       '#a0c4b9',  // ljus teal-sage
           mint:       '#cfded2',  // ljusgrön mint — borders, dividers

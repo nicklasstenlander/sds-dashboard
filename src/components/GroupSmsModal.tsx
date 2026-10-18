@@ -119,7 +119,7 @@ export function GroupSmsModal({ isOpen, onClose, courseName, bookings }: GroupSm
           {result && (
             <div className={`rounded-xl p-4 flex items-start gap-3 ${result.failed === 0 ? 'bg-slate-100' : 'bg-amber-50'}`}>
               {result.failed === 0
-                ? <CheckCircle className="w-5 h-5 text-[#1e4025] shrink-0 mt-0.5" />
+                ? <CheckCircle className="w-5 h-5 text-[#1e4025] dark:text-[var(--dark-positive)] shrink-0 mt-0.5" />
                 : <XCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />}
               <div>
                 <p className="text-sm font-medium text-brand-dark">

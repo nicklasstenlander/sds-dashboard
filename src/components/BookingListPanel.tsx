@@ -12,7 +12,7 @@ function PayBadge({ booking }: { booking: Booking }) {
   if (payment.paid === true) {
     const amount = payment.priceAgreed ?? payment.amountPaid
     return (
-      <span className="shrink-0 text-xs font-semibold px-3 py-1 rounded-full bg-status-okSoft text-[#1e4025] whitespace-nowrap">
+      <span className="shrink-0 text-xs font-semibold px-3 py-1 rounded-full bg-status-okSoft dark:bg-[rgba(93,184,138,0.14)] text-[#1e4025] dark:text-[var(--dark-positive)] whitespace-nowrap">
         Betald{amount != null ? ` · ${amount.toLocaleString('sv-SE')} kr` : ''}
       </span>
     )

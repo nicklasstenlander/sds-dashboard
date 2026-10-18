@@ -67,7 +67,7 @@ const TYPE_BADGE_CLASS: Record<ContentCardType, string> = {
 }
 
 const STATUS_CONFIG: Record<CardStatus, { label: string; emoji: string; className: string }> = {
-  active: { label: 'Aktiv nu', emoji: '🟢', className: 'bg-status-okSoft text-[#1e4025]' },
+  active: { label: 'Aktiv nu', emoji: '🟢', className: 'bg-status-okSoft dark:bg-[rgba(93,184,138,0.14)] text-[#1e4025] dark:text-[var(--dark-positive)]' },
   draft: { label: 'Utkast', emoji: '⚪', className: 'bg-slate-100 text-slate-600' },
   upcoming: { label: 'Kommande', emoji: '🔵', className: 'bg-sky-100 text-sky-700' },
   expired: { label: 'Utgången', emoji: '⚫', className: 'bg-slate-200 text-slate-500' },
@@ -136,7 +136,7 @@ export function News() {
         </div>
         <button
           onClick={() => setModalCard('new')}
-          className="inline-flex items-center justify-center gap-2 rounded-full bg-brand-dark px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-accent"
+          className="inline-flex items-center justify-center gap-2 rounded-full bg-brand-dark px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-accentDark"
         >
           <Plus className="h-4 w-4" />
           Nytt kort
@@ -691,7 +691,7 @@ function CardModal({
           <button
             onClick={handleSave}
             disabled={!canManageCards || saving}
-            className="inline-flex items-center gap-2 rounded-full bg-brand-dark px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-accent disabled:opacity-60"
+            className="inline-flex items-center gap-2 rounded-full bg-brand-dark px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-accentDark disabled:opacity-60"
           >
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             Spara

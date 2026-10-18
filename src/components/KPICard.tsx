@@ -54,7 +54,7 @@ export function KPICard({ title, value, subtitle, icon, trend, delta, color = 'v
             </p>
           )}
           {trend && (
-            <p className={`mt-2 text-xs font-medium ${trend.value >= 0 ? 'text-[#1e4025]' : 'text-status-critical'}`}>
+            <p className={`mt-2 text-xs font-medium ${trend.value >= 0 ? 'text-[#1e4025] dark:text-[var(--dark-positive)]' : 'text-status-critical'}`}>
               {trend.value >= 0 ? '↑' : '↓'} {Math.abs(trend.value)}% {trend.label}
             </p>
           )}
