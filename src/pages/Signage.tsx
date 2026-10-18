@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
+import { Thermometer, Timer, Upload } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -222,8 +223,8 @@ function ScreenCard({
       </div>
 
       <div className="flex gap-4 text-[11px] text-slate-400 mb-3">
-        <span>🌡 {screen.temperature || "—"}</span>
-        <span>⏱ {screen.uptime || "—"}</span>
+        <span className="inline-flex items-center gap-1"><Thermometer className="h-3 w-3" aria-hidden />{screen.temperature || "—"}</span>
+        <span className="inline-flex items-center gap-1"><Timer className="h-3 w-3" aria-hidden />{screen.uptime || "—"}</span>
       </div>
 
       <div className="flex gap-2 flex-wrap mb-3">
@@ -700,7 +701,7 @@ export function Signage() {
               cursor: loading ? "wait" : "pointer",
             }}
           >
-            {loading ? "⏳ Laddar…" : "↻ Uppdatera"}
+            {loading ? "Laddar…" : "Uppdatera"}
           </button>
         </div>
       </div>
@@ -735,7 +736,7 @@ export function Signage() {
                 cursor: "pointer", transition: "all 0.2s",
               }}
             >
-              📺 {s.name}
+              {s.name}
             </button>
           ))}
         </div>
@@ -763,7 +764,7 @@ export function Signage() {
                 display: "inline-flex", alignItems: "center",
               }}
             >
-              Förhandsgranska ↗
+              Förhandsgranska
             </a>
           </div>
         </div>
@@ -860,7 +861,7 @@ export function Signage() {
             transition: "all 0.2s",
           }}
         >
-          <div className="text-3xl mb-2">⬆</div>
+          <Upload className="mx-auto mb-2 h-7 w-7 text-slate-400" aria-hidden />
           <div className="text-sm font-semibold text-brand-dark">
             Dra och släpp bilder eller filmer här — till {currentScreenName}
           </div>

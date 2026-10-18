@@ -186,7 +186,7 @@ function Toast({ toast }: { toast: ToastState | null }) {
         ${variantClasses[toast.variant]}`}
       style={{
         ...(toast.bgColor ? { backgroundColor: toast.bgColor } : {}),
-        animation: 'toast-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+        animation: 'toast-in 0.3s cubic-bezier(0.25, 1, 0.5, 1)',
       }}
     >
       {toast.heading && <div className="font-bold">{toast.heading}</div>}

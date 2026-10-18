@@ -197,10 +197,8 @@ export function Shop() {
         />
         <KPICard
           title="Omsättning"
-          value={kpi.totalRevenue >= 1000
-            ? `${(kpi.totalRevenue / 1000).toFixed(1)} tkr`
-            : `${Math.round(kpi.totalRevenue).toLocaleString('sv-SE')} kr`}
-          subtitle={`${Math.round(kpi.totalRevenue).toLocaleString('sv-SE')} kr`}
+          value={`${Math.round(kpi.totalRevenue).toLocaleString('sv-SE')} kr`}
+          subtitle={selectedRange.label}
           icon={<TrendingUp className="w-6 h-6" />}
           color="emerald"
         />
@@ -253,6 +251,7 @@ export function Shop() {
               <button
                 onClick={() => setPage(p => Math.max(0, p - 1))}
                 disabled={page === 0}
+                aria-label="Föregående sida"
                 className="p-1 rounded hover:bg-slate-100 disabled:opacity-30 transition-colors"
               >
                 <ChevronLeft className="w-4 h-4" />
@@ -261,6 +260,7 @@ export function Shop() {
               <button
                 onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
                 disabled={page === totalPages - 1}
+                aria-label="Nästa sida"
                 className="p-1 rounded hover:bg-slate-100 disabled:opacity-30 transition-colors"
               >
                 <ChevronRight className="w-4 h-4" />

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { format, parseISO } from 'date-fns'
 import { sv } from 'date-fns/locale'
-import { CheckCircle, Loader2, Plus, Save, Trash2, Upload, X } from 'lucide-react'
+import { CheckCircle, Globe, Loader2, Plus, Save, Smartphone, Trash2, Upload, X } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useContentCards, useCreateContentCard, useDeleteContentCard, useUpdateContentCard } from '../hooks/useContentCards'
 import { useEvents } from '../hooks/useEvents'
@@ -66,11 +66,11 @@ const TYPE_BADGE_CLASS: Record<ContentCardType, string> = {
   banner: 'bg-slate-100 text-brand-dark',
 }
 
-const STATUS_CONFIG: Record<CardStatus, { label: string; emoji: string; className: string }> = {
-  active: { label: 'Aktiv nu', emoji: '🟢', className: 'bg-status-okSoft dark:bg-[rgba(93,184,138,0.14)] text-[#1e4025] dark:text-[var(--dark-positive)]' },
-  draft: { label: 'Utkast', emoji: '⚪', className: 'bg-slate-100 text-slate-600' },
-  upcoming: { label: 'Kommande', emoji: '🔵', className: 'bg-sky-100 text-sky-700' },
-  expired: { label: 'Utgången', emoji: '⚫', className: 'bg-slate-200 text-slate-500' },
+const STATUS_CONFIG: Record<CardStatus, { label: string; dot: string; className: string }> = {
+  active: { label: 'Aktiv nu', dot: 'bg-status-ok', className: 'bg-status-okSoft dark:bg-[rgba(93,184,138,0.14)] text-[#1e4025] dark:text-[var(--dark-positive)]' },
+  draft: { label: 'Utkast', dot: 'bg-slate-300', className: 'bg-slate-100 text-slate-600' },
+  upcoming: { label: 'Kommande', dot: 'bg-sky-500', className: 'bg-sky-100 text-sky-700' },
+  expired: { label: 'Utgången', dot: 'bg-slate-500', className: 'bg-slate-200 text-slate-500' },
 }
 
 interface CardDraft {
@@ -848,10 +848,10 @@ function PlatformIndicator({ card }: { card: ContentCard }) {
   return (
     <span className="inline-flex items-center gap-2">
       <span className={card.show_on_web ? 'text-slate-600' : 'text-slate-300'} title={card.show_on_web ? 'Visas på webben' : 'Visas inte på webben'}>
-        🌐 Webb
+        <Globe className="inline h-3.5 w-3.5 -mt-0.5 mr-1" aria-hidden />Webb
       </span>
       <span className={card.show_on_app ? 'text-slate-600' : 'text-slate-300'} title={card.show_on_app ? 'Visas i appen' : 'Visas inte i appen'}>
-        📱 App
+        <Smartphone className="inline h-3.5 w-3.5 -mt-0.5 mr-1" aria-hidden />App
       </span>
     </span>
   )
@@ -861,7 +861,7 @@ function StatusBadge({ status }: { status: CardStatus }) {
   const config = STATUS_CONFIG[status]
   return (
     <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${config.className}`}>
-      <span aria-hidden>{config.emoji}</span>
+      <span aria-hidden className={`h-1.5 w-1.5 rounded-full ${config.dot}`} />
       {config.label}
     </span>
   )
