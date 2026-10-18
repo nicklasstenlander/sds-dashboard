@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef } from 'react'
-import { ShoppingBag, TrendingUp, Receipt, RefreshCw, Clock, Zap, ChevronLeft, ChevronRight, Calendar } from 'lucide-react'
+import { ShoppingBag, RefreshCw, Clock, Zap, ChevronLeft, ChevronRight, Calendar } from 'lucide-react'
 
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -12,7 +12,8 @@ import {
 import { sv } from 'date-fns/locale'
 import { useShopify } from '../hooks/useShopify'
 import type { ShopifyOrder } from '../hooks/useShopify'
-import { KPICard } from '../components/KPICard'
+import { StatCell } from '../components/StatCell'
+import { Pill } from '../components/PeriodFilter'
 
 type Period = 'day' | 'week' | 'month' | 'year'
 
@@ -150,8 +151,11 @@ export function Shop() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-3xl font-bold tracking-tight text-brand-dark">Shop</h1>
+      <header className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-brand-dark">Shop</h1>
+          <p className="text-sm text-slate-600 mt-1">Kioskförsäljning, senaste köp och bästsäljare.</p>
+        </div>
         {data.updatedAt && (
           <span className="flex items-center gap-1.5 text-xs text-slate-600">
             <Clock className="w-3.5 h-3.5" />
@@ -159,23 +163,15 @@ export function Shop() {
             {isFetching && <RefreshCw className="w-3 h-3 animate-spin ml-1" />}
           </span>
         )}
-      </div>
+      </header>
 
       {/* Global period filter */}
       <div className="flex flex-wrap items-center gap-3">
-        <div className="flex gap-1 bg-slate-100 rounded-xl p-1 w-fit">
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Period">
           {(Object.keys(PERIOD_LABELS) as Period[]).map((p) => (
-            <button
-              key={p}
-              onClick={() => handlePeriod(p)}
-              className={`px-4 py-1.5 text-sm rounded-lg font-medium transition-colors ${
-                period === p
-                  ? 'bg-white text-brand-dark shadow-sm'
-                  : 'text-slate-500 hover:text-brand-dark'
-              }`}
-            >
+            <Pill key={p} active={period === p} onClick={() => handlePeriod(p)}>
               {PERIOD_LABELS[p]}
-            </button>
+            </Pill>
           ))}
         </div>
         <PeriodValueControl
@@ -186,35 +182,15 @@ export function Shop() {
         />
       </div>
 
-      {/* KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPICard
-          title="Ordrar"
-          value={kpi.totalOrders.toLocaleString('sv-SE')}
-          subtitle={selectedRange.label}
-          icon={<Receipt className="w-6 h-6" />}
-          color="violet"
-        />
-        <KPICard
-          title="Omsättning"
-          value={`${Math.round(kpi.totalRevenue).toLocaleString('sv-SE')} kr`}
-          subtitle={selectedRange.label}
-          icon={<TrendingUp className="w-6 h-6" />}
-          color="emerald"
-        />
-        <KPICard
-          title="Snittordervärde"
-          value={`${Math.round(kpi.avgOrder).toLocaleString('sv-SE')} kr`}
-          subtitle="per order"
-          icon={<ShoppingBag className="w-6 h-6" />}
-          color="sky"
-        />
-        <KPICard
-          title="Sålda varor"
+      {/* Nyckeltal */}
+      <div className="card overflow-hidden flex flex-wrap">
+        <StatCell label="Ordrar" value={kpi.totalOrders.toLocaleString('sv-SE')} sub={selectedRange.label} />
+        <StatCell label="Omsättning" value={`${Math.round(kpi.totalRevenue).toLocaleString('sv-SE')} kr`} sub={selectedRange.label} />
+        <StatCell label="Snittordervärde" value={`${Math.round(kpi.avgOrder).toLocaleString('sv-SE')} kr`} sub="per order" />
+        <StatCell
+          label="Sålda varor"
           value={kpi.totalItems.toLocaleString('sv-SE')}
-          subtitle={`APK: ${kpi.totalOrders > 0 ? (kpi.totalItems / kpi.totalOrders).toFixed(1) : '—'} art/kvitto`}
-          icon={<Receipt className="w-6 h-6" />}
-          color="amber"
+          sub={`${kpi.totalOrders > 0 ? (kpi.totalItems / kpi.totalOrders).toFixed(1) : '—'} artiklar per kvitto`}
         />
       </div>
 
@@ -230,7 +206,7 @@ export function Shop() {
               contentStyle={{ border: 'none', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', fontSize: '12px' }}
               formatter={(v: number) => [`${v.toLocaleString('sv-SE')} kr`, 'Omsättning']}
             />
-            <Bar dataKey="revenue" fill="#1e4025" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="revenue" fill="var(--chart-positive)" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>

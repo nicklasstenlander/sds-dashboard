@@ -93,7 +93,7 @@ export function RideauStatCard({ event, revenueBasis }: RideauStatCardProps) {
                 contentStyle={{ border: 'none', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', fontSize: '12px' }}
                 formatter={(v: number) => [`${v} st`, 'Sålda']}
               />
-              <Bar dataKey="tickets" fill="#1e4025" radius={[3, 3, 0, 0]} />
+              <Bar dataKey="tickets" fill="var(--chart-positive)" radius={[3, 3, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
