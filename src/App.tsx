@@ -174,7 +174,7 @@ function AppShell() {
         <nav ref={navRef} className="flex-1 p-3 space-y-0.5 relative">
           {pill.height > 0 && (
             <div
-              className="sds-sidebar-pill absolute left-3 right-3 bg-surface-selected shadow-[inset_3px_0_0_#dd5c86] rounded-xl transition-all duration-200 ease-out pointer-events-none"
+              className="sds-sidebar-pill absolute left-3 right-3 bg-status-criticalSoft rounded-xl transition-all duration-200 ease-out pointer-events-none"
               style={{ top: pill.top, height: pill.height }}
             />
           )}
