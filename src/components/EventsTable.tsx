@@ -15,6 +15,9 @@ interface EventsTableProps {
   selectedId?: string | null
   /** Rapporterar kursernas ordning som den visas (filter + sortering), för föregående/nästa i panelen. */
   onVisibleOrderChange?: (ids: string[]) => void
+  /** Aktivt snabbfilter (styrs uppifrån så att t.ex. Översiktens "Kurser över 90 %" kan förvälja det). */
+  filter?: CourseFilter
+  onFilterChange?: (filter: CourseFilter) => void
   onRefresh?: () => void
   onDirectRefresh?: () => void
   onGroupSms?: (event: Event, courseBookings: Booking[]) => void
@@ -23,6 +26,16 @@ interface EventsTableProps {
 }
 
 type SortKey = 'name' | 'accepted' | 'fill' | 'revenue'
+
+/** Snabbfilter ovanför listan. over90 = 90 % eller mer (inkl. överfulla), over100 = fler antagna än max. */
+export type CourseFilter = 'all' | 'over90' | 'over100' | 'open' | 'hidden'
+const COURSE_FILTERS: { id: CourseFilter; label: string }[] = [
+  { id: 'all', label: 'Alla' },
+  { id: 'over90', label: 'Över 90 %' },
+  { id: 'over100', label: 'Överfulla' },
+  { id: 'open', label: 'Lediga platser' },
+  { id: 'hidden', label: 'Ej publika' },
+]
 type SortDir = 'asc' | 'desc'
 
 function fillRate(e: Event, accepted: number): number {
@@ -74,7 +87,7 @@ function Th({ label, title, sortKey, sort, onSort, hide, align }: ThProps) {
       scope="col"
       aria-sort={active ? (sort.dir === 'asc' ? 'ascending' : 'descending') : sortKey ? 'none' : undefined}
       title={title}
-      className={`sticky top-0 z-10 bg-slate-50 dark:bg-[var(--dark-card)] border-y border-slate-100 text-xs font-semibold py-2.5 px-3 whitespace-nowrap ${right ? 'text-right' : 'text-left'} ${hide ?? ''}`}
+      className={`sticky top-0 z-10 bg-surface-page dark:bg-[var(--dark-card)] border-y border-slate-100 text-xs font-semibold py-2.5 px-3 whitespace-nowrap ${right ? 'text-right' : 'text-left'} ${hide ?? ''}`}
     >
       {sortKey ? (
         <button
@@ -92,13 +105,16 @@ function Th({ label, title, sortKey, sort, onSort, hide, align }: ThProps) {
   )
 }
 
-export function EventsTable({ events, bookings = [], loading, search, activePeriod, onSelect, selectedId, onVisibleOrderChange, onRefresh, onDirectRefresh, onGroupSms, isRefreshing, isDirectRefreshing }: EventsTableProps) {
+export function EventsTable({ events, bookings = [], loading, search, activePeriod, onSelect, selectedId, onVisibleOrderChange, filter: filterProp, onFilterChange, onRefresh, onDirectRefresh, onGroupSms, isRefreshing, isDirectRefreshing }: EventsTableProps) {
   const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: 'accepted', dir: 'desc' })
+  const [filterState, setFilterState] = useState<CourseFilter>('all')
+  const filter = filterProp ?? filterState
+  const setFilter = (f: CourseFilter) => { setFilterState(f); onFilterChange?.(f) }
 
   const metricsByEvent = useMemo(() => buildCourseMetrics(bookings), [bookings])
   const knownEventBlockIds = useMemo(() => collectKnownEventBlockIds(events), [events])
 
-  const filtered = events
+  const withMetrics = events
     .filter((e) => !search || e.name.toLowerCase().includes(search.toLowerCase()))
     .map((e) => {
       const metrics = metricsForEvent(metricsByEvent, e, false)
@@ -112,6 +128,23 @@ export function EventsTable({ events, bookings = [], loading, search, activePeri
         _revenue: metrics.revenue || (metrics.accepted * price),
       }
     })
+
+  const matchesFilter = (e: (typeof withMetrics)[number], f: CourseFilter) => {
+    const max = e.requirements?.maxParticipants
+    switch (f) {
+      case 'over90':  return !!max && e._fill >= 90
+      case 'over100': return !!max && e._accepted > max
+      case 'open':    return !!max && e._accepted < max
+      case 'hidden':  return e.registration?.showing === false
+      default:        return true
+    }
+  }
+  const filterCounts = Object.fromEntries(
+    COURSE_FILTERS.map(({ id }) => [id, withMetrics.filter((e) => matchesFilter(e, id)).length]),
+  ) as Record<CourseFilter, number>
+
+  const filtered = withMetrics
+    .filter((e) => matchesFilter(e, filter))
     .sort((a, b) => {
       let diff = 0
       switch (sort.key) {
@@ -152,7 +185,7 @@ export function EventsTable({ events, bookings = [], loading, search, activePeri
   }
 
   return (
-    <div className="card overflow-clip">
+    <div id="kurslista" className="card overflow-clip scroll-mt-4">
       <div className="p-5 pb-0 flex items-center justify-between">
         <h2 className="text-sm font-bold text-brand-dark">
           Kursöversikt{' '}
@@ -185,14 +218,34 @@ export function EventsTable({ events, bookings = [], loading, search, activePeri
           )}
         </div>
       </div>
-      <table className="w-full mt-3">
+      <div role="group" aria-label="Filtrera kurser" className="px-5 pt-3 pb-3 flex flex-wrap gap-2">
+        {COURSE_FILTERS.map(({ id, label }) => {
+          const active = filter === id
+          return (
+            <button
+              key={id}
+              type="button"
+              aria-pressed={active}
+              onClick={() => setFilter(id)}
+              className={`sds-focus-ring text-sm px-3.5 py-1.5 rounded-full border transition-colors ${
+                active
+                  ? 'bg-brand-dark text-white border-brand-dark font-medium'
+                  : 'bg-white border-slate-200 text-brand-dark hover:border-brand-dark'
+              }`}
+            >
+              {label}{id !== 'all' && <span className={active ? 'opacity-80' : 'text-slate-600'}> {filterCounts[id]}</span>}
+            </button>
+          )
+        })}
+      </div>
+      <table className="w-full">
         <thead>
           <tr>
             <Th label="Kurs" sortKey="name" sort={sort} onSort={toggleSort} />
             <Th label="Anmälda" title="Antal anmälningar, inklusive de som inte antagits" sortKey="accepted" align="right" hide="hidden sm:table-cell" sort={sort} onSort={toggleSort} />
             <Th label="Antagna / max" title="Antagna elever av max antal platser, med beläggning i procent" sortKey="fill" sort={sort} onSort={toggleSort} />
             <Th label="Intäkt (kr)" title="Antagna × pris" sortKey="revenue" align="right" hide="hidden md:table-cell" sort={sort} onSort={toggleSort} />
-            <th scope="col" className="sticky top-0 z-10 bg-slate-50 dark:bg-[var(--dark-card)] border-y border-slate-100 w-px">
+            <th scope="col" className="sticky top-0 z-10 bg-surface-page dark:bg-[var(--dark-card)] border-y border-slate-100 w-px">
               <span className="sr-only">Åtgärder</span>
             </th>
           </tr>
@@ -201,7 +254,7 @@ export function EventsTable({ events, bookings = [], loading, search, activePeri
           {filtered.length === 0 && (
             <tr>
               <td colSpan={5} className="text-center py-10 text-sm text-slate-600">
-                {search ? `Inga kurser matchar ”${search}”. Prova ett annat sökord.` : 'Inga kurser i den här perioden.'}
+                {search ? `Inga kurser matchar ”${search}”. Prova ett annat sökord.` : filter !== 'all' ? 'Inga kurser matchar det här filtret.' : 'Inga kurser i den här perioden.'}
               </td>
             </tr>
           )}
@@ -224,7 +277,7 @@ export function EventsTable({ events, bookings = [], loading, search, activePeri
                   },
                 } : {})}
                 aria-current={selectedId === String(e.id) ? 'true' : undefined}
-                className={`hover:bg-brand-mint dark:hover:bg-[rgba(255,255,255,0.03)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-forest ${selectedId === String(e.id) ? 'bg-brand-mint dark:bg-[rgba(255,255,255,0.06)]' : ''} ${onSelect ? 'cursor-pointer' : ''}`}
+                className={`hover:bg-slate-50 dark:hover:bg-[rgba(255,255,255,0.03)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-forest ${selectedId === String(e.id) ? 'bg-surface-selected shadow-[inset_4px_0_0_#009399] dark:bg-[rgba(255,255,255,0.06)]' : ''} ${onSelect ? 'cursor-pointer' : ''}`}
               >
                 {/* Kurs: namn + kategori · dag/tid på en rad. w-full/max-w-0 låter cellen ta resten av bredden och trunkera i stället för att tvinga fram sidled-scroll. */}
                 <td className="w-full max-w-0 py-2.5 px-3">
