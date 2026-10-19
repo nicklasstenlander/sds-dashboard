@@ -1,8 +1,8 @@
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
 import { supabase, type UserProfile } from '../lib/supabase'
 import { useApiConfig } from './ApiContext'
-import { verifyCogworkPassword } from '../api/cogwork'
+import { VIA_PROXY } from '../lib/proxyAuth'
 
 interface AuthContextValue {
   session: Session | null
@@ -20,18 +20,12 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 const LEGACY_AUTH_KEY = 'sds_legacy_auth_active'
-const SHARED_COGWORK_PW = import.meta.env.VITE_COGWORK_SHARED_PW as string
 
-// usingLegacyAuth får ENDAST bli true via setLegacyAuth(true), dvs. när användaren
-// aktivt skickar in formuläret för tillfälligt lösenord i LoginPage. Det fanns
-// tidigare en engångsmigrering här som slog på legacy-läge om "sds_api_config" hade
-// ett sparat lösenord - men den nyckeln delas även av den automatiska
-// CogWork-konfigureringen som körs efter en helt vanlig Supabase-inloggning (se
-// useEffect nedan). Det gjorde att VARJE Supabase-användare permanent kapades över
-// till legacy-läge så fort auto-konfigureringen lyckats en gång och sidan laddades
-// om, oavsett om deras Supabase-session fortfarande var giltig.
+// Tillfällig CogWork-inloggning är avstängd. Den delade org-nyckeln låg tidigare
+// i webbpaketet och i localStorage. Befintliga flaggor rensas vid sidladdning.
 function detectLegacyAuth(): boolean {
-  return localStorage.getItem(LEGACY_AUTH_KEY) === 'true'
+  localStorage.removeItem(LEGACY_AUTH_KEY)
+  return false
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -42,7 +36,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [preparingApi, setPreparingApi] = useState(false)
   const [recoveryInProgress, setRecoveryInProgress] = useState(false)
   const { config, setConfig } = useApiConfig()
-  const apiPrepAttempted = useRef(false)
 
   useEffect(() => {
     if (usingLegacyAuth) {
@@ -68,26 +61,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe()
   }, [usingLegacyAuth])
 
-  // Sätter CogWork-uppkopplingen tyst i bakgrunden efter lyckad Supabase-inloggning,
-  // så användaren aldrig behöver se det gamla API-nyckel-steget separat.
+  // CogWork nås via den inloggade sessionen. Webbläsaren sparar ingen org-nyckel.
   useEffect(() => {
-    if (usingLegacyAuth || !session || !profile) return
-    if (config.pw || apiPrepAttempted.current) return
-
-    apiPrepAttempted.current = true
-    setPreparingApi(true)
-    verifyCogworkPassword(SHARED_COGWORK_PW).then((result) => {
-      if (result === 'ok') {
-        setConfig({ org: 'sollentunadans', pw: SHARED_COGWORK_PW })
-      } else {
-        console.error(
-          `CogWork auto-konfigurering misslyckades (${result}). ` +
-          'Kontrollera att GitHub-secreten VITE_COGWORK_SHARED_PW är satt till rätt värde.',
-        )
-      }
+    if (!session || !profile) {
       setPreparingApi(false)
-    })
-  }, [session, profile, usingLegacyAuth, config.pw, setConfig])
+      return
+    }
+    if (config.pw === VIA_PROXY) {
+      setPreparingApi(false)
+      return
+    }
+    setPreparingApi(true)
+    setConfig({ org: config.org || 'sollentunadans', pw: VIA_PROXY })
+  }, [session, profile, config.org, config.pw, setConfig])
 
   async function loadProfile(userId: string) {
     const { data } = await supabase
@@ -111,7 +97,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(null)
     setProfile(null)
     setRecoveryInProgress(false)
-    apiPrepAttempted.current = false
   }
 
   function setLegacyAuth(active: boolean) {

@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, type ReactNode } from 'react'
+import { VIA_PROXY } from '../lib/proxyAuth'
 import type { ApiConfig } from '../types/cogwork'
 
 interface ApiContextValue {
@@ -11,7 +12,16 @@ const LS_KEY = 'sds_api_config'
 function loadConfig(): ApiConfig {
   try {
     const raw = localStorage.getItem(LS_KEY)
-    if (raw) return JSON.parse(raw) as ApiConfig
+    if (raw) {
+      const parsed = JSON.parse(raw) as ApiConfig
+      // Äldre byggen sparade CogWork-nyckeln i webbläsaren. Den ska inte ligga kvar.
+      if (parsed.pw && parsed.pw !== VIA_PROXY) {
+        const cleaned = { org: parsed.org || 'sollentunadans', pw: '' }
+        localStorage.setItem(LS_KEY, JSON.stringify(cleaned))
+        return cleaned
+      }
+      return { org: parsed.org || 'sollentunadans', pw: parsed.pw || '' }
+    }
   } catch {}
   return { org: 'sollentunadans', pw: '' }
 }

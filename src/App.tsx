@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useLayoutEffect, lazy, Suspense } from 'react'
 import { Routes, Route, Navigate, NavLink, useLocation } from 'react-router-dom'
 import { LayoutDashboard, ClipboardList, Users, Settings, LogOut, ShoppingBag, PanelLeft, Phone, Monitor, CalendarDays, MoreHorizontal, Loader2, FileText, Newspaper, Bell, Ticket } from 'lucide-react'
+import { VIA_PROXY } from './lib/proxyAuth'
 import { ApiProvider, useApiConfig } from './context/ApiContext'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { LoginPage } from './pages/LoginPage'
@@ -150,7 +151,7 @@ function AppShell() {
       </Routes>
     )
   }
-  if (preparingApi) return <PreparingLoader />
+  if (preparingApi || (session && profile && config.pw !== VIA_PROXY)) return <PreparingLoader />
 
   return (
     <div className="flex h-dvh bg-white dark:bg-[var(--dark-page)] overflow-hidden">
