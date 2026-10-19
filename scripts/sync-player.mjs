@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Speglar public/player.html in i konstanten PLAYER_HTML i sodss-signage/worker.js.
+ * Speglar public/player.html in i konstanten PLAYER_HTML i workers/sodss-signage/worker.js.
  *
  * Pi:erna hämtar spelaren från Workern (/player), inte från public/. public/
  * är källan, PLAYER_HTML är det som faktiskt körs — och de två har glidit isär
@@ -15,7 +15,7 @@ import { dirname, resolve } from 'node:path';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const PLAYER = resolve(root, 'public/player.html');
-const WORKER = resolve(root, 'sodss-signage/worker.js');
+const WORKER = resolve(root, 'workers/sodss-signage/worker.js');
 const OPEN = 'const PLAYER_HTML = `';
 const CLOSE = '\n`;';
 
@@ -57,4 +57,4 @@ if (inSync) {
 }
 
 writeFileSync(WORKER, worker.slice(0, bodyStart) + wanted + worker.slice(bodyEnd));
-console.log('Skrev public/player.html → PLAYER_HTML i sodss-signage/worker.js');
+console.log('Skrev public/player.html → PLAYER_HTML i workers/sodss-signage/worker.js');

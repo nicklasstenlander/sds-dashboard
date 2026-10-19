@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Thermometer, Timer, Upload } from "lucide-react";
+import { staffAuthHeaders } from "../lib/proxyAuth";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -43,11 +44,11 @@ const WEEKDAYS = [
   { n: 7, label: "Sön" },
 ];
 
-const WORKER_URL    = import.meta.env.VITE_WORKER_URL    ?? "";
-const WORKER_SECRET = import.meta.env.VITE_WORKER_SECRET ?? "";
+const WORKER_URL = import.meta.env.VITE_WORKER_URL ?? "";
 
-function authHeaders(): Record<string, string> {
-  return WORKER_SECRET ? { Authorization: `Bearer ${WORKER_SECRET}` } : {};
+async function authHeaders(extra?: Record<string, string>): Promise<Record<string, string>> {
+  const headers = await staffAuthHeaders(extra);
+  return Object.fromEntries(headers.entries());
 }
 
 function randomId() {
@@ -373,7 +374,7 @@ export function Signage() {
     try {
       const res = await fetch(`${WORKER_URL}/api/screens/${screenId}/commands`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...authHeaders() },
+        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
         body: JSON.stringify({ type }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -410,14 +411,17 @@ export function Signage() {
     } else {
       next[scheduleTarget] = draft;
     }
-    await fetch(`${WORKER_URL}/api/schedules`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json", ...authHeaders() },
-      body: JSON.stringify(next),
-    });
-    setSchedules(next);
-    setScheduleTarget(null);
-    setSchedSaving(false);
+    try {
+      await fetch(`${WORKER_URL}/api/schedules`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+        body: JSON.stringify(next),
+      });
+      setSchedules(next);
+      setScheduleTarget(null);
+    } finally {
+      setSchedSaving(false);
+    }
   }
 
   function toggleWeekday(n: number) {
@@ -512,7 +516,7 @@ export function Signage() {
       });
       const res = await fetch(`${WORKER_URL}/api/playlist/${screen}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json", ...authHeaders() },
+        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
         body: JSON.stringify({ items: manifestItems }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -559,11 +563,11 @@ export function Signage() {
       try {
         const formData = new FormData();
         formData.append("file", job.file);
+        const authorization = (await authHeaders()).Authorization;
         await new Promise<void>((resolve, reject) => {
           const xhr = new XMLHttpRequest();
           xhr.open("POST", `${WORKER_URL}/api/upload?screen=${screen}`);
-          const secret = authHeaders().Authorization;
-          if (secret) xhr.setRequestHeader("Authorization", secret);
+          if (authorization) xhr.setRequestHeader("Authorization", authorization);
           xhr.upload.onprogress = (e) => {
             if (e.lengthComputable) {
               const pct = Math.round((e.loaded / e.total) * 100);
@@ -602,7 +606,7 @@ export function Signage() {
         const fileName = item.key.slice(screen.length + 1);
         const res = await fetch(`${WORKER_URL}/api/files/${screen}/${encodeURIComponent(fileName)}`, {
           method: "DELETE",
-          headers: authHeaders(),
+          headers: await authHeaders(),
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
       }

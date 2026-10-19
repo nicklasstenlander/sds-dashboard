@@ -84,8 +84,9 @@ const ALL_EVENTS_PROXY_URL = (import.meta.env.VITE_ALL_EVENTS_PROXY_URL as strin
   ?? (import.meta.env.VITE_NARVARO_URL as string | undefined)
   ?? 'https://script.google.com/macros/s/AKfycbx-euNjfAQaEfgA2xpkmhYUgpxUOI29cw0GF3-aLRkLowr4-U40HGdXyKgQPyFOCtyo/exec'
 
-// Hämtar ALLA kurser inkl dolda (showing: false) via Apps Script med type=all_events.
-// Returnerar kurser som inte syns i det publika /events/-svaret.
+// Hämtar kurser inkl dolda (showing: false) via ett öppet Apps Script.
+// Svaret innehåller också deltagarnamn. De tas bort här så de inte hamnar i
+// dashboardens cache. Själva URL:en är fortfarande öppen.
 export async function fetchAllEvents(eventBlockId?: string): Promise<{ events: Event[] }> {
   const url = new URL(ALL_EVENTS_PROXY_URL)
   url.searchParams.set('type', 'all_events')
@@ -94,6 +95,11 @@ export async function fetchAllEvents(eventBlockId?: string): Promise<{ events: E
   const res = await fetch(url.toString())
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   const data = await res.json()
-  const events = Array.isArray(data) ? data : (data.events || [])
+  const events = (Array.isArray(data) ? data : (data.events || [])).map((event: Event & { participants?: unknown }) => {
+    if (!event || typeof event !== 'object') return event
+    const copy = { ...event }
+    delete copy.participants
+    return copy
+  })
   return { events: events as Event[] }
 }

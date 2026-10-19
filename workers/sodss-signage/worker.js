@@ -858,11 +858,20 @@ function sliceStream(body, start, end) {
  *
  * Miljövariabler (Cloudflare Dashboard → Worker → Settings → Variables):
  *   BUCKET               — R2 Bucket binding (se wrangler.toml)
- *   ADMIN_SECRET         — En hemlig sträng, t.ex. ett långt lösenord (Core-GUI:t)
+ *   SUPABASE_URL         — https://<projekt>.supabase.co. Saknas den failar admin-rutter stängt.
+ *   SUPABASE_ANON_KEY    — Publishable nyckel för rolluppslag. Saknas den failar admin-rutter stängt.
  *   CORS_ORIGIN          — URL till din Core-dashboard, t.ex. https://core.sollentunadansochscenskola.se
  *   CORE_AGENT_TOKEN     — Delad hemlighet för alla Pi-agenter (fallback om SCREEN_AGENT_TOKENS saknar id)
  *   SCREEN_AGENT_TOKENS  — JSON, per-skärm-tokens: {"reception":"...","lounge":"..."}
+ *
+ *   Admin-rutter (uppladdning, spellista, schema, fjärrkommandon, nyhetsbilder) kräver
+ *   en Supabase-JWT med rollen admin. En delad ADMIN_SECRET i webbläsaren accepteras inte.
+ *   Pi-agenternas heartbeat, skärmdump och kommandohämtning använder bara agent-token.
  */
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const JWKS_CACHE_TTL_MS = 10 * 60 * 1000;
+let jwksCache = { origin: '', keys: null, cachedAt: 0 };
 
 const SCREENS = [
   { id: 'reception', name: 'Skärm Reception' },
@@ -876,7 +885,102 @@ function isValidScreen(id) {
   return SCREENS.some((s) => s.id === id);
 }
 
-// Agent-auth: skild från admin-isAuthorized(). Accepterar SCREEN_AGENT_TOKENS[screenId]
+function supabaseOrigin(env) {
+  if (!env.SUPABASE_URL || !env.SUPABASE_ANON_KEY) return null;
+  let url;
+  try {
+    url = new URL(env.SUPABASE_URL);
+  } catch {
+    return null;
+  }
+  if (url.protocol !== 'https:' || !url.hostname.endsWith('.supabase.co')) return null;
+  return url.origin;
+}
+
+function base64UrlDecode(str) {
+  const padded = str.replace(/-/g, '+').replace(/_/g, '/').padEnd(str.length + (4 - str.length % 4) % 4, '=');
+  const binary = atob(padded);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+async function fetchJwks(origin) {
+  const now = Date.now();
+  if (jwksCache.origin === origin && jwksCache.keys && now - jwksCache.cachedAt < JWKS_CACHE_TTL_MS) {
+    return jwksCache.keys;
+  }
+  const res = await fetch(`${origin}/auth/v1/.well-known/jwks.json`);
+  if (!res.ok) throw new Error('jwks_http_' + res.status);
+  const body = await res.json();
+  if (!Array.isArray(body.keys)) throw new Error('jwks_missing_keys');
+  jwksCache = { origin, keys: body.keys, cachedAt: now };
+  return body.keys;
+}
+
+async function verifySupabaseJwt(request, env) {
+  const origin = supabaseOrigin(env);
+  if (!origin) return false;
+  const match = (request.headers.get('Authorization') || '').match(/^Bearer\s+(.+)$/i);
+  if (!match) return false;
+  const parts = match[1].split('.');
+  if (parts.length !== 3) return false;
+  const [headerB64, payloadB64, signatureB64] = parts;
+  try {
+    const header = JSON.parse(new TextDecoder().decode(base64UrlDecode(headerB64)));
+    if (header.alg !== 'ES256') return false;
+    const payload = JSON.parse(new TextDecoder().decode(base64UrlDecode(payloadB64)));
+    if (payload.iss !== `${origin}/auth/v1`) return false;
+    if (typeof payload.exp !== 'number' || payload.exp * 1000 <= Date.now()) return false;
+    const keys = await fetchJwks(origin);
+    const jwk = keys.find((key) => key.kid === header.kid);
+    if (!jwk) return false;
+    const cryptoKey = await crypto.subtle.importKey(
+      'jwk',
+      jwk,
+      { name: 'ECDSA', namedCurve: 'P-256' },
+      false,
+      ['verify'],
+    );
+    return await crypto.subtle.verify(
+      { name: 'ECDSA', hash: 'SHA-256' },
+      cryptoKey,
+      base64UrlDecode(signatureB64),
+      new TextEncoder().encode(`${headerB64}.${payloadB64}`),
+    );
+  } catch (err) {
+    console.log('[admin-auth] JWT-verifiering misslyckades', err && err.message);
+    return false;
+  }
+}
+
+function extractJwtSub(request) {
+  const match = (request.headers.get('Authorization') || '').match(/^Bearer\s+(.+)$/i);
+  if (!match) return null;
+  const parts = match[1].split('.');
+  if (parts.length !== 3) return null;
+  try {
+    const payload = JSON.parse(new TextDecoder().decode(base64UrlDecode(parts[1])));
+    return typeof payload.sub === 'string' ? payload.sub : null;
+  } catch {
+    return null;
+  }
+}
+
+async function resolveCoreUserRole(userId, request, env) {
+  const origin = supabaseOrigin(env);
+  if (!origin) throw new Error('role_lookup_not_configured');
+  const userToken = (request.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
+  const res = await fetch(
+    `${origin}/rest/v1/user_profiles?id=eq.${encodeURIComponent(userId)}&select=role`,
+    { headers: { apikey: env.SUPABASE_ANON_KEY, authorization: `Bearer ${userToken}` } },
+  );
+  if (!res.ok) throw new Error('role_lookup_http_' + res.status);
+  const rows = await res.json();
+  return rows[0]?.role ?? null;
+}
+
+// Agent-auth: skild från requireAdmin(). Accepterar SCREEN_AGENT_TOKENS[screenId]
 // om satt, annars CORE_AGENT_TOKEN som delad fallback. Agenten kan aldrig skapa kommandon
 // åt sig själv med denna — bara hämta/rapportera på dem (se admin-auth för /commands POST).
 function isAgentAuthorized(request, screenId, env) {
@@ -960,11 +1064,23 @@ export default {
       return new Response(null, { status: 204, headers: corsHeaders });
     }
 
-    // ── Auth (för POST, PUT och DELETE) ──────────────────────────────────────
-    function isAuthorized() {
-      if (!env.ADMIN_SECRET) return true; // inget secret konfigurerat = öppet
-      const auth = request.headers.get("Authorization") ?? "";
-      return auth === `Bearer ${env.ADMIN_SECRET}`;
+    // ── Admin-auth. Failar stängt om Supabase-bindningarna saknas. ───────────
+    // Pi-agenterna använder isAgentAuthorized(), inte den här.
+    async function requireAdmin() {
+      if (!supabaseOrigin(env)) return err('admin_auth_not_configured', 503);
+      const authed = await verifySupabaseJwt(request, env);
+      if (!authed) return err('Ej behörig', 401);
+      const sub = extractJwtSub(request);
+      if (!sub || !UUID_RE.test(sub)) return err('Ej behörig roll', 403);
+      let role;
+      try {
+        role = await resolveCoreUserRole(sub, request, env);
+      } catch (authErr) {
+        console.log('[admin-auth] rolluppslag misslyckades', authErr && authErr.message);
+        return err('role_lookup_failed', 503);
+      }
+      if (role !== 'admin') return err('Ej behörig roll', 403);
+      return null;
     }
 
     function json(data, status = 200) {
@@ -1033,7 +1149,10 @@ export default {
     if (commandsCreateMatch && request.method === 'POST') {
       const screenId = commandsCreateMatch[1];
       if (!isValidScreen(screenId)) return err('Okänd skärm', 404);
-      if (!isAuthorized()) return err('Ej behörig', 401);
+      {
+        const denied = await requireAdmin();
+        if (denied) return denied;
+      }
 
       const body = await request.json();
       if (!ALLOWED_COMMAND_TYPES.includes(body.type)) return err('Okänt kommandotyp', 400);
@@ -1140,7 +1259,10 @@ export default {
 
     // ── PUT /api/schedules — spara tidsscheman ───────────────────────────────
     if (path === '/api/schedules' && request.method === 'PUT') {
-      if (!isAuthorized()) return err('Ej behörig', 401);
+      {
+        const denied = await requireAdmin();
+        if (denied) return denied;
+      }
       const body = await request.json();
       await env.BUCKET.put('_schedules.json', JSON.stringify(body), {
         httpMetadata: { contentType: 'application/json' },
@@ -1158,7 +1280,10 @@ export default {
 
     // ── PUT /api/playlist/<id> — spara manifest ──────────────────────────────
     if (path.startsWith('/api/playlist/') && request.method === 'PUT') {
-      if (!isAuthorized()) return err('Ej behörig', 401);
+      {
+        const denied = await requireAdmin();
+        if (denied) return denied;
+      }
       const screenId = path.replace('/api/playlist/', '');
       if (!isValidScreen(screenId)) return err('Okänd skärm', 404);
       const body = await request.json();
@@ -1251,7 +1376,10 @@ export default {
 
     // ── POST /api/upload?screen=<id> ─────────────────────────────────────────
     if (path === "/api/upload" && request.method === "POST") {
-      if (!isAuthorized()) return err("Ej behörig", 401);
+      {
+        const denied = await requireAdmin();
+        if (denied) return denied;
+      }
 
       const screenId = url.searchParams.get('screen');
       if (!screenId) return err('screen-parameter saknas', 400);
@@ -1289,7 +1417,10 @@ export default {
 
     // ── POST /api/news/upload — nyhetsbild till news/<uuid>.<ext> ────────────
     if (path === "/api/news/upload" && request.method === "POST") {
-      if (!isAuthorized()) return err("Ej behörig", 401);
+      {
+        const denied = await requireAdmin();
+        if (denied) return denied;
+      }
 
       const contentType = request.headers.get("Content-Type") ?? "";
       if (!contentType.includes("multipart/form-data")) {
@@ -1330,7 +1461,10 @@ export default {
 
     // ── DELETE /api/files/<id>/<filnamn> ─────────────────────────────────────
     if (path.startsWith("/api/files/") && request.method === "DELETE") {
-      if (!isAuthorized()) return err("Ej behörig", 401);
+      {
+        const denied = await requireAdmin();
+        if (denied) return denied;
+      }
 
       const rest = decodeURIComponent(path.replace("/api/files/", ""));
       const slashIdx = rest.indexOf('/');

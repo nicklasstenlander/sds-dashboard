@@ -2,15 +2,14 @@
 # Driftsätt med: npx wrangler deploy
 
 name = "sodss-signage"
-main = "worker.js"
+main = "../workers/sodss-signage/worker.js"
 compatibility_date = "2024-01-01"
 
 [[r2_buckets]]
 binding = "BUCKET"
 bucket_name = "sodss-signage"
 
-# Miljövariabler sätts i Cloudflare Dashboard eller via:
-# npx wrangler secret put ADMIN_SECRET
-# npx wrangler secret put CORS_ORIGIN
-# npx wrangler secret put CORE_AGENT_TOKEN
-# npx wrangler secret put SCREEN_AGENT_TOKENS
+# Källan som publiceras är workers/sodss-signage/worker.js.
+# Använd scripts/secure-signage-worker.mjs. Den byter bara skriptet och lämnar bindings.
+# Admin-rutter kräver SUPABASE_URL och SUPABASE_ANON_KEY och failar stängt om de saknas.
+# Pi-agenterna använder CORE_AGENT_TOKEN eller SCREEN_AGENT_TOKENS.

@@ -2,18 +2,25 @@
 /**
  * Låser Cloudflare-workern sds-cogwork-proxy till inloggad CORE-personal.
  *
- * Hämtar den publicerade workern, applicerar patchen nedan och laddar upp
- * skriptet igen utan att röra bindings, secrets eller cron.
+ * Källan som ska vara publicerad ligger i workers/sds-cogwork-proxy/worker.js.
+ * --check jämför den med den publicerade workern. --deploy laddar upp repots
+ * fil och rör inte bindings, secrets eller cron.
  *
+ *   node scripts/secure-cogwork-proxy.mjs --self-check
  *   CLOUDFLARE_API_TOKEN=... node scripts/secure-cogwork-proxy.mjs --check
  *   CLOUDFLARE_API_TOKEN=... node scripts/secure-cogwork-proxy.mjs --deploy
  *
- * Kör --deploy först när CORE-webben som skickar Supabase-sessionen är live.
- * iOS-appen måste skicka samma Authorization-header, annars får den 401.
+ * Publicera först när CORE-webben är live och en ny iOS-version som skickar
+ * samma Authorization-header finns ute. Annars slutar installerade appar.
  */
 
-const ACCOUNT_ID = 'e27b389e46c21088b832eac52be91cbd'
+import { readFileSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { downloadWorker, sha256, uploadWorker } from './cf-worker.mjs'
+
 const SCRIPT_NAME = 'sds-cogwork-proxy'
+const REPO_PATH = resolve(dirname(fileURLToPath(import.meta.url)), '../workers/sds-cogwork-proxy/worker.js')
 
 export const PATCHES = [
   {
@@ -285,79 +292,61 @@ export function applySecurityPatch(source) {
   return { source: next, applied }
 }
 
-function extractWorker(raw) {
-  const marker = 'Content-Type: application/javascript+module\r\n\r\n'
-  const start = raw.indexOf(marker)
-  if (start < 0) throw new Error('Hittade inte worker-modulen i svaret')
-  let body = raw.slice(start + marker.length)
-  const boundary = raw.startsWith('--') ? raw.slice(0, raw.indexOf('\r\n')) : null
-  if (boundary) {
-    const end = body.lastIndexOf('\r\n' + boundary)
-    if (end > 0) body = body.slice(0, end)
-  }
-  return body
+export function readRepoWorker() {
+  return readFileSync(REPO_PATH, 'utf8')
 }
 
-async function cf(token, method, path, { body, contentType, rawBody } = {}) {
-  const res = await fetch(`https://api.cloudflare.com/client/v4${path}`, {
-    method,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      ...(contentType ? { 'Content-Type': contentType } : {}),
-    },
-    body,
-  })
-  const text = await res.text()
-  let json
-  try { json = JSON.parse(text) } catch { json = null }
-  if (!res.ok || (json && json.success === false)) {
-    throw new Error(`Cloudflare ${method} ${path} svarade ${res.status}: ${text.slice(0, 500)}`)
+export function assertCogworkSource(source) {
+  if (!source.includes('async function requireStaff')) {
+    throw new Error('Repots worker saknar requireStaff')
   }
-  return json ?? text
+  if (source.includes('"Access-Control-Allow-Origin": "*"')) {
+    throw new Error('Repots worker tillåter fortfarande alla origins')
+  }
+  if (!source.includes('url.pathname !== "/push/notify-internal"')) {
+    throw new Error('Repots worker saknar undantaget för intern push')
+  }
+}
+
+export function compareToLive(live, repoSource = readRepoWorker()) {
+  assertCogworkSource(repoSource)
+  const repoHash = sha256(repoSource)
+  const liveHash = sha256(live)
+  if (liveHash === repoHash) return { state: 'match', repoHash }
+  const { source } = applySecurityPatch(live)
+  if (sha256(source) !== repoHash) {
+    throw new Error('Publicerad worker matchar varken repot eller patchen. Ingen uppladdning.')
+  }
+  return { state: 'unpatched-live', repoHash }
 }
 
 async function main() {
+  if (process.argv.includes('--self-check')) {
+    assertCogworkSource(readRepoWorker())
+    console.log('OK: workers/sds-cogwork-proxy/worker.js är den låsta källan.')
+    return
+  }
   const deploy = process.argv.includes('--deploy')
   const token = process.env.CLOUDFLARE_API_TOKEN
   if (!token) {
     console.error('CLOUDFLARE_API_TOKEN saknas')
     process.exit(1)
   }
-  const downloaded = await cf(
-    token,
-    'GET',
-    `/accounts/${ACCOUNT_ID}/workers/scripts/${SCRIPT_NAME}/content/v2`,
-  )
-  const current = typeof downloaded === 'string' ? extractWorker(downloaded) : extractWorker(JSON.stringify(downloaded))
-  const { source, applied } = applySecurityPatch(current)
-  console.log(`Patch ok (${applied.length}): ${applied.join(', ')}`)
-  console.log(`Storlek ${current.length} -> ${source.length}`)
+  const repoSource = readRepoWorker()
+  const live = await downloadWorker(token, SCRIPT_NAME)
+  const { state, repoHash } = compareToLive(live, repoSource)
+  console.log(state === 'match'
+    ? `Publicerad worker matchar repot (${repoHash}).`
+    : `Publicerad worker är oparad. Repot är patchen (${repoHash}).`)
   if (!deploy) {
     console.log('Ingen uppladdning (--deploy saknas).')
     return
   }
-  const boundary = `----sds${Date.now()}`
-  const metadata = JSON.stringify({ main_module: 'worker.js' })
-  const body = [
-    `--${boundary}`,
-    'Content-Disposition: form-data; name="metadata"',
-    'Content-Type: application/json',
-    '',
-    metadata,
-    `--${boundary}`,
-    'Content-Disposition: form-data; name="worker.js"; filename="worker.js"',
-    'Content-Type: application/javascript+module',
-    '',
-    source,
-    `--${boundary}--`,
-    '',
-  ].join('\r\n')
-  const uploaded = await cf(
-    token,
-    'PUT',
-    `/accounts/${ACCOUNT_ID}/workers/scripts/${SCRIPT_NAME}/content`,
-    { body, contentType: `multipart/form-data; boundary=${boundary}`, rawBody: true },
-  )
+  if (state === 'match') {
+    console.log('Redan publicerad.')
+    return
+  }
+  const uploaded = await uploadWorker(token, SCRIPT_NAME, repoSource)
   console.log('Uppladdad', JSON.stringify(uploaded?.result ?? uploaded).slice(0, 400))
 }
 
