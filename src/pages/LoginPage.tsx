@@ -1,13 +1,10 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Eye, EyeOff, Loader2, ChevronDown } from 'lucide-react'
-import { useApiConfig } from '../context/ApiContext'
 import { useAuth } from '../context/AuthContext'
-import { verifyCogworkPassword } from '../api/cogwork'
 
 export function LoginPage() {
-  const { setConfig } = useApiConfig()
-  const { signIn, setLegacyAuth } = useAuth()
+  const { signIn } = useAuth()
 
   // Supabase-läge
   const [email, setEmail] = useState('')
@@ -16,12 +13,7 @@ export function LoginPage() {
   const [sbLoading, setSbLoading] = useState(false)
   const [sbError, setSbError] = useState('')
 
-  // Legacy-läge
   const [showLegacy, setShowLegacy] = useState(false)
-  const [pw, setPw] = useState('')
-  const [show, setShow] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
 
   async function handleSupabaseSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -33,23 +25,6 @@ export function LoginPage() {
       setSbError('Felaktig e-post eller lösenord. Försök igen.')
     }
     setSbLoading(false)
-  }
-
-  async function handleLegacySubmit(e: React.FormEvent) {
-    e.preventDefault()
-    if (!pw.trim()) return
-    setLoading(true)
-    setError('')
-    const result = await verifyCogworkPassword(pw.trim())
-    if (result === 'ok') {
-      setLegacyAuth(true)
-      setConfig({ org: 'sollentunadans', pw: pw.trim() })
-    } else if (result === 'rejected') {
-      setError('Felaktigt lösenord. Försök igen.')
-    } else {
-      setError('Kunde inte nå servern. Försök igen om en stund.')
-    }
-    setLoading(false)
   }
 
   return (
@@ -186,62 +161,16 @@ export function LoginPage() {
               Problem att logga in? Använd tillfälligt lösenord
             </button>
 
-            {/* Expanderbar legacy-sektion */}
             <div
               style={{
                 overflow: 'hidden',
-                maxHeight: showLegacy ? '240px' : '0',
+                maxHeight: showLegacy ? '160px' : '0',
                 transition: 'max-height 0.3s ease',
               }}
             >
-              <form onSubmit={handleLegacySubmit} className="mt-4 space-y-4">
-                <div>
-                  <label htmlFor="legacy-password" className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[#4b5563]">
-                    Tillfälligt lösenord
-                  </label>
-                  <div className="relative">
-                    <input
-                      id="legacy-password"
-                      type={show ? 'text' : 'password'}
-                      autoComplete="off"
-                      value={pw}
-                      onChange={(e) => { setPw(e.target.value); setError('') }}
-                      placeholder="••••••••••"
-                      className={`w-full rounded-xl border bg-white px-4 py-3 pr-12 text-sm text-brand-dark placeholder:text-[#6b7280] transition-colors focus:outline-none focus:ring-2 ${
-                        error
-                          ? 'border-red-300 focus:ring-red-200'
-                          : 'border-slate-200 focus:ring-brand-accent/40 focus:border-brand-accent'
-                      }`}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShow(s => !s)}
-                      className="absolute right-0 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full text-[#4b5563] transition-colors hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent"
-                      aria-label={show ? 'Dölj tillfälligt lösenord' : 'Visa tillfälligt lösenord'}
-                    >
-                      {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                  {error && (
-                    <p className="mt-2 text-sm text-red-700 flex items-center gap-1.5" role="alert">
-                      <span className="inline-block w-1 h-1 rounded-full bg-red-700 shrink-0" />
-                      {error}
-                    </p>
-                  )}
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={loading || !pw.trim()}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-6 py-2.5 text-sm font-semibold text-slate-600 transition-all hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {loading ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    'Logga in tillfälligt'
-                  )}
-                </button>
-              </form>
+              <p className="mt-3 text-sm leading-relaxed text-[#4b5563]">
+                Tillfällig CogWork-inloggning är avstängd. Be en administratör om ett CORE-konto om du inte kan logga in.
+              </p>
             </div>
           </div>
 

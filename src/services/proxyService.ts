@@ -1,3 +1,4 @@
+import { staffAuthHeaders } from '../lib/proxyAuth'
 import type { BookingsResponse, EventsResponse } from '../types/cogwork'
 
 const PROXY_URL = import.meta.env.VITE_PROXY_URL ?? 'https://sds-cogwork-proxy.nicklas-stenlander.workers.dev'
@@ -31,7 +32,7 @@ async function proxyFetch<T>(params: ProxyParams): Promise<T> {
     url.searchParams.set('eventBlockId', String(params.eventBlockId))
   }
 
-  const res = await fetch(url.toString())
+  const res = await fetch(url.toString(), { headers: await staffAuthHeaders() })
   if (!res.ok) throw new Error(`Proxy svarade ${res.status} på type=${params.type}`)
   return res.json() as Promise<T>
 }
@@ -64,6 +65,6 @@ export function fetchProxyDuplicates(): Promise<BookingsResponse> {
 export async function purgeProxyCache(): Promise<void> {
   const url = new URL(PROXY_URL)
   url.pathname = '/purge'
-  const res = await fetch(url.toString())
+  const res = await fetch(url.toString(), { headers: await staffAuthHeaders() })
   if (!res.ok) throw new Error(`Purge misslyckades: ${res.status}`)
 }

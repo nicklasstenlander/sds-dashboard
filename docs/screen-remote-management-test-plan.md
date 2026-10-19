@@ -5,12 +5,12 @@
 ```bash
 npm run build
 python3 -m py_compile pi-agent/core_screen_agent.py
-node --check sodss-signage/worker.js
+node --check workers/sodss-signage/worker.js
 ```
 
 ## Worker API
 
-Use a configured Worker with `ADMIN_SECRET` and either `CORE_AGENT_TOKEN` or `SCREEN_AGENT_TOKENS`.
+Use a configured Worker with `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and either `CORE_AGENT_TOKEN` or `SCREEN_AGENT_TOKENS`. Admin routes require a Supabase JWT whose `user_profiles.role` is `admin`. Missing Supabase bindings fail closed with 503. Pi heartbeats still use the agent token.
 
 1. Send heartbeat as the Pi agent and confirm `GET /api/screens` shows `online: true`.
 2. Upload a screenshot to `POST /api/screens/:screenId/screenshot` and confirm R2 contains `screens/{screenId}/latest.jpg`.

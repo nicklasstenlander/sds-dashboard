@@ -1,3 +1,5 @@
+import { staffAuthHeaders } from '../lib/proxyAuth'
+
 const PROXY_URL = import.meta.env.VITE_PROXY_URL ?? 'https://sds-cogwork-proxy.nicklas-stenlander.workers.dev'
 
 export interface TelavoxCall {
@@ -22,7 +24,7 @@ export async function fetchCalls(
   const today = new Date().toISOString().split('T')[0]
   url.searchParams.set('fromDate', fromDate ?? today)
   url.searchParams.set('toDate',   toDate   ?? today)
-  const res = await fetch(url.toString())
+  const res = await fetch(url.toString(), { headers: await staffAuthHeaders() })
   if (!res.ok) throw new Error(`Telavox svarade ${res.status}`)
   return res.json()
 }
@@ -31,7 +33,7 @@ export async function dial(number: string, agent: string = 'madeleine'): Promise
   const url = new URL(`${PROXY_URL}/telavox/dial`)
   url.searchParams.set('number', number)
   url.searchParams.set('agent',  agent)
-  const res = await fetch(url.toString())
+  const res = await fetch(url.toString(), { headers: await staffAuthHeaders() })
   if (!res.ok) throw new Error(`Dial misslyckades: ${res.status}`)
 }
 
@@ -39,6 +41,6 @@ export async function sendSms(number: string, message: string): Promise<void> {
   const url = new URL(`${PROXY_URL}/telavox/sms`)
   url.searchParams.set('number',  number)
   url.searchParams.set('message', message)
-  const res = await fetch(url.toString())
+  const res = await fetch(url.toString(), { headers: await staffAuthHeaders() })
   if (!res.ok) throw new Error(`SMS misslyckades: ${res.status}`)
 }

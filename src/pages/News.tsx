@@ -3,12 +3,12 @@ import { format, parseISO } from 'date-fns'
 import { sv } from 'date-fns/locale'
 import { CheckCircle, Globe, Loader2, Plus, Save, Smartphone, Trash2, Upload, X } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { staffAuthHeaders } from '../lib/proxyAuth'
 import { useContentCards, useCreateContentCard, useDeleteContentCard, useUpdateContentCard } from '../hooks/useContentCards'
 import { useEvents } from '../hooks/useEvents'
 import type { ContentCard, ContentCardInput, ContentCardType } from '../services/contentCardsService'
 
 const WORKER_URL = import.meta.env.VITE_WORKER_URL ?? ''
-const WORKER_SECRET = import.meta.env.VITE_WORKER_SECRET ?? ''
 
 type CardStatus = 'active' | 'draft' | 'upcoming' | 'expired'
 
@@ -342,16 +342,25 @@ function CardModal({
     }
   }
 
-  function handleImageUpload(file: File) {
+  async function handleImageUpload(file: File) {
     setUploadError(null)
     setUploadProgress(0)
+
+    let authorization = ''
+    try {
+      authorization = (await staffAuthHeaders()).get('Authorization') ?? ''
+    } catch (error) {
+      setUploadProgress(null)
+      setUploadError(error instanceof Error ? error.message : 'Ingen CORE-session. Logga in igen.')
+      return
+    }
 
     const formData = new FormData()
     formData.append('file', file)
 
     const xhr = new XMLHttpRequest()
     xhr.open('POST', `${WORKER_URL}/api/news/upload`)
-    if (WORKER_SECRET) xhr.setRequestHeader('Authorization', `Bearer ${WORKER_SECRET}`)
+    xhr.setRequestHeader('Authorization', authorization)
     xhr.upload.onprogress = (event) => {
       if (event.lengthComputable) {
         setUploadProgress(Math.round((event.loaded / event.total) * 100))
