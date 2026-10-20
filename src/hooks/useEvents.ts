@@ -1,5 +1,7 @@
+import { useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { fetchProxyEvents } from '../services/proxyService'
+import { fetchProxyEvents, fetchProxyTerms } from '../services/proxyService'
+import type { ProxyTerm, TermsResponse } from '../services/proxyService'
 import { EVENT_BLOCK_IDS_BY_CODE } from '../config/cogwork'
 import {
   blockIdToPeriodCode,
@@ -48,8 +50,34 @@ export interface EventBlock {
 // i localStorage inte fortsätter dölja terminer (staleTime är Infinity).
 const EVENT_BLOCKS_CACHE_VERSION = 'eventBlocksV2'
 
+const NO_TERMS: ProxyTerm[] = []
+
+/**
+ * Terminerna workern har lärt sig (type=terms). Svarar workern inte, t.ex.
+ * innan den är deployad, blir listan tom och EVENT_BLOCK_IDS_BY_CODE räcker.
+ */
+export function useKnownTerms(): ProxyTerm[] {
+  const key = cacheKey('terms')
+  const { data } = useQuery<TermsResponse>({
+    queryKey: ['terms'],
+    queryFn: async () => {
+      const data = await fetchProxyTerms().catch((): TermsResponse => ({ terms: [], cachedAt: '' }))
+      if (data.terms.length) writeBootstrapCache(key, data)
+      return data
+    },
+    initialData: () => readBootstrapCache<TermsResponse>(key),
+    initialDataUpdatedAt: () => readBootstrapTimestamp(key),
+    staleTime: 60 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  })
+  return data?.terms ?? NO_TERMS
+}
+
 export function useEventBlocks() {
   const key = cacheKey(EVENT_BLOCKS_CACHE_VERSION, 'events', 'all')
+  const terms = useKnownTerms()
+  const select = useCallback((data: EventsResponse) => deriveEventBlocks(data.events, terms), [terms])
 
   return useQuery<EventsResponse, Error, EventBlock[]>({
     queryKey: ['eventBlocks', EVENT_BLOCKS_CACHE_VERSION],
@@ -60,7 +88,7 @@ export function useEventBlocks() {
     },
     initialData: () => readBootstrapCache<EventsResponse>(key),
     initialDataUpdatedAt: () => readBootstrapTimestamp(key),
-    select: (data) => deriveEventBlocks(data.events),
+    select,
     staleTime: Infinity,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
@@ -68,7 +96,7 @@ export function useEventBlocks() {
   })
 }
 
-export function deriveEventBlocks(events: Event[]): EventBlock[] {
+export function deriveEventBlocks(events: Event[], terms: ProxyTerm[] = []): EventBlock[] {
   const byId = new Map<number, EventBlock>()
   events.forEach((e: Event) => {
     const block = e.grouping?.eventBlock
@@ -79,8 +107,15 @@ export function deriveEventBlocks(events: Event[]): EventBlock[] {
 
   // Unionen behövs eftersom CogWork slutar lista kurser från en avslutad
   // termin — då försvinner terminens eventBlock ur events-svaret och
-  // knappen med den (hände med HT25 och sedan VT26). Kända terminer i
-  // EVENT_BLOCK_IDS_BY_CODE läggs därför alltid till, med riktigt numeriskt id.
+  // knappen med den (hände med HT25 och sedan VT26). Terminer som workern
+  // har lärt sig och kända terminer i EVENT_BLOCK_IDS_BY_CODE läggs därför
+  // alltid till, med riktigt numeriskt id.
+  for (const term of terms) {
+    const numericId = Number(term.id)
+    if (Number.isInteger(numericId) && !byId.has(numericId)) {
+      byId.set(numericId, toEventBlock(numericId, term.name))
+    }
+  }
   const seenCodes = new Set(Array.from(byId.values(), (block) => block.code))
   for (const [code, id] of Object.entries(EVENT_BLOCK_IDS_BY_CODE)) {
     const numericId = Number(id)
