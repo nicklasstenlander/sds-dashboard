@@ -28,7 +28,9 @@ export interface AllDataResponse {
 async function proxyFetch<T>(params: ProxyParams): Promise<T> {
   const url = new URL(PROXY_URL!)
   url.searchParams.set('type', params.type)
-  if (params.eventBlockId) {
+  // Workern svarar 400 på icke-numeriska eventBlockId. Syntetiska periodkoder
+  // (t.ex. "HT25") filtreras lokalt och ska aldrig hamna här.
+  if (params.eventBlockId && /^\d+$/.test(String(params.eventBlockId))) {
     url.searchParams.set('eventBlockId', String(params.eventBlockId))
   }
 

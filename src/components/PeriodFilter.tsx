@@ -1,29 +1,18 @@
 import { useEventBlocks } from '../hooks/useEvents'
-import { blockNameToCode, codeToLabel, sortPeriodCodes } from '../utils/periods'
 
 interface PeriodFilterProps {
   value: string
   onChange: (eventBlockId: string) => void
 }
 
-const EXTRA_PERIOD_CODES = ['HT25']
-
 export function PeriodFilter({ value, onChange }: PeriodFilterProps) {
+  // useEventBlocks ger redan unionen av terminer i events-svaret och alla
+  // kända terminer i EVENT_BLOCK_IDS_BY_CODE, nyast först och med riktiga id:n.
   const { data: blocks = [], isLoading } = useEventBlocks()
-  const blockOptions = blocks.map((block) => ({
+  const options = blocks.map((block) => ({
     id: String(block.id),
-    code: blockNameToCode(block.name),
     label: block.label,
   }))
-  const availableCodes = new Set(blockOptions.map((block) => block.code))
-  const syntheticOptions = sortPeriodCodes(
-    EXTRA_PERIOD_CODES.filter((code) => !availableCodes.has(code)),
-  ).map((code) => ({
-    id: code,
-    code,
-    label: codeToLabel(code),
-  }))
-  const options = [...blockOptions, ...syntheticOptions]
 
   return (
     <div className="space-y-1">

@@ -1,6 +1,14 @@
 import { useQuery } from '@tanstack/react-query'
 import { fetchProxyEvents } from '../services/proxyService'
-import { blockNameToCode } from '../utils/periods'
+import { EVENT_BLOCK_IDS_BY_CODE } from '../config/cogwork'
+import {
+  blockIdToPeriodCode,
+  blockNameToPeriodCode,
+  codeToFullLabel,
+  codeToLabel,
+  isPeriodCode,
+  sortPeriodCodes,
+} from '../utils/periods'
 import { cacheKey, readBootstrapCache, readBootstrapTimestamp, writeBootstrapCache } from '../utils/cache'
 import type { Event } from '../types/cogwork'
 import type { EventsResponse } from '../types/cogwork'
@@ -32,14 +40,19 @@ export function useEvents(filters: EventFilters = {}) {
 export interface EventBlock {
   id: number
   name: string
+  code: string
   label: string
 }
 
+// Höj versionen när blocklistans form ändras, så att en gammal bootstrap-cache
+// i localStorage inte fortsätter dölja terminer (staleTime är Infinity).
+const EVENT_BLOCKS_CACHE_VERSION = 'eventBlocksV2'
+
 export function useEventBlocks() {
-  const key = cacheKey('events', 'all')
+  const key = cacheKey(EVENT_BLOCKS_CACHE_VERSION, 'events', 'all')
 
   return useQuery<EventsResponse, Error, EventBlock[]>({
-    queryKey: ['eventBlocks'],
+    queryKey: ['eventBlocks', EVENT_BLOCKS_CACHE_VERSION],
     queryFn: async () => {
       const data = await fetchProxyEvents()
       writeBootstrapCache(key, data)
@@ -47,29 +60,51 @@ export function useEventBlocks() {
     },
     initialData: () => readBootstrapCache<EventsResponse>(key),
     initialDataUpdatedAt: () => readBootstrapTimestamp(key),
-    select: (data): EventBlock[] => {
-      const seen = new Map<number, string>()
-      data.events.forEach((e: Event) => {
-        const block = e.grouping?.eventBlock
-        if (block?.id && block.name && !seen.has(block.id)) {
-          seen.set(block.id, block.name)
-        }
-      })
-      return Array.from(seen.entries())
-        .map(([id, name]) => {
-          const code = blockNameToCode(name)
-          const label = /^(HT|VT)\d{2}$/.test(code)
-            ? `${code.slice(0, 2)} 20${code.slice(2)}`
-            : name
-          return { id, name, label }
-        })
-        .sort((a, b) => b.id - a.id)
-    },
+    select: (data) => deriveEventBlocks(data.events),
     staleTime: Infinity,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   })
+}
+
+export function deriveEventBlocks(events: Event[]): EventBlock[] {
+  const byId = new Map<number, EventBlock>()
+  events.forEach((e: Event) => {
+    const block = e.grouping?.eventBlock
+    if (block?.id && block.name && !byId.has(block.id)) {
+      byId.set(block.id, toEventBlock(block.id, block.name))
+    }
+  })
+
+  // Unionen behövs eftersom CogWork slutar lista kurser från en avslutad
+  // termin — då försvinner terminens eventBlock ur events-svaret och
+  // knappen med den (hände med HT25 och sedan VT26). Kända terminer i
+  // EVENT_BLOCK_IDS_BY_CODE läggs därför alltid till, med riktigt numeriskt id.
+  const seenCodes = new Set(Array.from(byId.values(), (block) => block.code))
+  for (const [code, id] of Object.entries(EVENT_BLOCK_IDS_BY_CODE)) {
+    const numericId = Number(id)
+    if (byId.has(numericId) || seenCodes.has(code)) continue
+    byId.set(numericId, toEventBlock(numericId, codeToFullLabel(code)))
+    seenCodes.add(code)
+  }
+
+  return sortEventBlocks(Array.from(byId.values()))
+}
+
+function toEventBlock(id: number, name: string): EventBlock {
+  const code = blockIdToPeriodCode(String(id)) || blockNameToPeriodCode(name) || name
+  return { id, name, code, label: isPeriodCode(code) ? codeToLabel(code) : name }
+}
+
+/** Nyast först; block utan termin-kod hamnar sist. */
+function sortEventBlocks<T extends { id: number | string; code: string }>(blocks: T[]): T[] {
+  const order = sortPeriodCodes(blocks.map((block) => block.code).filter(isPeriodCode))
+  const rank = (block: T) => {
+    const index = order.indexOf(block.code)
+    return index === -1 ? order.length : index
+  }
+  return [...blocks].sort((a, b) => rank(a) - rank(b) || String(b.id).localeCompare(String(a.id)))
 }
 
 export function useCategories() {
