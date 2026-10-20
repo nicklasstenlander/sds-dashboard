@@ -7,11 +7,20 @@ var BASE_URL = "https://dans.se/api/public";
 var TELAVOX_BASE = "https://api.telavox.se";
 var CACHE_TTL = 600;
 var STALE_AFTER = 24e4;
-var TERM_IDS = ["18402", "19459", "20430"];
-var WARM_KEYS = TERM_IDS.flatMap((eventBlockId) => [
-  { type: "all", eventBlockId },
-  { type: "bookings", eventBlockId }
-]);
+// Terminer (CogWork eventBlock) upptäcks automatiskt i cron och sparas i KV
+// under TERMS_KV_KEY. Listan växer bara, så en avslutad termin försvinner
+// aldrig. SEED_TERMS är golvet om KV är tomt, och platsen för en termin som
+// ska synas innan någon av dess kurser är publicerad (showing:false).
+var TERMS_KV_KEY = "known_terms";
+var SEED_TERMS = [
+  { id: "17665", name: "H\xF6stterminen 2025" },
+  { id: "18402", name: "V\xE5rterminen 2026" },
+  { id: "19459", name: "H\xF6stterminen 2026" },
+  { id: "20430", name: "V\xE5rterminen 2027" }
+];
+// Hur många av de nyaste terminerna som ingår i aggregatet (type=all utan
+// eventBlockId) och som cron värmer. Äldre terminer hämtas per eventBlockId.
+var AGGREGATE_TERM_COUNT = 3;
 var BOOKINGS_FETCH_MAX_ROWS = 25;
 var BOOKINGS_MAX_NOTIFICATIONS_PER_RUN = 25;
 var COGWORK_TIMEOUT_MS = 15e3;
@@ -288,11 +297,18 @@ var worker_default = {
     }
     if (url.pathname === "/purge") {
       if (!apiKey) return json({ error: "COGWORK_API_KEY saknas" }, 500, corsHeaders);
+      // known_terms är inlärd historik, inte cache — den får aldrig rensas.
       const list = await env.COGWORK_CACHE.list();
-      await Promise.all(list.keys.map((k) => env.COGWORK_CACHE.delete(k.name)));
-      console.log("KV Cache rensad:", list.keys.map((k) => k.name));
+      const purgeKeys = list.keys.map((k) => k.name).filter((name) => name !== TERMS_KV_KEY);
+      await Promise.all(purgeKeys.map((name) => env.COGWORK_CACHE.delete(name)));
+      console.log("KV Cache rensad:", purgeKeys);
+      try {
+        await discoverTerms(env, apiKey);
+      } catch (err) {
+        console.error("Purge: terminsuppt\xE4ckt misslyckades", err.message);
+      }
       await Promise.all(
-        WARM_KEYS.map(({ type: type2, eventBlockId: eventBlockId2 }) => {
+        (await getWarmKeys(env)).map(({ type: type2, eventBlockId: eventBlockId2 }) => {
           const kvKey2 = type2 + (eventBlockId2 ? "_" + eventBlockId2 : "");
           return fetchAndStore(env, apiKey, type2, eventBlockId2, kvKey2).then(() => console.log("Purge: v\xE4rmde", kvKey2)).catch((err) => console.error("Purge: misslyckades", kvKey2, err.message));
         })
@@ -341,6 +357,9 @@ var worker_default = {
     }
     if (!apiKey) return json({ error: "COGWORK_API_KEY saknas" }, 500, corsHeaders);
     const type = url.searchParams.get("type") || "bookings";
+    if (type === "terms") {
+      return json({ terms: await getKnownTerms(env), cachedAt: (/* @__PURE__ */ new Date()).toISOString() }, 200, corsHeaders);
+    }
     if (!["all", "bookings", "events", "duplicates"].includes(type)) {
       return json({ error: "ok\xE4nd type" }, 400, corsHeaders);
     }
@@ -389,8 +408,15 @@ async function runCacheWarming(env) {
     console.error("Cron: COGWORK_API_KEY saknas");
     return;
   }
+  try {
+    const terms = await discoverTerms(env, apiKey);
+    console.log("Cron: k\xE4nda terminer", terms.map((t) => t.code || t.id).join(", "));
+  } catch (err) {
+    console.error("Cron: terminsuppt\xE4ckt misslyckades", err.message);
+  }
+  const warmKeys = await getWarmKeys(env);
   await Promise.all(
-    WARM_KEYS.map(({ type, eventBlockId }) => {
+    warmKeys.map(({ type, eventBlockId }) => {
       const kvKey = type + (eventBlockId ? "_" + eventBlockId : "");
       return fetchAndStore(env, apiKey, type, eventBlockId, kvKey).then(() => console.log("Cron: v\xE4rmde", kvKey)).catch((err) => console.error("Cron: misslyckades", kvKey, err.message));
     })
@@ -452,8 +478,9 @@ async function fetchAndStore(env, apiKey, type, eventBlockId, kvKey) {
 __name(fetchAndStore, "fetchAndStore");
 async function buildAggregate(env, type) {
   const apiKey = env.COGWORK_API_KEY;
+  const termIds = await getAggregateTermIds(env);
   const cachedTerms = await Promise.all(
-    TERM_IDS.map(async (id) => {
+    termIds.map(async (id) => {
       const cached = await env.COGWORK_CACHE.get(`all_${id}`);
       if (cached) return JSON.parse(cached);
       console.log("buildAggregate: all_" + id + " saknas i KV, h\xE4mtar fr\xE4scht");
@@ -494,6 +521,75 @@ async function buildAggregate(env, type) {
   return data;
 }
 __name(buildAggregate, "buildAggregate");
+function termNameToCode(name) {
+  const m = String(name || "").match(/(?:([Hh]\xF6st)|[Vv]\xE5r)(?:en|terminen)?\s+(\d{4})/);
+  return m ? `${m[1] ? "HT" : "VT"}${m[2].slice(2)}` : "";
+}
+__name(termNameToCode, "termNameToCode");
+function termLabel(code, name) {
+  const m = code.match(/^(HT|VT)(\d{2})$/);
+  return m ? `${m[1]} 20${m[2]}` : name;
+}
+__name(termLabel, "termLabel");
+function sortTermsNewestFirst(terms) {
+  const rank = (t) => {
+    const m = t.code.match(/^(HT|VT)(\d{2})$/);
+    return m ? Number(m[2]) * 2 + (m[1] === "HT" ? 1 : 0) : -1;
+  };
+  return [...terms].sort((a, b) => rank(b) - rank(a) || Number(b.id) - Number(a.id));
+}
+__name(sortTermsNewestFirst, "sortTermsNewestFirst");
+function mergeTerms(...lists) {
+  const byId = /* @__PURE__ */ new Map();
+  for (const list of lists) {
+    for (const t of list || []) {
+      const id = String(t?.id ?? "");
+      if (!/^\d+$/.test(id) || byId.has(id)) continue;
+      const name = String(t.name || "");
+      const code = termNameToCode(name);
+      byId.set(id, { id, name, code, label: termLabel(code, name) });
+    }
+  }
+  return sortTermsNewestFirst(Array.from(byId.values()));
+}
+__name(mergeTerms, "mergeTerms");
+async function getKnownTerms(env) {
+  let stored = [];
+  try {
+    stored = JSON.parse(await env.COGWORK_CACHE.get(TERMS_KV_KEY) || "[]");
+  } catch (err) {
+    console.error("known_terms ol\xE4sbar", err.message);
+  }
+  return mergeTerms(stored, SEED_TERMS);
+}
+__name(getKnownTerms, "getKnownTerms");
+async function getAggregateTermIds(env) {
+  const terms = await getKnownTerms(env);
+  // Bara riktiga terminer (HT/VT) i aggregatet, aldrig t.ex. "Sommarkurser".
+  return terms.filter((t) => t.code).slice(0, AGGREGATE_TERM_COUNT).map((t) => t.id);
+}
+__name(getAggregateTermIds, "getAggregateTermIds");
+async function getWarmKeys(env) {
+  return (await getAggregateTermIds(env)).flatMap((eventBlockId) => [
+    { type: "all", eventBlockId },
+    { type: "bookings", eventBlockId }
+  ]);
+}
+__name(getWarmKeys, "getWarmKeys");
+async function discoverTerms(env, apiKey) {
+  // Ofiltrerat /events/ (samma som type=events) — värmer också den cachen.
+  const data = await fetchAndStore(env, apiKey, "events", "", "events");
+  const seen = (data?.events ?? []).flatMap((e) => e?.grouping?.eventBlock ? [e.grouping.eventBlock] : []);
+  const known = await getKnownTerms(env);
+  const merged = mergeTerms(known, seen);
+  // KV:n skrivs bara när en ny termin har dykt upp.
+  if (merged.length !== known.length) {
+    await env.COGWORK_CACHE.put(TERMS_KV_KEY, JSON.stringify(merged.map(({ id, name }) => ({ id, name }))));
+    console.log("Ny termin uppt\xE4ckt:", merged.filter((t) => !known.some((k) => k.id === t.id)).map((t) => t.name).join(", "));
+  }
+  return merged;
+}
+__name(discoverTerms, "discoverTerms");
 async function cogworkFetch(apiKey, endpoint, params = {}) {
   const query = new URLSearchParams({ org: ORG, pw: apiKey, ...params });
   const url = `${BASE_URL}${endpoint}?${query}`;

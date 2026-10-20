@@ -1,17 +1,25 @@
 import { useMemo } from 'react'
+import { useKnownTerms } from './useEvents'
+import { isPeriodCode } from '../utils/periods'
 import { useQueries } from '@tanstack/react-query'
 import { fetchProxyBookings } from '../services/proxyService'
 import { cacheKey, readBootstrapCache, readBootstrapTimestamp, writeBootstrapCache } from '../utils/cache'
 import { EVENT_BLOCK_IDS_BY_CODE } from '../config/cogwork'
 import type { BookingsResponse, Booking } from '../types/cogwork'
 
-const KNOWN_EVENT_BLOCK_IDS = Object.values(EVENT_BLOCK_IDS_BY_CODE)
-
 // Proxyns "inget periodfilter"-läge ger inte garanterat bokningar över flera terminer,
 // så vi hämtar varje känd termin explicit och slår ihop dem för elevens fulla historik.
 export function useAllTermsBookings() {
+  const terms = useKnownTerms()
+  const knownEventBlockIds = useMemo(
+    () => Array.from(new Set([
+      ...Object.values(EVENT_BLOCK_IDS_BY_CODE),
+      ...terms.filter((term) => isPeriodCode(term.code)).map((term) => term.id),
+    ])),
+    [terms],
+  )
   const queries = useQueries({
-    queries: KNOWN_EVENT_BLOCK_IDS.map((eventBlockId) => {
+    queries: knownEventBlockIds.map((eventBlockId) => {
       const key = cacheKey('bookings', eventBlockId)
       return {
         queryKey: ['bookings', eventBlockId],
