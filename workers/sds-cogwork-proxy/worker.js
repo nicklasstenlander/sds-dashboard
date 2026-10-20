@@ -7,13 +7,11 @@ var BASE_URL = "https://dans.se/api/public";
 var TELAVOX_BASE = "https://api.telavox.se";
 var CACHE_TTL = 600;
 var STALE_AFTER = 24e4;
-var TERM_IDS = ["18402", "19459"];
-var WARM_KEYS = [
-  { type: "all", eventBlockId: "18402" },
-  { type: "all", eventBlockId: "19459" },
-  { type: "bookings", eventBlockId: "18402" },
-  { type: "bookings", eventBlockId: "19459" }
-];
+var TERM_IDS = ["18402", "19459", "20430"];
+var WARM_KEYS = TERM_IDS.flatMap((eventBlockId) => [
+  { type: "all", eventBlockId },
+  { type: "bookings", eventBlockId }
+]);
 var BOOKINGS_FETCH_MAX_ROWS = 25;
 var BOOKINGS_MAX_NOTIFICATIONS_PER_RUN = 25;
 var COGWORK_TIMEOUT_MS = 15e3;

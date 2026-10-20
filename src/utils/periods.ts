@@ -14,6 +14,17 @@ export function blockNameToCode(name: string): string {
   return name
 }
 
+/**
+ * Som blockNameToCode, men känner även igen CogWorks nuvarande namnform
+ * ("Vårterminen 2027" → "VT27"), så att nya terminer får rätt kod utan
+ * kodändring. Returnerar '' om ingen termin kan tolkas.
+ */
+export function blockNameToPeriodCode(name: string): string {
+  const m = name.match(/(?:([Hh]öst)|[Vv]år)(?:en|terminen)?\s+(\d{4})/)
+  if (!m) return ''
+  return `${m[1] ? 'HT' : 'VT'}${m[2].slice(2)}`
+}
+
 /** Convert CogWork eventBlock name → full Swedish term, e.g. "Hösten 2025" → "Höstterminen 2025" */
 export function blockNameToFullLabel(name: string): string {
   const ht = name.match(/[Hh]öst(?:en)?\s+(\d{4})/)
@@ -28,6 +39,13 @@ export function codeToLabel(code: string): string {
   const m = code.match(/^(HT|VT)(\d{2})$/)
   if (!m) return code
   return `${m[1]} 20${m[2]}`
+}
+
+/** Convert short code → full Swedish term, e.g. "VT26" → "Vårterminen 2026" */
+export function codeToFullLabel(code: string): string {
+  const m = code.match(/^(HT|VT)(\d{2})$/)
+  if (!m) return code
+  return `${m[1] === 'HT' ? 'Höstterminen' : 'Vårterminen'} 20${m[2]}`
 }
 
 export function isPeriodCode(value: string): boolean {
@@ -59,7 +77,7 @@ export function sortPeriodCodes(codes: string[]): string[] {
     if (!pa || !pb) return 0
     if (pb.year !== pa.year) return pb.year - pa.year
     // HT (fall) > VT (spring) within same year
-    return pb.term.localeCompare(pa.term)
+    return pa.term.localeCompare(pb.term)
   })
 }
 
