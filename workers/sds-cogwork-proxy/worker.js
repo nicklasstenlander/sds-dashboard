@@ -577,8 +577,11 @@ async function getWarmKeys(env) {
 }
 __name(getWarmKeys, "getWarmKeys");
 async function discoverTerms(env, apiKey) {
-  // Ofiltrerat /events/ (samma som type=events) — värmer också den cachen.
-  const data = await fetchAndStore(env, apiKey, "events", "", "events");
+  // regStatus=0 stänger av CogWorks standardfilter och ger även dolda kurser
+  // (showing:false), så en termin upptäcks när den läggs upp och inte först
+  // när kurserna publiceras. Svaret används bara för terminerna och cachas inte,
+  // så dolda kurser läcker aldrig ut i type=events.
+  const data = await cogworkFetch(apiKey, "/events/", { maxRows: "10000", regStatus: "0" });
   const seen = (data?.events ?? []).flatMap((e) => e?.grouping?.eventBlock ? [e.grouping.eventBlock] : []);
   const known = await getKnownTerms(env);
   const merged = mergeTerms(known, seen);
