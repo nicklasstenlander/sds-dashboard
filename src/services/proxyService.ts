@@ -7,11 +7,24 @@ const PROXY_URL = import.meta.env.VITE_PROXY_URL ?? 'https://sds-cogwork-proxy.n
 // Typer
 // ---------------------------------------------------------------------------
 
-type ProxyType = 'all' | 'bookings' | 'events' | 'duplicates'
+type ProxyType = 'all' | 'bookings' | 'events' | 'duplicates' | 'terms'
 
 interface ProxyParams {
   type: ProxyType
   eventBlockId?: string | number
+}
+
+/** En termin (CogWork eventBlock) som workern har sett, nyast först. */
+export interface ProxyTerm {
+  id: string
+  name: string
+  code: string
+  label: string
+}
+
+export interface TermsResponse {
+  terms: ProxyTerm[]
+  cachedAt: string
 }
 
 export interface AllDataResponse {
@@ -56,6 +69,11 @@ export function fetchProxyBookings(eventBlockId?: string): Promise<BookingsRespo
 /** Hämtar endast events. */
 export function fetchProxyEvents(eventBlockId?: string): Promise<EventsResponse> {
   return proxyFetch<EventsResponse>({ type: 'events', eventBlockId })
+}
+
+/** Hämtar alla terminer workern känner till (upptäcks automatiskt i cron). */
+export function fetchProxyTerms(): Promise<TermsResponse> {
+  return proxyFetch<TermsResponse>({ type: 'terms' })
 }
 
 /** Hämtar dubbelanmälda bokningar. */
