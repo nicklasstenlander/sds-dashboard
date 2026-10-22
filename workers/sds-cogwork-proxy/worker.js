@@ -7,13 +7,20 @@ var BASE_URL = "https://dans.se/api/public";
 var TELAVOX_BASE = "https://api.telavox.se";
 var CACHE_TTL = 600;
 var STALE_AFTER = 24e4;
-var TERM_IDS = ["18402", "19459"];
-var WARM_KEYS = [
-  { type: "all", eventBlockId: "18402" },
-  { type: "all", eventBlockId: "19459" },
-  { type: "bookings", eventBlockId: "18402" },
-  { type: "bookings", eventBlockId: "19459" }
+// strict5: VT27 (20430) tillagd. Översikt i iOS hämtar ?type=all UTAN eventBlockId (aggregatet) och
+// filtrerar per termin i appen, så en termin som saknas här syns aldrig i appens statistik.
+// Lägg till nya terminer här (samma id:n som EVENT_BLOCK_IDS_BY_CODE i webbens src/config/cogwork.ts).
+// strict6: TERMS är källan för både TERM_IDS (aggregat + cache-värmning) och GET /terms (iOS/webb
+// hämtar terminlistan dynamiskt). Ny termin = en rad här. aggregate:false = valbar via eventBlockId
+// men ingår inte i ?type=all-aggregatet eller cron-värmningen (t.ex. äldre terminer).
+var TERMS = [
+  { eventBlockId: "17665", code: "HT25", aggregate: false },
+  { eventBlockId: "18402", code: "VT26", aggregate: true },
+  { eventBlockId: "19459", code: "HT26", aggregate: true },
+  { eventBlockId: "20430", code: "VT27", aggregate: true }
 ];
+var TERM_IDS = TERMS.filter((t) => t.aggregate).map((t) => t.eventBlockId);
+var WARM_KEYS = TERM_IDS.flatMap((id) => [{ type: "all", eventBlockId: id }, { type: "bookings", eventBlockId: id }]);
 var BOOKINGS_FETCH_MAX_ROWS = 25;
 var BOOKINGS_MAX_NOTIFICATIONS_PER_RUN = 25;
 var COGWORK_TIMEOUT_MS = 15e3;
@@ -33,6 +40,23 @@ var ALLOWED_ORIGINS = [
   "http://127.0.0.1:5173"
 ];
 var SMS_SENDER = "0850278989";
+// --- Publik kurskatalog GET /public/catalog (utloggad app, webben) ---
+// Token-fri, skrivskyddad och alltid utanför requireStaff, oavsett AUTH_MODE.
+// Svaret byggs fält för fält (allowlist) i publicCatalogEvent(). Kontrakt: docs/public-catalog.md.
+var PUBLIC_CATALOG_PATH = "/public/catalog";
+var PUBLIC_CATALOG_KV_KEY = "public:catalog:v1";
+var PUBLIC_CATALOG_FRESH_MS = CACHE_TTL * 1e3;
+var PUBLIC_CATALOG_KV_TTL_SECONDS = 7 * 24 * 3600;
+var PUBLIC_CATALOG_ORIGINS = [
+  ...ALLOWED_ORIGINS,
+  "https://sollentunadansochscenskola.se",
+  "https://www.sollentunadansochscenskola.se"
+];
+var PUBLIC_CATALOG_RATE_LIMIT = 120;
+var PUBLIC_CATALOG_RATE_WINDOW_MS = 60 * 1e3;
+var PUBLIC_CATALOG_BOOKING_URL = "https://dans.se/sollentunadans/shop/new?event=";
+var publicCatalogInflight = null;
+var publicCatalogHits = /* @__PURE__ */ new Map();
 // AUTH_MODE styr hur mycket som kräver CORE-inloggning (Supabase-JWT + personalroll).
 //   "transition": bara rutter som enbart nya webben/appen använder (STAFF_ONLY_ROUTES) kräver
 //                 inloggning. Äldre rutter svarar som innan så att installerade iOS-versioner
@@ -52,9 +76,12 @@ var SOFT_AUTH_PATHS = ["/push/register-device", "/push/preferences"];
 // (utloggad app / publik kurskatalog). Svaret är alltid publicCatalogView(): bara kursdata,
 // bokningar/dubbletter är tomma och personfält (creator, hiddenStaff) neutraliseras.
 // Med Authorization-header går anropet den vanliga personal-vägen (JWT + roll).
+// strict4: eventBlockId är INTE en säkerhetsgräns här (svaret är alltid bara kursdata), så
+// alla terminer är öppna anonymt ("*" = tomt eller valfritt numeriskt id, max 9 siffror).
 var PUBLIC_ROUTES = [
-  { path: "/", method: "GET", types: ["events", "all"], eventBlockIds: ["", ...TERM_IDS] }
+  { path: "/", method: "GET", types: ["events", "all"], eventBlockIds: "*" }
 ];
+var PUBLIC_EVENT_BLOCK_RE = /^\d{1,9}$/;
 // ANON_PUSH_PATHS (strict3): utloggad app får anmäla sig till NYHETSnotiser utan token.
 // Gäller BARA POST utan Authorization-header. Roll/userId tvingas till null och
 // bokning/betalning tvingas till 0, oavsett vad body säger. Med token: vanlig JWT+roll-väg.
@@ -133,12 +160,15 @@ __name(normalizeNotificationPrefs, "normalizeNotificationPrefs");
 var worker_default = {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+    if (url.pathname === PUBLIC_CATALOG_PATH) return handlePublicCatalogRoute(request, env, ctx);
     const strictAuth = AUTH_MODE === "strict";
     const publicRoute = strictAuth ? matchPublicRoute(request, url) : null;
     const anonPush = strictAuth && isAnonPushRequest(request, url);
-    const staffOnly = strictAuth ? url.pathname !== "/push/notify-internal" && !publicRoute && !anonPush : isStaffOnlyRoute(request, url);
-    const corsHeaders = publicRoute ? legacyCorsHeaders() : strictAuth || staffOnly ? corsHeadersFor(request) : legacyCorsHeaders();
+    const termsRoute = url.pathname === "/terms" && (request.method === "GET" || request.method === "OPTIONS");
+    const staffOnly = strictAuth ? url.pathname !== "/push/notify-internal" && !publicRoute && !anonPush && !termsRoute : isStaffOnlyRoute(request, url);
+    const corsHeaders = publicRoute || termsRoute ? legacyCorsHeaders() : strictAuth || staffOnly ? corsHeadersFor(request) : legacyCorsHeaders();
     if (request.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+    if (termsRoute) return json(termsPayload(), 200, { ...corsHeaders, "Cache-Control": "public, max-age=300" });
     if (publicRoute) return handlePublicCatalog(url, env, ctx, corsHeaders);
     if (anonPush) return handleAnonPush(request, url, env, corsHeaders);
     const apiKey = env.COGWORK_API_KEY;
@@ -461,7 +491,7 @@ var worker_default = {
       } else {
         console.log("KV Cache HIT:", kvKey);
       }
-      return json(parsed, 200, corsHeaders);
+      return json(normalizeCogworkData(type, parsed), 200, corsHeaders);
     }
     console.log("KV Cache MISS:", kvKey);
     try {
@@ -503,6 +533,12 @@ async function runCacheWarming(env) {
     console.log("Cron: byggde aggregat (all, bookings)");
   } catch (err) {
     console.error("Cron: aggregat misslyckades", err.message);
+  }
+  try {
+    await refreshPublicCatalog(env);
+    console.log("Cron: byggde publik kurskatalog");
+  } catch (err) {
+    console.error("Cron: publik kurskatalog misslyckades", err.message);
   }
   console.log("Cron: klar", (/* @__PURE__ */ new Date()).toISOString());
 }
@@ -547,11 +583,63 @@ async function fetchAndStore(env, apiKey, type, eventBlockId, kvKey) {
     default:
       throw new Error("Ok\xE4nd type: " + type);
   }
+  data = normalizeCogworkData(type, data);
+  if (eventBlockId && (type === "events" || type === "all")) data = await applyEventSnapshot(env, type, eventBlockId, data);
   if (!data.cachedAt) data.cachedAt = (/* @__PURE__ */ new Date()).toISOString();
   await env.COGWORK_CACHE.put(kvKey, JSON.stringify(data), { expirationTtl: CACHE_TTL });
   return data;
 }
 __name(fetchAndStore, "fetchAndStore");
+// strict4: CogWork utelämnar hela "events"/"bookings"-nyckeln när en sökning ger 0 rader
+// (t.ex. avslutad termin). Appen avkodar events.events som obligatorisk lista och tappade då
+// HELA ?type=all-svaret (bokningarna också). Se till att listorna alltid finns.
+function ensureList(obj, key) {
+  const o = obj && typeof obj === "object" && !Array.isArray(obj) ? { ...obj } : {};
+  if (!Array.isArray(o[key])) o[key] = [];
+  if (!o.search || typeof o.search !== "object") o.search = { numRowsFound: o[key].length };
+  return o;
+}
+__name(ensureList, "ensureList");
+function normalizeCogworkData(type, data) {
+  if (!data || typeof data !== "object") return data;
+  if (type === "bookings" || type === "duplicates") return ensureList(data, "bookings");
+  if (type === "events") return ensureList(data, "events");
+  if (type === "all") {
+    return { ...data, bookings: ensureList(data.bookings, "bookings"), events: ensureList(data.events, "events"), duplicates: ensureList(data.duplicates, "bookings") };
+  }
+  return data;
+}
+__name(normalizeCogworkData, "normalizeCogworkData");
+// strict4: CogWork slutar returnera kurser för en termin när den är slut. Spara senaste icke-tomma
+// kurslista per termin (utan TTL) och använd den när CogWork svarar tomt, så att terminsstatistik
+// (antal kurser, beläggning) finns kvar för avslutade terminer. Skrivs om högst var 6:e timme
+// eller när kurs-id:n ändras. Innehåller bara kursdata (samma som /events/), inga bokningar.
+var EVENT_SNAPSHOT_REFRESH_MS = 6 * 60 * 60 * 1e3;
+async function applyEventSnapshot(env, type, eventBlockId, data) {
+  try {
+    const list = type === "all" ? data.events.events : data.events;
+    const snapKey = "evsnap_" + eventBlockId;
+    if (list.length > 0) {
+      const sig = list.map((e) => e && e.id).join(",");
+      const prevRaw = await env.COGWORK_CACHE.get(snapKey);
+      const prev = prevRaw ? JSON.parse(prevRaw) : null;
+      const fresh = prev && prev.sig === sig && Date.now() - new Date(prev.savedAt).getTime() < EVENT_SNAPSHOT_REFRESH_MS;
+      if (!fresh) await env.COGWORK_CACHE.put(snapKey, JSON.stringify({ sig, savedAt: (/* @__PURE__ */ new Date()).toISOString(), events: list }));
+      return data;
+    }
+    const snapRaw = await env.COGWORK_CACHE.get(snapKey);
+    if (!snapRaw) return data;
+    const snap = JSON.parse(snapRaw);
+    const events = Array.isArray(snap.events) ? snap.events : [];
+    if (!events.length) return data;
+    const block = { events, search: { numRowsFound: events.length }, fromSnapshot: snap.savedAt };
+    return type === "all" ? { ...data, events: block } : { ...data, ...block };
+  } catch (err) {
+    console.error("Kurs-snapshot misslyckades", eventBlockId, err.message);
+    return data;
+  }
+}
+__name(applyEventSnapshot, "applyEventSnapshot");
 async function buildAggregate(env, type) {
   const apiKey = env.COGWORK_API_KEY;
   const cachedTerms = await Promise.all(
@@ -865,7 +953,7 @@ function matchPublicRoute(request, url) {
   const type = url.searchParams.get("type") || "";
   const eventBlockId = url.searchParams.get("eventBlockId") || "";
   return PUBLIC_ROUTES.find(
-    (r) => r.path === url.pathname && r.method === request.method && r.types.includes(type) && r.eventBlockIds.includes(eventBlockId)
+    (r) => r.path === url.pathname && r.method === request.method && r.types.includes(type) && (r.eventBlockIds === "*" ? eventBlockId === "" || PUBLIC_EVENT_BLOCK_RE.test(eventBlockId) : r.eventBlockIds.includes(eventBlockId))
   ) || null;
 }
 __name(matchPublicRoute, "matchPublicRoute");
@@ -874,17 +962,21 @@ async function handlePublicCatalog(url, env, ctx, corsHeaders) {
   if (!apiKey) return json({ error: "COGWORK_API_KEY saknas" }, 500, corsHeaders);
   const type = url.searchParams.get("type");
   const eventBlockId = url.searchParams.get("eventBlockId") || "";
-  const kvKey = type + (eventBlockId ? "_" + eventBlockId : "");
+  // Okänd termin: hämta bara /events/ (aldrig bokningar) så att anonyma anrop inte kan trigga bokningshämtningar.
+  const fetchType = eventBlockId && !TERM_IDS.includes(eventBlockId) ? "events" : type;
+  const kvKey = fetchType + (eventBlockId ? "_" + eventBlockId : "");
   try {
     let data;
     const cached = await env.COGWORK_CACHE.get(kvKey);
     if (cached) {
       data = JSON.parse(cached);
       const age = data.cachedAt ? Date.now() - new Date(data.cachedAt).getTime() : Infinity;
-      if (age > STALE_AFTER) ctx.waitUntil(fetchAndStore(env, apiKey, type, eventBlockId, kvKey));
+      if (age > STALE_AFTER) ctx.waitUntil(fetchAndStore(env, apiKey, fetchType, eventBlockId, kvKey));
     } else {
-      data = await fetchAndStore(env, apiKey, type, eventBlockId, kvKey);
+      data = await fetchAndStore(env, apiKey, fetchType, eventBlockId, kvKey);
     }
+    data = normalizeCogworkData(fetchType, data);
+    if (fetchType === "events" && type === "all") data = { events: data, cachedAt: data.cachedAt };
     return json(publicCatalogView(type, data), 200, corsHeaders);
   } catch (err) {
     console.error("Publik kurskatalog:", err.message);
@@ -910,6 +1002,192 @@ function publicCatalogView(type, data) {
   return { bookings: empty, events: eventsBlock, duplicates: empty, cachedAt, public: true };
 }
 __name(publicCatalogView, "publicCatalogView");
+// GET /public/catalog
+// {
+//   "generatedAt": string (ISO 8601), "stale": boolean,
+//   "terms":  [{ "id": string, "name": string }],
+//   "events": [{
+//     "id": number, "termId": string, "name": string|null, "code": string|null,
+//     "longdescription": string|null, "category": { "id": number|null, "name": string|null },
+//     "place": string|null, "instructorsName": string|null,
+//     "pricing": { "currency": string|null, "basePriceInclVat": number|null },
+//     "registration": { "status", "statusName", "statusText": string|null, "showing", "open": boolean|null },
+//     "schedule": { "dayAndTimeInfo": string|null, "start"/"end": { "date", "time", "dayOfWeek": string|null },
+//                   "numberOfPlannedOccasions", "numberOfScheduledOccasions": number|null },
+//     "statistics": { "accepted": number|null },
+//     "requirements": { "minAge", "maxAge", "maxParticipants": number|null },
+//     "grouping": { "eventBlock": { "id", "name" }|null, "primaryEventGroup": { "id", "name" }|null,
+//                   "additionalEventGroups": [{ "id", "name" }] },
+//     "spotsLeft": number|null, "bookingUrl": string
+//   }]
+// }
+// Inga deltagare, bokningar, kontaktuppgifter eller personnummer: allt utanför listan ovan tappas.
+async function handlePublicCatalogRoute(request, env, ctx) {
+  const headers = publicCatalogHeaders(request);
+  if (request.method === "OPTIONS") return new Response(null, { status: 204, headers });
+  if (request.method !== "GET") {
+    return json({ error: "Metoden st\xF6ds inte. Anv\xE4nd GET." }, 405, { ...headers, Allow: "GET, OPTIONS", "Cache-Control": "no-store" });
+  }
+  if (await isPublicCatalogRateLimited(request, env)) {
+    return json({ error: "F\xF6r m\xE5nga f\xF6rfr\xE5gningar. F\xF6rs\xF6k igen om en stund." }, 429, { ...headers, "Retry-After": "60", "Cache-Control": "no-store" });
+  }
+  let cached = null;
+  try {
+    const raw = await env.COGWORK_CACHE.get(PUBLIC_CATALOG_KV_KEY);
+    cached = raw ? JSON.parse(raw) : null;
+  } catch (err) {
+    console.error("Publik kurskatalog: ol\xE4sbar cache", err.message);
+  }
+  const age = cached ? Date.now() - new Date(cached.generatedAt).getTime() : Infinity;
+  if (cached && age <= PUBLIC_CATALOG_FRESH_MS) return json({ ...cached, stale: false }, 200, headers);
+  if (cached) {
+    ctx.waitUntil(refreshPublicCatalog(env).catch((err) => console.error("Publik kurskatalog: bakgrundsuppdatering misslyckades", err.message)));
+    return json({ ...cached, stale: true }, 200, headers);
+  }
+  try {
+    return json({ ...await refreshPublicCatalog(env), stale: false }, 200, headers);
+  } catch (err) {
+    console.error("Publik kurskatalog: ingen cache och CogWork-h\xE4mtning misslyckades", err.message);
+    return json({ error: "Kurskatalogen kunde inte h\xE4mtas just nu. F\xF6rs\xF6k igen senare." }, 502, { ...headers, "Cache-Control": "no-store" });
+  }
+}
+__name(handlePublicCatalogRoute, "handlePublicCatalogRoute");
+function publicCatalogHeaders(request) {
+  const origin = request.headers.get("Origin");
+  const headers = {
+    "Access-Control-Allow-Methods": "GET, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+    Vary: "Origin",
+    "Cache-Control": "public, max-age=60"
+  };
+  if (origin && PUBLIC_CATALOG_ORIGINS.includes(origin)) headers["Access-Control-Allow-Origin"] = origin;
+  return headers;
+}
+__name(publicCatalogHeaders, "publicCatalogHeaders");
+// Workers Rate Limiting-bindningen PUBLIC_CATALOG_LIMITER (60/min per IP och Cloudflare-plats) om den finns.
+// Saknas den, eller kastar den, gäller bästa-försök per isolate (PUBLIC_CATALOG_RATE_LIMIT).
+async function isPublicCatalogRateLimited(request, env) {
+  const ip = request.headers.get("CF-Connecting-IP") || "unknown";
+  if (env.PUBLIC_CATALOG_LIMITER) {
+    try {
+      const { success } = await env.PUBLIC_CATALOG_LIMITER.limit({ key: ip });
+      return !success;
+    } catch (err) {
+      console.error("Publik kurskatalog: rate limit-bindningen misslyckades", err.message);
+    }
+  }
+  const now = Date.now();
+  if (publicCatalogHits.size > 1e4) {
+    for (const [key, entry2] of publicCatalogHits) {
+      if (now - entry2.start >= PUBLIC_CATALOG_RATE_WINDOW_MS) publicCatalogHits.delete(key);
+    }
+  }
+  const entry = publicCatalogHits.get(ip);
+  if (!entry || now - entry.start >= PUBLIC_CATALOG_RATE_WINDOW_MS) {
+    publicCatalogHits.set(ip, { start: now, count: 1 });
+    return false;
+  }
+  entry.count += 1;
+  return entry.count > PUBLIC_CATALOG_RATE_LIMIT;
+}
+__name(isPublicCatalogRateLimited, "isPublicCatalogRateLimited");
+// En pågående hämtning per isolate; samtidiga cachemissar väntar på samma löfte.
+function refreshPublicCatalog(env) {
+  if (!publicCatalogInflight) {
+    publicCatalogInflight = buildPublicCatalog(env).finally(() => {
+      publicCatalogInflight = null;
+    });
+  }
+  return publicCatalogInflight;
+}
+__name(refreshPublicCatalog, "refreshPublicCatalog");
+// Terminer: TERM_IDS (TERMS med aggregate:true). Läser i första hand all_<termin> som cron redan värmer;
+// CogWork anropas bara för en termin som saknas i KV.
+async function buildPublicCatalog(env) {
+  const apiKey = env.COGWORK_API_KEY;
+  if (!apiKey) throw new Error("COGWORK_API_KEY saknas");
+  const perTerm = await Promise.all(
+    TERM_IDS.map(async (termId) => {
+      const cached = await env.COGWORK_CACHE.get("all_" + termId);
+      const cachedEvents = cached ? JSON.parse(cached).events?.events : null;
+      if (Array.isArray(cachedEvents)) return { termId, events: cachedEvents };
+      const raw = await cogworkFetchWithTimeout(apiKey, "/events/", { maxRows: "10000", eventBlockId: termId }, COGWORK_TIMEOUT_MS);
+      if (!raw || typeof raw !== "object" || Array.isArray(raw.errors) && raw.errors.length) {
+        throw new Error("CogWork svarade med fel f\xF6r termin " + termId);
+      }
+      return { termId, events: normalizeCogworkData("events", raw).events };
+    })
+  );
+  const terms = [];
+  const events = [];
+  for (const { termId, events: raw } of perTerm) {
+    const term = TERMS.find((t) => t.eventBlockId === termId);
+    terms.push({ id: termId, name: term ? termInfo(term, /* @__PURE__ */ new Date()).name : "" });
+    for (const e of raw) {
+      if (!isPublicCatalogVisible(e)) continue;
+      events.push(publicCatalogEvent(e, termId));
+    }
+  }
+  const catalog = { generatedAt: (/* @__PURE__ */ new Date()).toISOString(), terms, events };
+  await env.COGWORK_CACHE.put(PUBLIC_CATALOG_KV_KEY, JSON.stringify(catalog), { expirationTtl: PUBLIC_CATALOG_KV_TTL_SECONDS });
+  return catalog;
+}
+__name(buildPublicCatalog, "buildPublicCatalog");
+function isPublicCatalogVisible(e) {
+  if (!e || typeof e !== "object") return false;
+  if (!Number.isInteger(e.id) || e.id <= 0) return false;
+  return e.registration?.showing !== false && e.registration?.hidden !== true;
+}
+__name(isPublicCatalogVisible, "isPublicCatalogVisible");
+function publicCatalogEvent(e, termId) {
+  const str = (v) => typeof v === "string" ? v : null;
+  const num = (v) => typeof v === "number" && Number.isFinite(v) ? v : null;
+  const bool = (v) => typeof v === "boolean" ? v : null;
+  const id = (v) => typeof v === "number" && Number.isInteger(v) || typeof v === "string" && /^\d{1,12}$/.test(v) ? v : null;
+  const point = (p) => ({ date: str(p?.date), time: str(p?.time), dayOfWeek: str(p?.dayOfWeek) });
+  const group = (g) => g && typeof g === "object" ? { id: id(g.id), name: str(g.name) } : null;
+  const accepted = num(e.statistics?.accepted);
+  const maxParticipants = num(e.requirements?.maxParticipants);
+  return {
+    id: e.id,
+    termId: String(termId),
+    name: str(e.name),
+    code: str(e.code),
+    longdescription: str(e.longdescription)?.replace(/([?&])pw=[^&"'\s<>]*&?/gi, "$1") ?? null,
+    category: { id: num(e.category?.id), name: str(e.category?.name) },
+    place: str(e.place),
+    instructorsName: str(e.instructorsName),
+    pricing: { currency: str(e.pricing?.currency), basePriceInclVat: num(e.pricing?.basePriceInclVat) },
+    registration: {
+      status: str(e.registration?.status),
+      statusName: str(e.registration?.statusName),
+      statusText: str(e.registration?.statusText),
+      showing: bool(e.registration?.showing),
+      open: bool(e.registration?.open)
+    },
+    schedule: {
+      dayAndTimeInfo: str(e.schedule?.dayAndTimeInfo),
+      start: point(e.schedule?.start),
+      end: point(e.schedule?.end),
+      numberOfPlannedOccasions: num(e.schedule?.numberOfPlannedOccasions),
+      numberOfScheduledOccasions: num(e.schedule?.numberOfScheduledOccasions)
+    },
+    statistics: { accepted },
+    requirements: {
+      minAge: num(e.requirements?.minAge),
+      maxAge: num(e.requirements?.maxAge),
+      maxParticipants
+    },
+    grouping: {
+      eventBlock: group(e.grouping?.eventBlock),
+      primaryEventGroup: group(e.grouping?.primaryEventGroup),
+      additionalEventGroups: (Array.isArray(e.grouping?.additionalEventGroups) ? e.grouping.additionalEventGroups : []).map(group).filter(Boolean)
+    },
+    spotsLeft: accepted !== null && maxParticipants !== null ? Math.max(0, maxParticipants - accepted) : null,
+    bookingUrl: PUBLIC_CATALOG_BOOKING_URL + e.id
+  };
+}
+__name(publicCatalogEvent, "publicCatalogEvent");
 function legacyCorsHeaders() {
   return {
     "Access-Control-Allow-Origin": "*",
@@ -1102,6 +1380,33 @@ function pemToArrayBuffer(pem) {
   return bytes.buffer;
 }
 __name(pemToArrayBuffer, "pemToArrayBuffer");
+// strict6: GET /terms – bara terminsmetadata (ingen persondata, inga bokningar). Öppen med/utan token.
+function termInfo(t, now) {
+  const kind = t.code.slice(0, 2);
+  const year = 2e3 + Number(t.code.slice(2));
+  const startDate = kind === "VT" ? `${year}-01-01` : `${year}-07-01`;
+  const endDate = kind === "VT" ? `${year}-06-30` : `${year}-12-31`;
+  const name = (kind === "VT" ? "V\xE5rterminen " : "H\xF6stterminen ") + year;
+  const today = now.toISOString().slice(0, 10);
+  return {
+    eventBlockId: t.eventBlockId,
+    code: t.code,
+    name,
+    label: `${kind} ${year}`,
+    startDate,
+    endDate,
+    isCurrent: today >= startDate && today <= endDate,
+    isUpcoming: today < startDate,
+    inAggregate: !!t.aggregate
+  };
+}
+__name(termInfo, "termInfo");
+function termsPayload(now = /* @__PURE__ */ new Date()) {
+  const terms = TERMS.map((t) => termInfo(t, now)).sort((a, b) => b.startDate.localeCompare(a.startDate));
+  const current = terms.find((t) => t.isCurrent) || null;
+  return { terms, currentCode: current ? current.code : null, currentEventBlockId: current ? current.eventBlockId : null, generatedAt: now.toISOString() };
+}
+__name(termsPayload, "termsPayload");
 function json(data, status = 200, headers = {}) {
   return new Response(JSON.stringify(data), {
     status,

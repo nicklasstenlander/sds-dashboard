@@ -2,3 +2,6 @@ node_modules
 dist
 .env
 .env.local
+
+# Nedladdad live-källa från secure-cogwork-proxy.mjs --pull (aldrig committa)
+workers/*/live-pulled.js
