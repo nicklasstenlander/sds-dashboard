@@ -19,7 +19,7 @@ GET https://sds-cogwork-proxy.nicklas-stenlander.workers.dev/public/catalog
 | Cache | KV `public:catalog:v1`, färsk i `CACHE_TTL` (600 s) och sparad i 7 dagar som reserv. Cron bygger om den var 9:e minut. `Cache-Control: public, max-age=60`. |
 | Cachemiss | En hämtning per isolate (samtidiga anrop delar på samma löfte). CogWork anropas bara för en termin som saknas i KV. |
 | Fel | CogWork-fel med äldre cache: 200 med `"stale": true`. Utan cache: 502, `{"error": "Kurskatalogen kunde inte hämtas just nu. Försök igen senare."}`. |
-| Rate limit | 120 anrop per minut per IP (`CF-Connecting-IP`) och isolate, därefter 429 och `Retry-After: 60`. Ett globalt tak kräver en WAF-regel i Cloudflare. |
+| Rate limit | Workers Rate Limiting-bindningen `PUBLIC_CATALOG_LIMITER` (60 anrop per minut per IP och Cloudflare-plats). Utan bindning: 120 per minut per IP och isolate. Därefter 429 och `Retry-After: 60`. |
 | CORS | `Access-Control-Allow-Origin` speglas för `core.sollentunadansochscenskola.se`, `sollentunadansochscenskola.se`, `www.sollentunadansochscenskola.se`, `localhost:5173`, `127.0.0.1:5173`. Native iOS skickar ingen Origin och påverkas inte. |
 
 ## Svar (200)

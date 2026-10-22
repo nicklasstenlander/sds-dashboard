@@ -1028,7 +1028,7 @@ async function handlePublicCatalogRoute(request, env, ctx) {
   if (request.method !== "GET") {
     return json({ error: "Metoden st\xF6ds inte. Anv\xE4nd GET." }, 405, { ...headers, Allow: "GET, OPTIONS", "Cache-Control": "no-store" });
   }
-  if (isPublicCatalogRateLimited(request)) {
+  if (await isPublicCatalogRateLimited(request, env)) {
     return json({ error: "F\xF6r m\xE5nga f\xF6rfr\xE5gningar. F\xF6rs\xF6k igen om en stund." }, 429, { ...headers, "Retry-After": "60", "Cache-Control": "no-store" });
   }
   let cached = null;
@@ -1064,9 +1064,18 @@ function publicCatalogHeaders(request) {
   return headers;
 }
 __name(publicCatalogHeaders, "publicCatalogHeaders");
-// Bästa-försök per isolate. Ett globalt tak kräver en WAF-regel i Cloudflare-dashboarden.
-function isPublicCatalogRateLimited(request) {
+// Workers Rate Limiting-bindningen PUBLIC_CATALOG_LIMITER (60/min per IP och Cloudflare-plats) om den finns.
+// Saknas den, eller kastar den, gäller bästa-försök per isolate (PUBLIC_CATALOG_RATE_LIMIT).
+async function isPublicCatalogRateLimited(request, env) {
   const ip = request.headers.get("CF-Connecting-IP") || "unknown";
+  if (env.PUBLIC_CATALOG_LIMITER) {
+    try {
+      const { success } = await env.PUBLIC_CATALOG_LIMITER.limit({ key: ip });
+      return !success;
+    } catch (err) {
+      console.error("Publik kurskatalog: rate limit-bindningen misslyckades", err.message);
+    }
+  }
   const now = Date.now();
   if (publicCatalogHits.size > 1e4) {
     for (const [key, entry2] of publicCatalogHits) {

@@ -173,6 +173,24 @@ test('rate limit per IP: 429 efter 120 anrop per minut, annan IP påverkas inte'
   assert.equal((await worker.fetch(from('203.0.113.2'), env, makeCtx())).status, 200)
 })
 
+test('rate limit-bindningen används när den finns: nyckel = IP, 429 när den nekar', async () => {
+  const keys = []
+  const env = makeEnv(warmedKv())
+  env.PUBLIC_CATALOG_LIMITER = { async limit({ key }) { keys.push(key); return { success: keys.length <= 2 } } }
+  const from = () => get('/public/catalog', { headers: { 'CF-Connecting-IP': '198.51.100.7' } })
+  assert.equal((await worker.fetch(from(), env, makeCtx())).status, 200)
+  assert.equal((await worker.fetch(from(), env, makeCtx())).status, 200)
+  const blocked = await worker.fetch(from(), env, makeCtx())
+  assert.equal(blocked.status, 429)
+  assert.deepEqual(keys, ['198.51.100.7', '198.51.100.7', '198.51.100.7'])
+})
+
+test('rate limit-bindningen kastar: faller tillbaka på spärren per isolate, svarar 200', async () => {
+  const env = makeEnv(warmedKv())
+  env.PUBLIC_CATALOG_LIMITER = { async limit() { throw new Error('nere') } }
+  assert.equal((await worker.fetch(get('/public/catalog'), env, makeCtx())).status, 200)
+})
+
 test('CORS: kända origins speglas, okända får ingen Allow-Origin', async () => {
   const env = makeEnv(warmedKv())
   for (const origin of ['https://sollentunadansochscenskola.se', 'https://www.sollentunadansochscenskola.se', 'https://core.sollentunadansochscenskola.se', 'http://localhost:5173']) {
