@@ -7,20 +7,13 @@ var BASE_URL = "https://dans.se/api/public";
 var TELAVOX_BASE = "https://api.telavox.se";
 var CACHE_TTL = 600;
 var STALE_AFTER = 24e4;
-// Terminer (CogWork eventBlock) upptäcks automatiskt i cron och sparas i KV
-// under TERMS_KV_KEY. Listan växer bara, så en avslutad termin försvinner
-// aldrig. SEED_TERMS är golvet om KV är tomt, och platsen för en termin som
-// ska synas innan någon av dess kurser är publicerad (showing:false).
-var TERMS_KV_KEY = "known_terms";
-var SEED_TERMS = [
-  { id: "17665", name: "H\xF6stterminen 2025" },
-  { id: "18402", name: "V\xE5rterminen 2026" },
-  { id: "19459", name: "H\xF6stterminen 2026" },
-  { id: "20430", name: "V\xE5rterminen 2027" }
+var TERM_IDS = ["18402", "19459"];
+var WARM_KEYS = [
+  { type: "all", eventBlockId: "18402" },
+  { type: "all", eventBlockId: "19459" },
+  { type: "bookings", eventBlockId: "18402" },
+  { type: "bookings", eventBlockId: "19459" }
 ];
-// Hur många av de nyaste terminerna som ingår i aggregatet (type=all utan
-// eventBlockId) och som cron värmer. Äldre terminer hämtas per eventBlockId.
-var AGGREGATE_TERM_COUNT = 3;
 var BOOKINGS_FETCH_MAX_ROWS = 25;
 var BOOKINGS_MAX_NOTIFICATIONS_PER_RUN = 25;
 var COGWORK_TIMEOUT_MS = 15e3;
@@ -40,6 +33,87 @@ var ALLOWED_ORIGINS = [
   "http://127.0.0.1:5173"
 ];
 var SMS_SENDER = "0850278989";
+// AUTH_MODE styr hur mycket som kräver CORE-inloggning (Supabase-JWT + personalroll).
+//   "transition": bara rutter som enbart nya webben/appen använder (STAFF_ONLY_ROUTES) kräver
+//                 inloggning. Äldre rutter svarar som innan så att installerade iOS-versioner
+//                 utan token fortsätter fungera.
+//   "strict":     alla rutter utom /push/notify-internal, PUBLIC_ROUTES och anonym nyhets-push
+//                 (ANON_PUSH_PATHS) kräver inloggning.
+// Byt till "strict" när iOS-versionen som skickar Authorization-headern är ute.
+var AUTH_MODE = "strict";
+var STAFF_ONLY_ROUTES = [
+  { path: "/cogwork/users" },
+  { path: "/cogwork/bookings" },
+  { path: "/telavox/dial", method: "POST" },
+  { path: "/telavox/sms", method: "POST" }
+];
+var SOFT_AUTH_PATHS = ["/push/register-device", "/push/preferences"];
+// PUBLIC_ROUTES: öppna även i strict-läge, men BARA för anrop utan Authorization-header
+// (utloggad app / publik kurskatalog). Svaret är alltid publicCatalogView(): bara kursdata,
+// bokningar/dubbletter är tomma och personfält (creator, hiddenStaff) neutraliseras.
+// Med Authorization-header går anropet den vanliga personal-vägen (JWT + roll).
+var PUBLIC_ROUTES = [
+  { path: "/", method: "GET", types: ["events", "all"], eventBlockIds: ["", ...TERM_IDS] }
+];
+// ANON_PUSH_PATHS (strict3): utloggad app får anmäla sig till NYHETSnotiser utan token.
+// Gäller BARA POST utan Authorization-header. Roll/userId tvingas till null och
+// bokning/betalning tvingas till 0, oavsett vad body säger. Med token: vanlig JWT+roll-väg.
+var ANON_PUSH_PATHS = ["/push/register-device", "/push/preferences"];
+var ANON_DEVICE_TOKEN_RE = /^[0-9a-fA-F]{32,256}$/;
+var ANON_MAX_FOLLOWED = 200;
+function isAnonPushRequest(request, url) {
+  return request.method === "POST" && ANON_PUSH_PATHS.includes(url.pathname) && !request.headers.has("Authorization");
+}
+__name(isAnonPushRequest, "isAnonPushRequest");
+function anonNewsPrefs({ notifyNews, followedEventIds }) {
+  const ids = Array.isArray(followedEventIds) ? followedEventIds : [];
+  const followed = ids.filter((id) => (typeof id === "number" && Number.isInteger(id) && id > 0) || (typeof id === "string" && /^\d{1,12}$/.test(id))).slice(0, ANON_MAX_FOLLOWED);
+  return { news: notifyNews !== false ? 1 : 0, bookingsFlag: 0, paymentsFlag: 0, followed: JSON.stringify(followed) };
+}
+__name(anonNewsPrefs, "anonNewsPrefs");
+async function handleAnonPush(request, url, env, corsHeaders) {
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return json({ error: "ogiltig JSON" }, 400, corsHeaders);
+  }
+  if (!body || typeof body !== "object" || Array.isArray(body)) return json({ error: "ogiltig JSON" }, 400, corsHeaders);
+  const deviceToken = typeof body.deviceToken === "string" ? body.deviceToken.trim() : "";
+  if (!deviceToken) return json({ error: "deviceToken kr\xE4vs" }, 400, corsHeaders);
+  if (!ANON_DEVICE_TOKEN_RE.test(deviceToken)) return json({ error: "ogiltig deviceToken" }, 400, corsHeaders);
+  const { news, bookingsFlag, paymentsFlag, followed } = anonNewsPrefs(body);
+  if (url.pathname === "/push/register-device") {
+    await env.DB.prepare(
+      `INSERT INTO ios_device_tokens
+         (device_token, user_id, role, notify_news, notify_new_bookings, notify_payments, followed_event_ids, updated_at)
+       VALUES (?, NULL, NULL, ?, ?, ?, ?, datetime('now'))
+       ON CONFLICT(device_token) DO UPDATE SET
+         user_id = NULL,
+         role = NULL,
+         notify_news = excluded.notify_news,
+         notify_new_bookings = 0,
+         notify_payments = 0,
+         followed_event_ids = excluded.followed_event_ids,
+         updated_at = datetime('now')`
+    ).bind(deviceToken, news, bookingsFlag, paymentsFlag, followed).run();
+    return json({ registered: true, scope: "news" }, 200, corsHeaders);
+  }
+  const { meta } = await env.DB.prepare(
+    `UPDATE ios_device_tokens SET
+       user_id = NULL,
+       role = NULL,
+       notify_news = ?,
+       notify_new_bookings = 0,
+       notify_payments = 0,
+       followed_event_ids = ?,
+       updated_at = datetime('now')
+     WHERE device_token = ?`
+  ).bind(news, followed, deviceToken).run();
+  if (meta.changes === 0) return json({ error: "ok\xE4nd deviceToken" }, 404, corsHeaders);
+  return json({ updated: true, scope: "news" }, 200, corsHeaders);
+}
+__name(handleAnonPush, "handleAnonPush");
 function normalizeNumber(raw) {
   let n = raw.replace(/[\s.\-()]/g, "");
   if (n.startsWith("+46")) n = "0" + n.slice(3);
@@ -58,16 +132,25 @@ function normalizeNotificationPrefs({ role, notifyNews, notifyNewBookings, notif
 __name(normalizeNotificationPrefs, "normalizeNotificationPrefs");
 var worker_default = {
   async fetch(request, env, ctx) {
-    const corsHeaders = corsHeadersFor(request);
-    if (request.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
     const url = new URL(request.url);
+    const strictAuth = AUTH_MODE === "strict";
+    const publicRoute = strictAuth ? matchPublicRoute(request, url) : null;
+    const anonPush = strictAuth && isAnonPushRequest(request, url);
+    const staffOnly = strictAuth ? url.pathname !== "/push/notify-internal" && !publicRoute && !anonPush : isStaffOnlyRoute(request, url);
+    const corsHeaders = publicRoute ? legacyCorsHeaders() : strictAuth || staffOnly ? corsHeadersFor(request) : legacyCorsHeaders();
+    if (request.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+    if (publicRoute) return handlePublicCatalog(url, env, ctx, corsHeaders);
+    if (anonPush) return handleAnonPush(request, url, env, corsHeaders);
     const apiKey = env.COGWORK_API_KEY;
     const telavoxToken = env.TELAVOX_API_KEY;
     let staff = null;
-    if (url.pathname !== "/push/notify-internal") {
+    if (staffOnly) {
       const gate = await requireStaff(request, env, corsHeaders);
       if (gate instanceof Response) return gate;
       staff = gate;
+    } else if (!strictAuth && SOFT_AUTH_PATHS.includes(url.pathname) && request.headers.has("Authorization")) {
+      const gate = await requireStaff(request, env, corsHeaders);
+      if (!(gate instanceof Response)) staff = gate;
     }
     if (url.pathname === "/goals" && request.method === "GET") {
       const { results } = await env.DB.prepare(
@@ -135,9 +218,9 @@ var worker_default = {
         followedEventIds
       } = body;
       if (!deviceToken) return json({ error: "deviceToken kr\xE4vs" }, 400, corsHeaders);
-      if (!staff) return json({ error: "Ej auktoriserad" }, 401, corsHeaders);
-      const userId = staff.userId;
-      const role = staff.role;
+      if (!staff && AUTH_MODE === "strict") return json({ error: "Ej auktoriserad" }, 401, corsHeaders);
+      const userId = staff ? staff.userId : body.userId;
+      const role = staff ? staff.role : body.role;
       const { news, bookingsFlag, paymentsFlag, followed } = normalizeNotificationPrefs({
         role,
         notifyNews,
@@ -170,8 +253,8 @@ var worker_default = {
         followedEventIds
       } = body;
       if (!deviceToken) return json({ error: "deviceToken kr\xE4vs" }, 400, corsHeaders);
-      if (!staff) return json({ error: "Ej auktoriserad" }, 401, corsHeaders);
-      const role = staff.role;
+      if (!staff && AUTH_MODE === "strict") return json({ error: "Ej auktoriserad" }, 401, corsHeaders);
+      const role = staff ? staff.role : body.role;
       const { news, bookingsFlag, paymentsFlag, followed } = normalizeNotificationPrefs({
         role,
         notifyNews,
@@ -179,7 +262,7 @@ var worker_default = {
         notifyPayments,
         followedEventIds
       });
-      const { meta } = await env.DB.prepare(
+      const { meta } = staff ? await env.DB.prepare(
         `UPDATE ios_device_tokens SET
            user_id = ?,
            role = ?,
@@ -189,7 +272,15 @@ var worker_default = {
            followed_event_ids = ?,
            updated_at = datetime('now')
          WHERE device_token = ?`
-      ).bind(staff.userId, staff.role, news, bookingsFlag, paymentsFlag, followed, deviceToken).run();
+      ).bind(staff.userId, staff.role, news, bookingsFlag, paymentsFlag, followed, deviceToken).run() : await env.DB.prepare(
+        `UPDATE ios_device_tokens SET
+           notify_news = ?,
+           notify_new_bookings = ?,
+           notify_payments = ?,
+           followed_event_ids = ?,
+           updated_at = datetime('now')
+         WHERE device_token = ?`
+      ).bind(news, bookingsFlag, paymentsFlag, followed, deviceToken).run();
       if (meta.changes === 0) return json({ error: "ok\xE4nd deviceToken" }, 404, corsHeaders);
       return json({ updated: true }, 200, corsHeaders);
     }
@@ -264,7 +355,8 @@ var worker_default = {
     }
     if (url.pathname === "/telavox/dial") {
       if (!telavoxToken) return json({ error: "TELAVOX_API_KEY saknas" }, 500, corsHeaders);
-      const raw = url.searchParams.get("number") || "";
+      const input = await requestParams(request, url);
+      const raw = String(input.get("number") || "");
       if (!raw) return json({ error: "number saknas" }, 400, corsHeaders);
       const number = normalizeNumber(raw);
       try {
@@ -279,8 +371,9 @@ var worker_default = {
     }
     if (url.pathname === "/telavox/sms") {
       if (!telavoxToken) return json({ error: "TELAVOX_API_KEY saknas" }, 500, corsHeaders);
-      const raw = url.searchParams.get("number") || "";
-      const message = url.searchParams.get("message");
+      const input = await requestParams(request, url);
+      const raw = String(input.get("number") || "");
+      const message = input.get("message") == null ? null : String(input.get("message"));
       const sender = SMS_SENDER;
       if (!raw || !message) return json({ error: "number och message kr\xE4vs" }, 400, corsHeaders);
       if (message.length > 480) return json({ error: "meddelandet \xE4r f\xF6r l\xE5ngt" }, 400, corsHeaders);
@@ -297,18 +390,11 @@ var worker_default = {
     }
     if (url.pathname === "/purge") {
       if (!apiKey) return json({ error: "COGWORK_API_KEY saknas" }, 500, corsHeaders);
-      // known_terms är inlärd historik, inte cache — den får aldrig rensas.
       const list = await env.COGWORK_CACHE.list();
-      const purgeKeys = list.keys.map((k) => k.name).filter((name) => name !== TERMS_KV_KEY);
-      await Promise.all(purgeKeys.map((name) => env.COGWORK_CACHE.delete(name)));
-      console.log("KV Cache rensad:", purgeKeys);
-      try {
-        await discoverTerms(env, apiKey);
-      } catch (err) {
-        console.error("Purge: terminsuppt\xE4ckt misslyckades", err.message);
-      }
+      await Promise.all(list.keys.map((k) => env.COGWORK_CACHE.delete(k.name)));
+      console.log("KV Cache rensad:", list.keys.map((k) => k.name));
       await Promise.all(
-        (await getWarmKeys(env)).map(({ type: type2, eventBlockId: eventBlockId2 }) => {
+        WARM_KEYS.map(({ type: type2, eventBlockId: eventBlockId2 }) => {
           const kvKey2 = type2 + (eventBlockId2 ? "_" + eventBlockId2 : "");
           return fetchAndStore(env, apiKey, type2, eventBlockId2, kvKey2).then(() => console.log("Purge: v\xE4rmde", kvKey2)).catch((err) => console.error("Purge: misslyckades", kvKey2, err.message));
         })
@@ -357,9 +443,6 @@ var worker_default = {
     }
     if (!apiKey) return json({ error: "COGWORK_API_KEY saknas" }, 500, corsHeaders);
     const type = url.searchParams.get("type") || "bookings";
-    if (type === "terms") {
-      return json({ terms: await getKnownTerms(env), cachedAt: (/* @__PURE__ */ new Date()).toISOString() }, 200, corsHeaders);
-    }
     if (!["all", "bookings", "events", "duplicates"].includes(type)) {
       return json({ error: "ok\xE4nd type" }, 400, corsHeaders);
     }
@@ -408,15 +491,8 @@ async function runCacheWarming(env) {
     console.error("Cron: COGWORK_API_KEY saknas");
     return;
   }
-  try {
-    const terms = await discoverTerms(env, apiKey);
-    console.log("Cron: k\xE4nda terminer", terms.map((t) => t.code || t.id).join(", "));
-  } catch (err) {
-    console.error("Cron: terminsuppt\xE4ckt misslyckades", err.message);
-  }
-  const warmKeys = await getWarmKeys(env);
   await Promise.all(
-    warmKeys.map(({ type, eventBlockId }) => {
+    WARM_KEYS.map(({ type, eventBlockId }) => {
       const kvKey = type + (eventBlockId ? "_" + eventBlockId : "");
       return fetchAndStore(env, apiKey, type, eventBlockId, kvKey).then(() => console.log("Cron: v\xE4rmde", kvKey)).catch((err) => console.error("Cron: misslyckades", kvKey, err.message));
     })
@@ -478,9 +554,8 @@ async function fetchAndStore(env, apiKey, type, eventBlockId, kvKey) {
 __name(fetchAndStore, "fetchAndStore");
 async function buildAggregate(env, type) {
   const apiKey = env.COGWORK_API_KEY;
-  const termIds = await getAggregateTermIds(env);
   const cachedTerms = await Promise.all(
-    termIds.map(async (id) => {
+    TERM_IDS.map(async (id) => {
       const cached = await env.COGWORK_CACHE.get(`all_${id}`);
       if (cached) return JSON.parse(cached);
       console.log("buildAggregate: all_" + id + " saknas i KV, h\xE4mtar fr\xE4scht");
@@ -521,78 +596,6 @@ async function buildAggregate(env, type) {
   return data;
 }
 __name(buildAggregate, "buildAggregate");
-function termNameToCode(name) {
-  const m = String(name || "").match(/(?:([Hh]\xF6st)|[Vv]\xE5r)(?:en|terminen)?\s+(\d{4})/);
-  return m ? `${m[1] ? "HT" : "VT"}${m[2].slice(2)}` : "";
-}
-__name(termNameToCode, "termNameToCode");
-function termLabel(code, name) {
-  const m = code.match(/^(HT|VT)(\d{2})$/);
-  return m ? `${m[1]} 20${m[2]}` : name;
-}
-__name(termLabel, "termLabel");
-function sortTermsNewestFirst(terms) {
-  const rank = (t) => {
-    const m = t.code.match(/^(HT|VT)(\d{2})$/);
-    return m ? Number(m[2]) * 2 + (m[1] === "HT" ? 1 : 0) : -1;
-  };
-  return [...terms].sort((a, b) => rank(b) - rank(a) || Number(b.id) - Number(a.id));
-}
-__name(sortTermsNewestFirst, "sortTermsNewestFirst");
-function mergeTerms(...lists) {
-  const byId = /* @__PURE__ */ new Map();
-  for (const list of lists) {
-    for (const t of list || []) {
-      const id = String(t?.id ?? "");
-      if (!/^\d+$/.test(id) || byId.has(id)) continue;
-      const name = String(t.name || "");
-      const code = termNameToCode(name);
-      byId.set(id, { id, name, code, label: termLabel(code, name) });
-    }
-  }
-  return sortTermsNewestFirst(Array.from(byId.values()));
-}
-__name(mergeTerms, "mergeTerms");
-async function getKnownTerms(env) {
-  let stored = [];
-  try {
-    stored = JSON.parse(await env.COGWORK_CACHE.get(TERMS_KV_KEY) || "[]");
-  } catch (err) {
-    console.error("known_terms ol\xE4sbar", err.message);
-  }
-  return mergeTerms(stored, SEED_TERMS);
-}
-__name(getKnownTerms, "getKnownTerms");
-async function getAggregateTermIds(env) {
-  const terms = await getKnownTerms(env);
-  // Bara riktiga terminer (HT/VT) i aggregatet, aldrig t.ex. "Sommarkurser".
-  return terms.filter((t) => t.code).slice(0, AGGREGATE_TERM_COUNT).map((t) => t.id);
-}
-__name(getAggregateTermIds, "getAggregateTermIds");
-async function getWarmKeys(env) {
-  return (await getAggregateTermIds(env)).flatMap((eventBlockId) => [
-    { type: "all", eventBlockId },
-    { type: "bookings", eventBlockId }
-  ]);
-}
-__name(getWarmKeys, "getWarmKeys");
-async function discoverTerms(env, apiKey) {
-  // regStatus=0 stänger av CogWorks standardfilter och ger även dolda kurser
-  // (showing:false), så en termin upptäcks när den läggs upp och inte först
-  // när kurserna publiceras. Svaret används bara för terminerna och cachas inte,
-  // så dolda kurser läcker aldrig ut i type=events.
-  const data = await cogworkFetch(apiKey, "/events/", { maxRows: "10000", regStatus: "0" });
-  const seen = (data?.events ?? []).flatMap((e) => e?.grouping?.eventBlock ? [e.grouping.eventBlock] : []);
-  const known = await getKnownTerms(env);
-  const merged = mergeTerms(known, seen);
-  // KV:n skrivs bara när en ny termin har dykt upp.
-  if (merged.length !== known.length) {
-    await env.COGWORK_CACHE.put(TERMS_KV_KEY, JSON.stringify(merged.map(({ id, name }) => ({ id, name }))));
-    console.log("Ny termin uppt\xE4ckt:", merged.filter((t) => !known.some((k) => k.id === t.id)).map((t) => t.name).join(", "));
-  }
-  return merged;
-}
-__name(discoverTerms, "discoverTerms");
 async function cogworkFetch(apiKey, endpoint, params = {}) {
   const query = new URLSearchParams({ org: ORG, pw: apiKey, ...params });
   const url = `${BASE_URL}${endpoint}?${query}`;
@@ -853,6 +856,82 @@ async function fetchJwks() {
   return keys;
 }
 __name(fetchJwks, "fetchJwks");
+function isStaffOnlyRoute(request, url) {
+  return STAFF_ONLY_ROUTES.some((r) => r.path === url.pathname && (!r.method || r.method === request.method));
+}
+__name(isStaffOnlyRoute, "isStaffOnlyRoute");
+function matchPublicRoute(request, url) {
+  if (request.headers.has("Authorization")) return null;
+  const type = url.searchParams.get("type") || "";
+  const eventBlockId = url.searchParams.get("eventBlockId") || "";
+  return PUBLIC_ROUTES.find(
+    (r) => r.path === url.pathname && r.method === request.method && r.types.includes(type) && r.eventBlockIds.includes(eventBlockId)
+  ) || null;
+}
+__name(matchPublicRoute, "matchPublicRoute");
+async function handlePublicCatalog(url, env, ctx, corsHeaders) {
+  const apiKey = env.COGWORK_API_KEY;
+  if (!apiKey) return json({ error: "COGWORK_API_KEY saknas" }, 500, corsHeaders);
+  const type = url.searchParams.get("type");
+  const eventBlockId = url.searchParams.get("eventBlockId") || "";
+  const kvKey = type + (eventBlockId ? "_" + eventBlockId : "");
+  try {
+    let data;
+    const cached = await env.COGWORK_CACHE.get(kvKey);
+    if (cached) {
+      data = JSON.parse(cached);
+      const age = data.cachedAt ? Date.now() - new Date(data.cachedAt).getTime() : Infinity;
+      if (age > STALE_AFTER) ctx.waitUntil(fetchAndStore(env, apiKey, type, eventBlockId, kvKey));
+    } else {
+      data = await fetchAndStore(env, apiKey, type, eventBlockId, kvKey);
+    }
+    return json(publicCatalogView(type, data), 200, corsHeaders);
+  } catch (err) {
+    console.error("Publik kurskatalog:", err.message);
+    return json({ error: "catalog_unavailable" }, 502, corsHeaders);
+  }
+}
+__name(handlePublicCatalog, "handlePublicCatalog");
+function publicEvent(e) {
+  if (!e || typeof e !== "object") return e;
+  const out = { ...e };
+  if ("creator" in out) out.creator = { id: 0, key: "", name: "" };
+  if ("hiddenStaff" in out) out.hiddenStaff = [];
+  return out;
+}
+__name(publicEvent, "publicEvent");
+function publicCatalogView(type, data) {
+  const rawEvents = type === "events" ? data?.events ?? [] : data?.events?.events ?? [];
+  const events = (Array.isArray(rawEvents) ? rawEvents : []).map(publicEvent);
+  const eventsBlock = { events, search: { numRowsFound: events.length } };
+  const cachedAt = data?.cachedAt ?? (/* @__PURE__ */ new Date()).toISOString();
+  if (type === "events") return { ...eventsBlock, cachedAt, public: true };
+  const empty = { bookings: [], search: { numRowsFound: 0 } };
+  return { bookings: empty, events: eventsBlock, duplicates: empty, cachedAt, public: true };
+}
+__name(publicCatalogView, "publicCatalogView");
+function legacyCorsHeaders() {
+  return {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization"
+  };
+}
+__name(legacyCorsHeaders, "legacyCorsHeaders");
+async function requestParams(request, url) {
+  if (request.method === "POST" && (request.headers.get("Content-Type") || "").includes("application/json")) {
+    let body = {};
+    try {
+      body = await request.json();
+    } catch {
+      body = {};
+    }
+    if (!body || typeof body !== "object") body = {};
+    return { get: (k) => body[k] ?? url.searchParams.get(k) };
+  }
+  return { get: (k) => url.searchParams.get(k) };
+}
+__name(requestParams, "requestParams");
 function corsHeadersFor(request) {
   const origin = request.headers.get("Origin");
   const allow = origin && ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
