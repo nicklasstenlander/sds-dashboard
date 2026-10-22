@@ -300,7 +300,13 @@ export function assertCogworkSource(source) {
   if (!source.includes('async function requireStaff')) {
     throw new Error('Repots worker saknar requireStaff')
   }
-  if (source.includes('"Access-Control-Allow-Origin": "*"')) {
+  // strict2/strict3: wildcard-CORS finns bara i legacyCorsHeaders(), för den
+  // publika kurskatalogen. En öppen worker utan det avgränsade läget faller fortfarande.
+  const openCors = source.includes('"Access-Control-Allow-Origin": "*"')
+  const scopedPublicCors = source.includes('function legacyCorsHeaders')
+    && source.includes('var AUTH_MODE = "strict"')
+    && source.includes('function publicCatalogView')
+  if (openCors && !scopedPublicCors) {
     throw new Error('Repots worker tillåter fortfarande alla origins')
   }
   if (!source.includes('url.pathname !== "/push/notify-internal"')) {
