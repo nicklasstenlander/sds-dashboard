@@ -7,6 +7,7 @@
  * fil och rör inte bindings, secrets eller cron.
  *
  *   node scripts/secure-cogwork-proxy.mjs --self-check
+ *   CLOUDFLARE_API_TOKEN=... node scripts/secure-cogwork-proxy.mjs --pull live-worker.js
  *   CLOUDFLARE_API_TOKEN=... node scripts/secure-cogwork-proxy.mjs --check
  *   CLOUDFLARE_API_TOKEN=... node scripts/secure-cogwork-proxy.mjs --deploy
  *
@@ -14,10 +15,11 @@
  * samma Authorization-header finns ute. Annars slutar installerade appar.
  */
 
-import { readFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { downloadWorker, sha256, uploadWorker } from './cf-worker.mjs'
+import { selfCheckPublicCatalog } from './public-catalog-contract.mjs'
 
 const SCRIPT_NAME = 'sds-cogwork-proxy'
 const REPO_PATH = resolve(dirname(fileURLToPath(import.meta.url)), '../workers/sds-cogwork-proxy/worker.js')
@@ -312,6 +314,20 @@ export function assertCogworkSource(source) {
   if (!source.includes('url.pathname !== "/push/notify-internal"')) {
     throw new Error('Repots worker saknar undantaget för intern push')
   }
+  // /public/catalog är den enda rutten som skickas vidare före varje auth-gate.
+  const publicDispatch = source.indexOf('if (url.pathname === PUBLIC_CATALOG_PATH) return handlePublicCatalogRoute(')
+  const firstGate = source.indexOf('await requireStaff(request')
+  if (publicDispatch < 0 || publicDispatch > firstGate) {
+    throw new Error('Repots worker skickar inte /public/catalog vidare före requireStaff')
+  }
+}
+
+// Sökvägslitteraler ("/terms", "/push/...") som finns live men inte i repot är
+// ändringar gjorda direkt i Cloudflare. En uppladdning skulle radera dem.
+export function liveOnlyPaths(live, repoSource) {
+  const paths = (src) => new Set([...src.matchAll(/"(\/[a-z][a-z0-9/_-]*)"/gi)].map((m) => m[1]))
+  const repo = paths(repoSource)
+  return [...paths(live)].filter((p) => !repo.has(p))
 }
 
 export function compareToLive(live, repoSource = readRepoWorker()) {
@@ -319,6 +335,14 @@ export function compareToLive(live, repoSource = readRepoWorker()) {
   const repoHash = sha256(repoSource)
   const liveHash = sha256(live)
   if (liveHash === repoHash) return { state: 'match', repoHash }
+  const drift = liveOnlyPaths(live, repoSource)
+  if (drift.length) {
+    throw new Error(`Publicerad worker har rutter som saknas i repot: ${drift.join(', ')}. Synka live till repot innan uppladdning.`)
+  }
+  // Live är redan låst (strict): repot är en nyare låst version, inte patchen av en öppen worker.
+  if (live.includes('async function requireStaff') && live.includes('var AUTH_MODE = "strict"')) {
+    return { state: 'locked-live-update', repoHash }
+  }
   const { source } = applySecurityPatch(live)
   if (sha256(source) !== repoHash) {
     throw new Error('Publicerad worker matchar varken repot eller patchen. Ingen uppladdning.')
@@ -329,7 +353,9 @@ export function compareToLive(live, repoSource = readRepoWorker()) {
 async function main() {
   if (process.argv.includes('--self-check')) {
     assertCogworkSource(readRepoWorker())
+    await selfCheckPublicCatalog(REPO_PATH)
     console.log('OK: workers/sds-cogwork-proxy/worker.js är den låsta källan.')
+    console.log('OK: /public/catalog svarar utan token, bara allowlistade fält, inga personuppgifter, POST ger 405, övriga rutter 401.')
     return
   }
   const deploy = process.argv.includes('--deploy')
@@ -338,12 +364,23 @@ async function main() {
     console.error('CLOUDFLARE_API_TOKEN saknas')
     process.exit(1)
   }
+  const pullIndex = process.argv.indexOf('--pull')
+  if (pullIndex > 0) {
+    const out = process.argv[pullIndex + 1]
+    if (!out || out.startsWith('--')) throw new Error('--pull kräver en filsökväg')
+    const live = await downloadWorker(token, SCRIPT_NAME)
+    writeFileSync(out, live)
+    console.log(`Live-källan sparad i ${out} (${sha256(live)}). Inget laddades upp.`)
+    return
+  }
   const repoSource = readRepoWorker()
   const live = await downloadWorker(token, SCRIPT_NAME)
   const { state, repoHash } = compareToLive(live, repoSource)
-  console.log(state === 'match'
-    ? `Publicerad worker matchar repot (${repoHash}).`
-    : `Publicerad worker är oparad. Repot är patchen (${repoHash}).`)
+  console.log({
+    match: `Publicerad worker matchar repot (${repoHash}).`,
+    'locked-live-update': `Publicerad worker är låst men äldre än repot. Repot (${repoHash}) kan laddas upp.`,
+    'unpatched-live': `Publicerad worker är oparad. Repot är patchen (${repoHash}).`,
+  }[state])
   if (!deploy) {
     console.log('Ingen uppladdning (--deploy saknas).')
     return

@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:worker": "node --test workers/sds-cogwork-proxy/worker.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.0",
