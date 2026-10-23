@@ -954,6 +954,11 @@ function validateSchedules(body) {
   if (!isPlainObject(body)) return { error: 'Tidsstyrningen måste vara ett objekt.' };
   const clean = {};
   for (const [key, entry] of Object.entries(body)) {
+    // Platta nycklar utan skärmprefix (t.ex. "1.png") är kvar från tiden med en
+    // enda skärm. Spelaren slår upp på "reception/…"/"lounge/…" så de matchar
+    // aldrig något — men CORE skickar hela kartan vid varje sparning, så ett 400
+    // här skulle låsa all tidsstyrning. De rensas bort i stället.
+    if (!key.includes('/')) continue;
     if (!SCHEDULE_KEY_RE.test(key)) return { error: `Okänd nyckel "${key}". Nyckeln måste börja med en skärm (${SCREENS.map((s) => s.id).join(', ')}).` };
     if (!isPlainObject(entry)) return { error: `Posten för "${key}" måste vara ett objekt.` };
     const out = {};

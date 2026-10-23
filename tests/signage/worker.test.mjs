@@ -51,6 +51,22 @@ test('giltig tidsstyrning sparas rensad: okända fält bort, veckodagar sorterad
   assert.deepEqual(bucket.readJson('_schedules.json'), expected)
 })
 
+test('produktionsdata (okt 2026) med platta v1-nycklar sparas; de platta nycklarna rensas bort', async () => {
+  // Utdrag ur verklig _schedules.json: sex nycklar utan skärmprefix från juni 2026
+  // som spelaren aldrig matchar. Utan rensningen skulle varje sparning ge 400.
+  const prod = {
+    'Lagerschema_V25_Dagtid.png': { timeFrom: '08:00', timeTo: '14:45', dateFrom: '2026-06-14', dateTo: '2026-06-21' },
+    '1.png': { dateFrom: '2026-06-21', dateTo: '2026-06-26', timeFrom: '14:45', timeTo: '23:00' },
+    '7-9__1920_x_1612_px___1_.png': { dateFrom: '2026-06-21', dateTo: '2026-06-26', timeFrom: '07:00', timeTo: '15:00' },
+    'lounge/3.svg': { dateFrom: '2026-08-21', dateTo: '2026-08-22', weekdays: [5, 6] },
+    'lounge/4.svg': { weekdays: [7] },
+    'reception/lounge_3.svg': { weekdays: [5, 6] },
+  }
+  const res = await putSchedules(prod)
+  assert.equal(res.status, 200)
+  assert.deepEqual(Object.keys((await res.json()).schedules), ['lounge/3.svg', 'lounge/4.svg', 'reception/lounge_3.svg'])
+})
+
 test('tom karta är giltig', async () => {
   const res = await putSchedules({})
   assert.equal(res.status, 200)
@@ -62,7 +78,8 @@ const invalidCases = [
   ['array', [], /måste vara ett objekt/],
   ['sträng', 'hej', /måste vara ett objekt/],
   ['okänd skärm i nyckel', { 'news/a.jpg': {} }, /Okänd nyckel "news\/a\.jpg"/],
-  ['nyckel utan skärmprefix', { 'a.jpg': {} }, /Okänd nyckel/],
+  ['okänt prefix med snedstreck', { 'kontor/a.jpg': { timeTo: '12:00' } }, /Okänd nyckel/],
+  ['sökvägstrick', { '../reception/a.jpg': {} }, /Okänd nyckel/],
   ['bara skärmprefix', { 'reception/': {} }, /Okänd nyckel/],
   ['post som inte är objekt', { 'reception/a.jpg': 'idag' }, /måste vara ett objekt/],
   ['post som är null', { 'reception/a.jpg': null }, /måste vara ett objekt/],
