@@ -1,6 +1,10 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Thermometer, Timer, Upload } from "lucide-react";
 import { staffAuthHeaders } from "../lib/proxyAuth";
+import {
+  applyScheduleDraft, fetchSchedules, putSchedules, scheduleDraftProblem,
+  type FileSchedule, type Schedules,
+} from "../lib/signageSchedules";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -17,16 +21,6 @@ interface PlaylistItem {
   uploaded?: string;
   etag?: string;
 }
-
-interface FileSchedule {
-  dateFrom?: string;
-  dateTo?: string;
-  timeFrom?: string;
-  timeTo?: string;
-  weekdays?: number[];
-}
-
-type Schedules = Record<string, FileSchedule>;
 
 interface Screen {
   id: string;
@@ -308,6 +302,11 @@ export function Signage() {
   const [scheduleTarget, setScheduleTarget] = useState<string | null>(null);
   const [schedDraft, setSchedDraft]         = useState<FileSchedule>({});
   const [schedSaving, setSchedSaving]       = useState(false);
+  const [schedError, setSchedError]         = useState<string | null>(null);
+  // ETag för den version av _schedules.json som `schedules` bygger på. Skickas som
+  // If-Match så att en sparning från en inaktuell flik avvisas (409) i stället för
+  // att skriva över någon annans ändringar.
+  const [schedulesEtag, setSchedulesEtag]   = useState<string | null>(null);
 
   // ── Skärmar / fjärrstyrning ──────────────────────────────────────────────
   const [screenStatuses, setScreenStatuses]         = useState<ScreenStatus[]>([]);
@@ -321,13 +320,16 @@ export function Signage() {
       .catch(() => {});
   }, []);
 
-  useEffect(() => {
+  const loadSchedules = useCallback(async () => {
     if (!WORKER_URL) return;
-    fetch(`${WORKER_URL}/api/schedules`)
-      .then(r => r.json() as Promise<Schedules>)
-      .then(setSchedules)
-      .catch(() => {});
+    const { schedules: loaded, etag } = await fetchSchedules(WORKER_URL);
+    setSchedules(loaded);
+    setSchedulesEtag(etag);
   }, []);
+
+  useEffect(() => {
+    loadSchedules().catch(() => {});
+  }, [loadSchedules]);
 
   // ── Skärmar: status + polling ────────────────────────────────────────────
   const fetchScreenStatuses = useCallback(async () => {
@@ -394,31 +396,39 @@ export function Signage() {
   function openSchedule(key: string) {
     setScheduleTarget(key);
     setSchedDraft(schedules[key] ?? {});
+    setSchedError(null);
   }
 
+  const schedDraftProblem = scheduleDraftProblem(schedDraft);
+
+  function closeSchedule() {
+    setScheduleTarget(null);
+    setSchedError(null);
+  }
+
+  // Dialogen stängs bara när workern bekräftat sparningen. Vid fel ligger
+  // utkastet kvar så att användaren kan försöka igen.
   async function saveSchedule() {
     if (!scheduleTarget) return;
     setSchedSaving(true);
-    const next = { ...schedules };
-    const draft = { ...schedDraft };
-    if (!draft.dateFrom) delete draft.dateFrom;
-    if (!draft.dateTo)   delete draft.dateTo;
-    if (!draft.timeFrom) delete draft.timeFrom;
-    if (!draft.timeTo)   delete draft.timeTo;
-    if (!draft.weekdays?.length) delete draft.weekdays;
-    if (Object.keys(draft).length === 0) {
-      delete next[scheduleTarget];
-    } else {
-      next[scheduleTarget] = draft;
-    }
+    setSchedError(null);
     try {
-      await fetch(`${WORKER_URL}/api/schedules`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
-        body: JSON.stringify(next),
+      const result = await putSchedules({
+        workerUrl: WORKER_URL,
+        schedules: applyScheduleDraft(schedules, scheduleTarget, schedDraft),
+        etag: schedulesEtag,
+        getAuthHeaders: () => authHeaders(),
       });
-      setSchedules(next);
-      setScheduleTarget(null);
+      if (result.ok) {
+        setSchedules(result.schedules);
+        setSchedulesEtag(result.etag);
+        closeSchedule();
+        return;
+      }
+      setSchedError(result.message);
+      // Konflikt: hämta den aktuella versionen så att nästa försök bygger på den.
+      // Utkastet i dialogen behålls.
+      if (result.kind === "conflict") await loadSchedules().catch(() => {});
     } finally {
       setSchedSaving(false);
     }
@@ -1099,7 +1109,7 @@ export function Signage() {
       {scheduleTarget && (
         <>
           <div
-            onClick={() => setScheduleTarget(null)}
+            onClick={closeSchedule}
             style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.4)", zIndex: 90 }}
           />
           <div
@@ -1114,7 +1124,7 @@ export function Signage() {
               <strong className="text-sm text-brand-dark">Tidsstyrning</strong>
               <button
                 className="sds-focus-ring"
-                onClick={() => setScheduleTarget(null)}
+                onClick={closeSchedule}
                 style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", color: "#94a3b8" }}
               >
                 ×
@@ -1200,6 +1210,17 @@ export function Signage() {
               <div className="text-[10px] text-slate-400 mt-1.5">Tomt = alla dagar</div>
             </div>
 
+            {/* Fel: ogiltigt utkast eller misslyckad sparning */}
+            {(schedDraftProblem || schedError) && (
+              <div
+                role="alert"
+                className="text-[12px] font-semibold rounded-lg mb-4"
+                style={{ padding: "8px 10px", border: "1.5px solid #f0d0d8", background: "#fdf3f6", color: "#dd5c86" }}
+              >
+                {schedDraftProblem ?? schedError}
+              </div>
+            )}
+
             {/* Knappar */}
             <div className="flex gap-2 justify-between">
               <button
@@ -1216,7 +1237,7 @@ export function Signage() {
               <div className="flex gap-2">
                 <button
                   className="sds-focus-ring"
-                  onClick={() => setScheduleTarget(null)}
+                  onClick={closeSchedule}
                   style={{
                     minHeight: 36, padding: "7px 14px", borderRadius: 7,
                     border: "1.5px solid #cfded2", background: "transparent",
@@ -1228,11 +1249,13 @@ export function Signage() {
                 <button
                   className="sds-focus-ring"
                   onClick={saveSchedule}
-                  disabled={schedSaving}
+                  disabled={schedSaving || schedDraftProblem !== null}
                   style={{
                     minHeight: 36, padding: "7px 18px", borderRadius: 7, border: "none",
-                    background: "#1a2e2e", color: "#cfded2",
-                    fontSize: 12, fontWeight: 700, cursor: "pointer",
+                    background: schedDraftProblem ? "#e8eeeb" : "#1a2e2e",
+                    color: schedDraftProblem ? "#b8cec5" : "#cfded2",
+                    fontSize: 12, fontWeight: 700,
+                    cursor: schedSaving ? "wait" : schedDraftProblem ? "not-allowed" : "pointer",
                   }}
                 >
                   {schedSaving ? "Sparar…" : "Spara"}

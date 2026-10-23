@@ -428,12 +428,13 @@ function failSlide(myToken) {
   token++;          // döda kvarvarande callbacks för den här aktiveringen
   clearTimers();
 
-  // En video som fallerar har oftast inte en trasig fil — den fick ett oläsligt
-  // svar ur Service Worker-cachen. Gör då ett försök som går förbi cachen innan
-  // vi ger upp på objektet, annars tappar skylten ett inslag varje varv.
+  // En video eller bild som fallerar har oftast inte en trasig fil — den fick ett
+  // oläsligt svar ur Service Worker-cachen eller ett tillfälligt nätverksfel. Gör
+  // då ett försök som går förbi cachen innan vi ger upp på objektet, annars
+  // tappar skylten ett inslag varje varv.
   var failedIdx = current;
   var failedItem = playlist[failedIdx];
-  if (failedItem && failedItem.type === 'video' && !bypassCache[failedIdx]) {
+  if (failedItem && (failedItem.type === 'video' || failedItem.type === 'image') && !bypassCache[failedIdx]) {
     bypassCache[failedIdx] = true;
     advTimer = setTimeout(function() { showSlide(failedIdx); }, 250);
     return;
@@ -478,14 +479,39 @@ function showSlide(idx) {
   progressEl.style.width = '0%';
 
   if (item.type === 'image') {
-    consecutiveFailures = 0;
-    var dur = (item.duration || 8) * 1000;
-    requestAnimationFrame(function() {
-      if (myToken !== token) return;
-      progressEl.style.transition = 'width ' + dur + 'ms linear';
-      progressEl.style.width = '100%';
-    });
-    advTimer = setTimeout(function() { advance(myToken); }, dur);
+    var activeImgSlide = allSlides[idx];
+    var img = activeImgSlide ? activeImgSlide.getElementsByTagName('img')[0] : null;
+    if (!img) { failSlide(myToken); return; }
+
+    // En bild visas bara när den faktiskt är avkodad. Utan den här kontrollen
+    // stod en trasig eller saknad bild som svart under hela sin visningstid,
+    // varje varv. Fel går genom failSlide() precis som för video.
+    var imgSrc = bypassCache[idx] ? withNoCache(item.url) : item.url;
+    var broken = img.complete && img.naturalWidth === 0;
+    if (img.getAttribute('src') !== imgSrc || broken) {
+      // Samma src igen startar ingen ny hämtning — ta bort den först så att en
+      // bild som fallerade förra varvet (t.ex. nätverksfel) får en ny chans.
+      img.removeAttribute('src');
+      img.setAttribute('src', imgSrc);
+    }
+
+    if (img.complete && img.naturalWidth > 0) {
+      startImage(img, item, idx, myToken);
+    } else {
+      loadTimer = setTimeout(function() { failSlide(myToken); }, LOAD_TIMEOUT_MS);
+      // Egenskaper i stället för addEventListener: varje aktivering ersätter
+      // föregående hanterare, så en bild som misslyckas gång på gång inte samlar
+      // på sig lyssnare.
+      img.onload = function() {
+        img.onload = img.onerror = null;
+        if (img.naturalWidth > 0) startImage(img, item, idx, myToken);
+        else failSlide(myToken);
+      };
+      img.onerror = function() {
+        img.onload = img.onerror = null;
+        failSlide(myToken);
+      };
+    }
 
   } else if (item.type === 'web') {
     consecutiveFailures = 0;
@@ -511,9 +537,7 @@ function showSlide(idx) {
     // Efter ett fel hämtar vi om via en URL som Service Workern inte har i
     // cachen, så att svaret garanterat kommer från Workern. Workern bryr sig
     // bara om sökvägen, så den extra parametern är ofarlig.
-    var srcUrl = bypassCache[idx]
-      ? item.url + (item.url.indexOf('?') === -1 ? '?' : '&') + 'nocache=1'
-      : item.url;
+    var srcUrl = bypassCache[idx] ? withNoCache(item.url) : item.url;
 
     // Kan vi återanvända resursen som redan ligger i elementet? Det är load()
     // som river ner videon till svart och tvingar fram en ny hämtning över
@@ -545,6 +569,28 @@ function showSlide(idx) {
       vid.load();
     }
   }
+}
+
+// URL som Service Workern inte har i cachen, så att svaret garanterat kommer
+// från Workern. Workern bryr sig bara om sökvägen, så parametern är ofarlig.
+function withNoCache(url) {
+  return url + (url.indexOf('?') === -1 ? '?' : '&') + 'nocache=1';
+}
+
+// Bilden är avkodad: starta visningstiden och progressbaren. Visningstiden
+// räknas från att bilden faktiskt syns, inte från att sliden aktiverades.
+function startImage(img, item, idx, myToken) {
+  if (myToken !== token) return;
+  clearTimeout(loadTimer); loadTimer = null;
+  consecutiveFailures = 0;
+  bypassCache[idx] = false;
+  var dur = (item.duration || 8) * 1000;
+  requestAnimationFrame(function() {
+    if (myToken !== token) return;
+    progressEl.style.transition = 'width ' + dur + 'ms linear';
+    progressEl.style.width = '100%';
+  });
+  advTimer = setTimeout(function() { advance(myToken); }, dur);
 }
 
 // Startar uppspelning och sätter både progressbar och det hårda taket för hur
@@ -885,6 +931,77 @@ function isValidScreen(id) {
   return SCREENS.some((s) => s.id === id);
 }
 
+// ─── Validering av _schedules.json ──────────────────────────────────────────
+// Spelaren läser filen rakt av, så ett skräpvärde här (t.ex. null) kan ge felskärm
+// vid kallstart. Okända fält rensas bort; tomma poster tas bort helt.
+const SCHEDULES_MAX_BYTES = 64 * 1024;
+const SCHEDULE_KEY_RE = new RegExp(`^(${SCREENS.map((s) => s.id).join('|')})/.+`);
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+function isRealDate(value) {
+  if (!DATE_RE.test(value)) return false;
+  const d = new Date(value + 'T00:00:00Z');
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === value;
+}
+
+function isPlainObject(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+// Returnerar { value } med den rensade kartan, eller { error } med svensk text.
+function validateSchedules(body) {
+  if (!isPlainObject(body)) return { error: 'Tidsstyrningen måste vara ett objekt.' };
+  const clean = {};
+  for (const [key, entry] of Object.entries(body)) {
+    if (!SCHEDULE_KEY_RE.test(key)) return { error: `Okänd nyckel "${key}". Nyckeln måste börja med en skärm (${SCREENS.map((s) => s.id).join(', ')}).` };
+    if (!isPlainObject(entry)) return { error: `Posten för "${key}" måste vara ett objekt.` };
+    const out = {};
+    for (const field of ['dateFrom', 'dateTo']) {
+      if (entry[field] == null || entry[field] === '') continue;
+      if (typeof entry[field] !== 'string' || !isRealDate(entry[field])) {
+        return { error: `Ogiltigt datum i ${field} för "${key}". Använd ÅÅÅÅ-MM-DD.` };
+      }
+      out[field] = entry[field];
+    }
+    for (const field of ['timeFrom', 'timeTo']) {
+      if (entry[field] == null || entry[field] === '') continue;
+      if (typeof entry[field] !== 'string' || !TIME_RE.test(entry[field])) {
+        return { error: `Ogiltig tid i ${field} för "${key}". Använd TT:MM.` };
+      }
+      out[field] = entry[field];
+    }
+    if (out.dateFrom && out.dateTo && out.dateFrom > out.dateTo) {
+      return { error: `Startdatum är efter slutdatum för "${key}".` };
+    }
+    if (out.timeFrom && out.timeTo && out.timeFrom > out.timeTo) {
+      return { error: `Starttiden är efter sluttiden för "${key}". Tider över midnatt stöds inte.` };
+    }
+    if (entry.weekdays != null) {
+      const days = entry.weekdays;
+      if (!Array.isArray(days) || !days.every((n) => Number.isInteger(n) && n >= 1 && n <= 7)) {
+        return { error: `Ogiltiga veckodagar för "${key}". Använd heltal 1–7 (1 = måndag).` };
+      }
+      if (days.length > 0) out.weekdays = [...new Set(days)].sort((a, b) => a - b);
+    }
+    if (entry.priority != null) {
+      if (entry.priority !== 'high') return { error: `Ogiltig prioritet för "${key}". Endast "high" stöds.` };
+      out.priority = 'high';
+    }
+    if (Object.keys(out).length > 0) clean[key] = out;
+  }
+  return { value: clean };
+}
+
+// Jämför ETag utan hänsyn till W/-prefix och citattecken.
+function normalizeEtag(value) {
+  return String(value || '').trim().replace(/^W\//, '').replace(/^"|"$/g, '');
+}
+
+// ETag när _schedules.json inte finns ännu. Gör att även första sparningen kan
+// skyddas med If-Match.
+const SCHEDULES_EMPTY_ETAG = '"tom"';
+
 function supabaseOrigin(env) {
   if (!env.SUPABASE_URL || !env.SUPABASE_ANON_KEY) return null;
   let url;
@@ -1022,29 +1139,69 @@ async function writeJsonObject(env, key, data) {
   });
 }
 
+// Kommandon: screens/<id>/commands/ innehåller bara aktiva kommandon (pending/running).
+// Ett kvitterat kommando raderas och lever bara kvar som screens/<id>/last-command.json,
+// som är det enda /api/screens behöver. Tidigare låg varje kommando som någonsin skapats
+// kvar, och agentens poll var 30:e sekund listade och läste dem alla.
+const COMMAND_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
+function lastCommandKey(screenId) {
+  return `screens/${screenId}/last-command.json`;
+}
+
+function commandStamp(cmd) {
+  return cmd.updatedAt || cmd.createdAt || '';
+}
+
 // Senast skapade/uppdaterade kommando för en skärm (för lastCommand i /api/screens).
+// Faller tillbaka på en genomsökning av commands/ om indexet inte skrivits ännu
+// (data från före städningen).
 async function getLastCommand(env, screenId) {
+  const indexed = await readJsonObject(env, lastCommandKey(screenId));
+  if (indexed) return indexed;
   const listed = await env.BUCKET.list({ prefix: `screens/${screenId}/commands/` });
   let latest = null;
   for (const o of listed.objects) {
     const cmd = await readJsonObject(env, o.key);
     if (!cmd) continue;
-    const stamp = cmd.updatedAt || cmd.createdAt || '';
-    const latestStamp = latest ? (latest.updatedAt || latest.createdAt || '') : '';
-    if (!latest || stamp > latestStamp) latest = cmd;
+    if (!latest || commandStamp(cmd) > commandStamp(latest)) latest = cmd;
   }
   return latest;
 }
 
-// Äldsta kommandot med status "pending" för en skärm.
+// Äldsta kommandot med status "pending" för en skärm. Städar samtidigt bort kvitterade
+// kommandon (kvar från före städningen) och kommandon äldre än 24 timmar — t.ex. ett
+// reboot_pi som aldrig kunde kvitteras eftersom Pi:n startade om mitt i.
 async function getOldestPendingCommand(env, screenId) {
   const listed = await env.BUCKET.list({ prefix: `screens/${screenId}/commands/` });
+  const now = Date.now();
+  let index = await readJsonObject(env, lastCommandKey(screenId));
+  let indexChanged = false;
   let oldest = null;
   for (const o of listed.objects) {
     const cmd = await readJsonObject(env, o.key);
-    if (!cmd || cmd.status !== 'pending') continue;
+    if (!cmd) {
+      await env.BUCKET.delete(o.key);
+      continue;
+    }
+    if (!index || commandStamp(cmd) > commandStamp(index)) {
+      index = cmd;
+      indexChanged = true;
+    }
+    const finished = cmd.status === 'done' || cmd.status === 'failed';
+    const expired = now - new Date(cmd.createdAt || 0).getTime() > COMMAND_MAX_AGE_MS;
+    if (finished || expired) {
+      if (expired && !finished && index.id === cmd.id) {
+        index = { ...cmd, status: 'failed', error: 'Ingen kvittens inom 24 timmar', updatedAt: new Date(now).toISOString() };
+        indexChanged = true;
+      }
+      await env.BUCKET.delete(o.key);
+      continue;
+    }
+    if (cmd.status !== 'pending') continue;
     if (!oldest || (cmd.createdAt || '') < (oldest.createdAt || '')) oldest = cmd;
   }
+  if (indexChanged) await writeJsonObject(env, lastCommandKey(screenId), index);
   return oldest;
 }
 
@@ -1057,7 +1214,8 @@ export default {
     const corsHeaders = {
       "Access-Control-Allow-Origin": env.CORS_ORIGIN ?? "*",
       "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization, If-Match",
+      "Access-Control-Expose-Headers": "ETag",
     };
 
     if (request.method === "OPTIONS") {
@@ -1083,10 +1241,10 @@ export default {
       return null;
     }
 
-    function json(data, status = 200) {
+    function json(data, status = 200, extraHeaders = {}) {
       return new Response(JSON.stringify(data), {
         status,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...corsHeaders, "Content-Type": "application/json", ...extraHeaders },
       });
     }
 
@@ -1161,6 +1319,7 @@ export default {
       const now = new Date().toISOString();
       const command = { id: commandId, type: body.type, status: 'pending', createdAt: now, updatedAt: now };
       await writeJsonObject(env, `screens/${screenId}/commands/${commandId}.json`, command);
+      await writeJsonObject(env, lastCommandKey(screenId), command);
       return json({ commandId });
     }
 
@@ -1225,6 +1384,7 @@ export default {
       next.status = 'running';
       next.updatedAt = new Date().toISOString();
       await writeJsonObject(env, `screens/${screenId}/commands/${next.id}.json`, next);
+      await writeJsonObject(env, lastCommandKey(screenId), next);
       return json({ commandId: next.id, type: next.type });
     }
 
@@ -1246,28 +1406,55 @@ export default {
       existing.updatedAt = new Date().toISOString();
       if (body.status === 'failed' && body.error) existing.error = String(body.error).slice(0, 500);
       else delete existing.error;
-      await writeJsonObject(env, key, existing);
+      // Kvitterat: bara indexet behåller resultatet, så pollen aldrig behöver läsa det igen.
+      await writeJsonObject(env, lastCommandKey(screenId), existing);
+      await env.BUCKET.delete(key);
       return json({ ok: true });
     }
 
     // ── GET /api/schedules — hämta tidsscheman ──────────────────────────────
+    // ETag följer R2-objektet så att PUT kan avvisa en sparning som bygger på
+    // en gammal version (två admin-flikar som skriver över varandra).
     if (path === '/api/schedules' && request.method === 'GET') {
       const obj = await env.BUCKET.get('_schedules.json');
       const schedules = obj ? JSON.parse(await obj.text()) : {};
-      return json(schedules);
+      return json(schedules, 200, { ETag: obj ? obj.httpEtag : SCHEDULES_EMPTY_ETAG });
     }
 
     // ── PUT /api/schedules — spara tidsscheman ───────────────────────────────
+    // If-Match är frivilligt så att en äldre CORE-flik fortfarande kan spara
+    // under övergången; skickas det och inte stämmer blir det 409.
     if (path === '/api/schedules' && request.method === 'PUT') {
       {
         const denied = await requireAdmin();
         if (denied) return denied;
       }
-      const body = await request.json();
-      await env.BUCKET.put('_schedules.json', JSON.stringify(body), {
-        httpMetadata: { contentType: 'application/json' },
-      });
-      return json({ ok: true });
+      const raw = await request.text();
+      if (new TextEncoder().encode(raw).length > SCHEDULES_MAX_BYTES) {
+        return err('Tidsstyrningen är för stor (max 64 kB).', 400);
+      }
+      let body;
+      try {
+        body = JSON.parse(raw);
+      } catch {
+        return err('Tidsstyrningen är inte giltig JSON.', 400);
+      }
+      const { value, error } = validateSchedules(body);
+      if (error) return err(error, 400);
+
+      const conflict = () => err('Någon annan har ändrat tidsstyrningen. Hämta om och försök igen.', 409);
+      const ifMatch = request.headers.get('If-Match');
+      const putOptions = { httpMetadata: { contentType: 'application/json' } };
+      if (ifMatch) {
+        const current = await env.BUCKET.head('_schedules.json');
+        const currentEtag = current ? current.httpEtag : SCHEDULES_EMPTY_ETAG;
+        if (normalizeEtag(ifMatch) !== normalizeEtag(currentEtag)) return conflict();
+        // Villkorad skrivning: fångar även en ändring mellan head() och put().
+        if (current) putOptions.onlyIf = { etagMatches: current.etag };
+      }
+      const written = await env.BUCKET.put('_schedules.json', JSON.stringify(value), putOptions);
+      if (!written) return conflict();
+      return json({ ok: true, schedules: value }, 200, { ETag: written.httpEtag });
     }
 
     // ── GET /api/playlist/<id> — hämta manifest ──────────────────────────────
