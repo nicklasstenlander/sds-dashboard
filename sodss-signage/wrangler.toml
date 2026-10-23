@@ -4,6 +4,10 @@
 name = "sodss-signage"
 main = "../workers/sodss-signage/worker.js"
 compatibility_date = "2024-01-01"
+# Behåll variabler som satts i Cloudflare-dashboarden (t.ex. SUPABASE_URL,
+# CORS_ORIGIN) vid wrangler deploy. Utan den skrivs de över och admin-rutterna
+# failar stängt.
+keep_vars = true
 
 [[r2_buckets]]
 binding = "BUCKET"
