@@ -428,12 +428,13 @@ function failSlide(myToken) {
   token++;          // döda kvarvarande callbacks för den här aktiveringen
   clearTimers();
 
-  // En video som fallerar har oftast inte en trasig fil — den fick ett oläsligt
-  // svar ur Service Worker-cachen. Gör då ett försök som går förbi cachen innan
-  // vi ger upp på objektet, annars tappar skylten ett inslag varje varv.
+  // En video eller bild som fallerar har oftast inte en trasig fil — den fick ett
+  // oläsligt svar ur Service Worker-cachen eller ett tillfälligt nätverksfel. Gör
+  // då ett försök som går förbi cachen innan vi ger upp på objektet, annars
+  // tappar skylten ett inslag varje varv.
   var failedIdx = current;
   var failedItem = playlist[failedIdx];
-  if (failedItem && failedItem.type === 'video' && !bypassCache[failedIdx]) {
+  if (failedItem && (failedItem.type === 'video' || failedItem.type === 'image') && !bypassCache[failedIdx]) {
     bypassCache[failedIdx] = true;
     advTimer = setTimeout(function() { showSlide(failedIdx); }, 250);
     return;
@@ -478,14 +479,39 @@ function showSlide(idx) {
   progressEl.style.width = '0%';
 
   if (item.type === 'image') {
-    consecutiveFailures = 0;
-    var dur = (item.duration || 8) * 1000;
-    requestAnimationFrame(function() {
-      if (myToken !== token) return;
-      progressEl.style.transition = 'width ' + dur + 'ms linear';
-      progressEl.style.width = '100%';
-    });
-    advTimer = setTimeout(function() { advance(myToken); }, dur);
+    var activeImgSlide = allSlides[idx];
+    var img = activeImgSlide ? activeImgSlide.getElementsByTagName('img')[0] : null;
+    if (!img) { failSlide(myToken); return; }
+
+    // En bild visas bara när den faktiskt är avkodad. Utan den här kontrollen
+    // stod en trasig eller saknad bild som svart under hela sin visningstid,
+    // varje varv. Fel går genom failSlide() precis som för video.
+    var imgSrc = bypassCache[idx] ? withNoCache(item.url) : item.url;
+    var broken = img.complete && img.naturalWidth === 0;
+    if (img.getAttribute('src') !== imgSrc || broken) {
+      // Samma src igen startar ingen ny hämtning — ta bort den först så att en
+      // bild som fallerade förra varvet (t.ex. nätverksfel) får en ny chans.
+      img.removeAttribute('src');
+      img.setAttribute('src', imgSrc);
+    }
+
+    if (img.complete && img.naturalWidth > 0) {
+      startImage(img, item, idx, myToken);
+    } else {
+      loadTimer = setTimeout(function() { failSlide(myToken); }, LOAD_TIMEOUT_MS);
+      // Egenskaper i stället för addEventListener: varje aktivering ersätter
+      // föregående hanterare, så en bild som misslyckas gång på gång inte samlar
+      // på sig lyssnare.
+      img.onload = function() {
+        img.onload = img.onerror = null;
+        if (img.naturalWidth > 0) startImage(img, item, idx, myToken);
+        else failSlide(myToken);
+      };
+      img.onerror = function() {
+        img.onload = img.onerror = null;
+        failSlide(myToken);
+      };
+    }
 
   } else if (item.type === 'web') {
     consecutiveFailures = 0;
@@ -511,9 +537,7 @@ function showSlide(idx) {
     // Efter ett fel hämtar vi om via en URL som Service Workern inte har i
     // cachen, så att svaret garanterat kommer från Workern. Workern bryr sig
     // bara om sökvägen, så den extra parametern är ofarlig.
-    var srcUrl = bypassCache[idx]
-      ? item.url + (item.url.indexOf('?') === -1 ? '?' : '&') + 'nocache=1'
-      : item.url;
+    var srcUrl = bypassCache[idx] ? withNoCache(item.url) : item.url;
 
     // Kan vi återanvända resursen som redan ligger i elementet? Det är load()
     // som river ner videon till svart och tvingar fram en ny hämtning över
@@ -545,6 +569,28 @@ function showSlide(idx) {
       vid.load();
     }
   }
+}
+
+// URL som Service Workern inte har i cachen, så att svaret garanterat kommer
+// från Workern. Workern bryr sig bara om sökvägen, så parametern är ofarlig.
+function withNoCache(url) {
+  return url + (url.indexOf('?') === -1 ? '?' : '&') + 'nocache=1';
+}
+
+// Bilden är avkodad: starta visningstiden och progressbaren. Visningstiden
+// räknas från att bilden faktiskt syns, inte från att sliden aktiverades.
+function startImage(img, item, idx, myToken) {
+  if (myToken !== token) return;
+  clearTimeout(loadTimer); loadTimer = null;
+  consecutiveFailures = 0;
+  bypassCache[idx] = false;
+  var dur = (item.duration || 8) * 1000;
+  requestAnimationFrame(function() {
+    if (myToken !== token) return;
+    progressEl.style.transition = 'width ' + dur + 'ms linear';
+    progressEl.style.width = '100%';
+  });
+  advTimer = setTimeout(function() { advance(myToken); }, dur);
 }
 
 // Startar uppspelning och sätter både progressbar och det hårda taket för hur

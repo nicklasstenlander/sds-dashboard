@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "test:worker": "node --test workers/sds-cogwork-proxy/worker.test.mjs"
+    "test:worker": "node --test workers/sds-cogwork-proxy/worker.test.mjs",
+    "test:signage": "node --test tests/signage/worker.test.mjs tests/signage/schedules-client.test.mjs tests/signage/secure-signage-worker.test.mjs",
+    "test:signage:browser": "node --test --test-concurrency=1 tests/signage/player.browser.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.0",
