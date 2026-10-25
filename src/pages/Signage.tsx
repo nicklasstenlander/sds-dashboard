@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Thermometer, Timer, Upload } from "lucide-react";
+import { authorizationHeaderValue } from "../lib/authorizationHeader";
 import { staffAuthHeaders } from "../lib/proxyAuth";
 import {
   applyScheduleDraft, fetchSchedules, putSchedules, scheduleDraftProblem,
@@ -573,7 +574,11 @@ export function Signage() {
       try {
         const formData = new FormData();
         formData.append("file", job.file);
-        const authorization = (await authHeaders()).Authorization;
+        // Läs via Headers.get. authHeaders() ger en post med lowercasad
+        // `authorization`, så .Authorization är alltid undefined och XHR
+        // gick iväg utan session (401). Utan session kastar staffAuthHeaders
+        // och jobbet visar det felet.
+        const authorization = authorizationHeaderValue(await staffAuthHeaders());
         await new Promise<void>((resolve, reject) => {
           const xhr = new XMLHttpRequest();
           xhr.open("POST", `${WORKER_URL}/api/upload?screen=${screen}`);
