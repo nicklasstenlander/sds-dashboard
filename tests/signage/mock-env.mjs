@@ -137,6 +137,8 @@ export function makeEnv(bucket, extra = {}) {
     SUPABASE_URL,
     SUPABASE_ANON_KEY: 'anon-test',
     CORE_AGENT_TOKEN: 'agent-test',
+    // Tom sträng: Sentry-wrappern hoppar över SDK:t så tester inte ringer hem.
+    SENTRY_DSN: '',
     ...extra,
   }
 }

@@ -5,6 +5,7 @@ import assert from 'node:assert/strict'
 import { existsSync, readFileSync, rmSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { extractWorker } from '../../scripts/cf-worker.mjs'
 import {
   compareToLive, diffSummary, main, normalizeSource, readDeployedRef, readRepoWorker,
   readWorkerAtRef, sameSource, selfCheck,
@@ -16,7 +17,7 @@ let cf, logs
 
 // Mockat Cloudflare: live-källan i minnet, bindings och uppladdning.
 function mockCloudflare({ live, bindings = ['BUCKET', 'SUPABASE_URL', 'SUPABASE_ANON_KEY'], tamperOnUpload = null }) {
-  const state = { live, uploads: [] }
+  const state = { live, uploads: [], lastBody: '' }
   globalThis.fetch = async (input, init = {}) => {
     const url = new URL(String(input))
     const method = init.method ?? 'GET'
@@ -28,10 +29,9 @@ function mockCloudflare({ live, bindings = ['BUCKET', 'SUPABASE_URL', 'SUPABASE_
       return Response.json({ success: true, result: { bindings: bindings.map((name) => ({ name })) } })
     }
     if (url.pathname.endsWith('/workers/scripts/sodss-signage/content') && method === 'PUT') {
-      const marker = 'Content-Type: application/javascript+module\r\n\r\n'
       const body = String(init.body)
-      const start = body.indexOf(marker) + marker.length
-      const source = body.slice(start, body.lastIndexOf('\r\n--'))
+      state.lastBody = body
+      const source = extractWorker(body)
       state.uploads.push(source)
       state.live = tamperOnUpload ? tamperOnUpload(source) : source
       return Response.json({ success: true, result: { id: 'sodss-signage' } })
@@ -93,8 +93,8 @@ test('compareToLive: repo utan admin-JWT stoppas oavsett live', () => {
   assert.throws(() => compareToLive('x', 'export default {}', 'x'), /saknar async function requireAdmin/)
 })
 
-test('.deployed-ref pekar på 346e8b2 och worker.js där är den säkra versionen', () => {
-  assert.equal(readDeployedRef(), '346e8b2')
+test('.deployed-ref pekar på 95e2953 och worker.js där är den säkra versionen', () => {
+  assert.equal(readDeployedRef(), '95e2953')
   const src = deployedSource()
   assert.match(src, /async function requireAdmin\(\)/)
   assert.doesNotMatch(src, /env\.ADMIN_SECRET/)
@@ -102,7 +102,7 @@ test('.deployed-ref pekar på 346e8b2 och worker.js där är den säkra versione
 
 test('--self-check kontrollerar både repot och .deployed-ref', () => {
   selfCheck()
-  assert.ok(logs.some((l) => /\.deployed-ref \(346e8b2\)/.test(l)))
+  assert.ok(logs.some((l) => /\.deployed-ref \(95e2953\)/.test(l)))
 })
 
 // ── main() mot mockat Cloudflare ────────────────────────────────────────────
@@ -111,7 +111,7 @@ test('--check: live är versionen vid .deployed-ref → kan laddas upp, inget la
   cf = mockCloudflare({ live: deployedSource() })
   await run('--check')
   assert.equal(cf.uploads.length, 0)
-  assert.ok(logs.some((l) => /är versionen vid 346e8b2/.test(l)))
+  assert.ok(logs.some((l) => /är versionen vid 95e2953/.test(l)))
   assert.ok(logs.some((l) => /Ingen uppladdning/.test(l)))
 })
 
@@ -126,6 +126,8 @@ test('--deploy: från .deployed-ref → laddar upp, verifierar live och påminne
   await run('--deploy')
   assert.equal(cf.uploads.length, 1)
   assert.ok(sameSource(cf.uploads[0], readRepoWorker()))
+  assert.match(cf.lastBody, /name="sentry-loader.js"/)
+  assert.match(cf.lastBody, /name="sentry-runtime.js"/)
   assert.ok(logs.some((l) => /Verifierat: live är identisk med repots worker.js/.test(l)))
   assert.ok(logs.some((l) => /PÅMINNELSE: uppdatera \.deployed-ref/.test(l) && /git commit/.test(l)))
 })

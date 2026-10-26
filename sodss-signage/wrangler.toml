@@ -3,7 +3,12 @@
 
 name = "sodss-signage"
 main = "../workers/sodss-signage/worker.js"
-compatibility_date = "2024-01-01"
+# Sentry behöver AsyncLocalStorage. secure-signage-worker.mjs laddar bara upp
+# skriptet och skriver inte de här inställningarna. Sätt samma datum och
+# nodejs_compat på den publicerade workern innan fel kan fångas. Utan flaggan
+# fortsätter workern att svara, men Sentry startar inte.
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
 # Behåll variabler som satts i Cloudflare-dashboarden (t.ex. SUPABASE_URL,
 # CORS_ORIGIN) vid wrangler deploy. Utan den skrivs de över och admin-rutterna
 # failar stängt.

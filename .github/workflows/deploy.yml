@@ -53,6 +53,12 @@ jobs:
           VITE_WORKER_URL: ${{ secrets.VITE_WORKER_URL }}
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          # Publik DSN, ingen hemlighet. Tom sträng skulle stänga av Sentry.
+          VITE_SENTRY_DSN: https://1016c5033514434d4805b5e73aa3b99a@o4512322194112512.ingest.de.sentry.io/4512322209841232
+          VITE_SENTRY_RELEASE: sds-dashboard@${{ github.sha }}
+          # Valfri hemlighet. Saknas den byggs sidan ändå, men källkartor laddas inte upp.
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_URL: https://de.sentry.io
 
       - uses: actions/upload-pages-artifact@v3
         with:

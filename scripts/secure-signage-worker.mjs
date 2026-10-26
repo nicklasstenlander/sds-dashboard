@@ -24,7 +24,7 @@ import { execFileSync } from 'node:child_process'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { bindingNames, downloadWorker, sha256, uploadWorker } from './cf-worker.mjs'
+import { bindingNames, downloadWorker, sentryModules, sha256, uploadWorker } from './cf-worker.mjs'
 
 const SCRIPT_NAME = 'sodss-signage'
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -186,12 +186,13 @@ export async function main(argv = process.argv, env = process.env) {
     console.log('Ingen uppladdning (--deploy saknas).')
     return
   }
+  console.log('Sentry: sätt compatibility_date >= 2024-09-23 och compatibility_flag nodejs_compat på workern. Skriptet ändrar inte de inställningarna. Utan flaggan svarar workern som vanligt, men fel skickas inte till Sentry.')
   if (state === 'match') {
     console.log('Redan publicerad.')
     return
   }
   assertWorkerCommitted()
-  const uploaded = await uploadWorker(token, SCRIPT_NAME, repoSource)
+  const uploaded = await uploadWorker(token, SCRIPT_NAME, repoSource, sentryModules(dirname(REPO_PATH)))
   console.log('Uppladdad', JSON.stringify(uploaded?.result ?? uploaded).slice(0, 400))
 
   // Kontrollera att det som nu ligger live verkligen är repots fil.

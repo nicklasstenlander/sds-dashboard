@@ -1,4 +1,6 @@
 import { createHash } from 'node:crypto'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 
 export const ACCOUNT_ID = 'e27b389e46c21088b832eac52be91cbd'
 
@@ -6,17 +8,41 @@ export function sha256(source) {
   return createHash('sha256').update(source).digest('hex')
 }
 
+// Plockar ut huvudmodulen worker.js ur Cloudflares multipart-svar.
+// Extra moduler (Sentry) ignoreras så --check fortfarande jämför worker.js.
 export function extractWorker(raw) {
-  const marker = 'Content-Type: application/javascript+module\r\n\r\n'
-  const start = raw.indexOf(marker)
-  if (start < 0) throw new Error('Hittade inte worker-modulen i svaret')
-  let body = raw.slice(start + marker.length)
-  const boundary = raw.startsWith('--') ? raw.slice(0, raw.indexOf('\r\n')) : null
-  if (boundary) {
-    const end = body.lastIndexOf('\r\n' + boundary)
-    if (end > 0) body = body.slice(0, end)
+  if (typeof raw !== 'string') throw new Error('Hittade inte worker-modulen i svaret')
+  const modules = javascriptModules(raw)
+  const main = modules.find((mod) => mod.name === 'worker.js') ?? modules[0]
+  if (!main) throw new Error('Hittade inte worker-modulen i svaret')
+  return main.source
+}
+
+function javascriptModules(raw) {
+  if (!raw.startsWith('--')) return []
+  const newline = raw.indexOf('\r\n')
+  if (newline < 0) return []
+  const boundary = raw.slice(0, newline)
+  const modules = []
+  for (const part of raw.split(boundary).slice(1)) {
+    if (part.startsWith('--')) continue
+    const headerEnd = part.indexOf('\r\n\r\n')
+    if (headerEnd < 0) continue
+    const headers = part.slice(0, headerEnd)
+    if (!/application\/javascript\+module/i.test(headers)) continue
+    const name = headers.match(/name="([^"]+)"/)?.[1] ?? ''
+    let source = part.slice(headerEnd + 4)
+    if (source.endsWith('\r\n')) source = source.slice(0, -2)
+    modules.push({ name, source })
   }
-  return body
+  return modules
+}
+
+export function sentryModules(workerDir) {
+  return ['sentry-loader.js', 'sentry-runtime.js'].map((name) => ({
+    name,
+    source: readFileSync(join(workerDir, name), 'utf8'),
+  }))
 }
 
 export async function cf(token, method, path, { body, contentType } = {}) {
@@ -56,23 +82,31 @@ export async function bindingNames(token, scriptName) {
   return (settings.result?.bindings ?? []).map((binding) => binding.name)
 }
 
-export async function uploadWorker(token, scriptName, source) {
-  const boundary = `----sds${Date.now()}`
-  const metadata = JSON.stringify({ main_module: 'worker.js' })
-  const body = [
+function modulePart(boundary, name, source) {
+  return [
     `--${boundary}`,
-    'Content-Disposition: form-data; name="metadata"',
-    'Content-Type: application/json',
-    '',
-    metadata,
-    `--${boundary}`,
-    'Content-Disposition: form-data; name="worker.js"; filename="worker.js"',
+    `Content-Disposition: form-data; name="${name}"; filename="${name}"`,
     'Content-Type: application/javascript+module',
     '',
     source,
-    `--${boundary}--`,
-    '',
   ].join('\r\n')
+}
+
+export async function uploadWorker(token, scriptName, source, extraModules = []) {
+  const boundary = `----sds${Date.now()}`
+  const metadata = JSON.stringify({ main_module: 'worker.js' })
+  const parts = [
+    [
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="metadata"',
+      'Content-Type: application/json',
+      '',
+      metadata,
+    ].join('\r\n'),
+    modulePart(boundary, 'worker.js', source),
+    ...extraModules.map((mod) => modulePart(boundary, mod.name, mod.source)),
+  ]
+  const body = `${parts.join('\r\n')}\r\n--${boundary}--\r\n`
   return cf(
     token,
     'PUT',

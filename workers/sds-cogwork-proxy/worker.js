@@ -1,3 +1,5 @@
+// Sentry-wrapper. Behåll importen om workern byggs om.
+import { withOptionalSentry } from "./sentry-loader.js";
 var __defProp = Object.defineProperty;
 var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
 
@@ -1414,7 +1416,5 @@ function json(data, status = 200, headers = {}) {
   });
 }
 __name(json, "json");
-export {
-  worker_default as default
-};
+export default withOptionalSentry(worker_default, "sds-cogwork-proxy");
 //# sourceMappingURL=worker.js.map
