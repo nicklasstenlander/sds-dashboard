@@ -1,3 +1,5 @@
+// Sentry-wrapper. Behåll importen om workern byggs om.
+import { withOptionalSentry } from "./sentry-loader.js";
 const PLAYER_HTML = `<!DOCTYPE html>
 <html lang="sv">
 <head>
@@ -1210,7 +1212,7 @@ async function getOldestPendingCommand(env, screenId) {
   return oldest;
 }
 
-export default {
+const signageWorker = {
   async fetch(request, env) {
     const url = new URL(request.url);
     const path = url.pathname;
@@ -1674,6 +1676,8 @@ export default {
     return new Response("Not found", { status: 404, headers: corsHeaders });
   },
 };
+
+export default withOptionalSentry(signageWorker, "sodss-signage");
 
 // ─── Manifest-hjälpare ──────────────────────────────────────────────────────────
 

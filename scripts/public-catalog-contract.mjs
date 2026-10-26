@@ -143,6 +143,8 @@ export function makeKv(initial = {}) {
 export function makeEnv(kvInitial = {}) {
   return {
     COGWORK_API_KEY: 'test-key',
+    // Tom sträng: Sentry-wrappern hoppar över SDK:t så tester inte ringer hem.
+    SENTRY_DSN: '',
     COGWORK_CACHE: makeKv(kvInitial),
     SUPABASE_URL: 'https://supabase.invalid',
     SUPABASE_ANON_KEY: 'anon',

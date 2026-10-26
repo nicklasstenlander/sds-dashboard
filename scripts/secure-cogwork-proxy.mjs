@@ -18,7 +18,7 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { downloadWorker, sha256, uploadWorker } from './cf-worker.mjs'
+import { downloadWorker, sentryModules, sha256, uploadWorker } from './cf-worker.mjs'
 import { selfCheckPublicCatalog } from './public-catalog-contract.mjs'
 
 const SCRIPT_NAME = 'sds-cogwork-proxy'
@@ -385,11 +385,12 @@ async function main() {
     console.log('Ingen uppladdning (--deploy saknas).')
     return
   }
+  console.log('Sentry: sätt compatibility_date >= 2024-09-23 och compatibility_flag nodejs_compat på workern. Skriptet ändrar inte de inställningarna. Utan flaggan svarar workern som vanligt, men fel skickas inte till Sentry.')
   if (state === 'match') {
     console.log('Redan publicerad.')
     return
   }
-  const uploaded = await uploadWorker(token, SCRIPT_NAME, repoSource)
+  const uploaded = await uploadWorker(token, SCRIPT_NAME, repoSource, sentryModules(dirname(REPO_PATH)))
   console.log('Uppladdad', JSON.stringify(uploaded?.result ?? uploaded).slice(0, 400))
 }
 

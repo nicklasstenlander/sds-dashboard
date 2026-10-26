@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef, useLayoutEffect, lazy, Suspense } from 'react'
 import { Routes, Route, Navigate, NavLink, useLocation } from 'react-router-dom'
+import * as Sentry from '@sentry/react'
 import { LayoutDashboard, ClipboardList, Users, Settings, LogOut, ShoppingBag, PanelLeft, Phone, Monitor, CalendarDays, MoreHorizontal, Loader2, FileText, Newspaper, Bell, Ticket } from 'lucide-react'
 import { VIA_PROXY } from './lib/proxyAuth'
 import { ApiProvider, useApiConfig } from './context/ApiContext'
@@ -7,6 +8,8 @@ import { AuthProvider, useAuth } from './context/AuthContext'
 import { LoginPage } from './pages/LoginPage'
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { SettingsModal } from './components/SettingsModal'
+
+const SentryRoutes = Sentry.wrapReactRouterRouting(Routes)
 
 const Dashboard = lazy(() => import('./pages/Dashboard').then(m => ({ default: m.Dashboard })))
 const RecentBookings = lazy(() => import('./pages/RecentBookings').then(m => ({ default: m.RecentBookings })))
@@ -128,10 +131,10 @@ function AppShell() {
   if (isPublicForm) {
     return (
       <Suspense fallback={<FullPageLoader />}>
-        <Routes>
+        <SentryRoutes>
           <Route path="/f/:slug" element={<PublicForm />} />
           <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+        </SentryRoutes>
       </Suspense>
     )
   }
@@ -140,15 +143,15 @@ function AppShell() {
   // verifyOtp sätter en giltig session INNAN updateUser hunnit spara det nya
   // lösenordet, vilket annars gör isAuthenticated true mitt i återställningsflödet
   // och byter till huvudappen medan lösenordsbytet fortfarande pågår - om det sedan
-  // misslyckas syns aldrig felet. recoveryInProgress håller kvar samma <Routes>-gren
+  // misslyckas syns aldrig felet. recoveryInProgress håller kvar samma <SentryRoutes>-gren
   // (och därmed samma ForgotPasswordPage-instans, utan att montera om den och tappa
   // ifyllda fält) tills flödet är klart, oavsett att isAuthenticated redan blivit true.
   if (!isAuthenticated || recoveryInProgress) {
     return (
-      <Routes>
+      <SentryRoutes>
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="*" element={recoveryInProgress ? <Navigate to="/forgot-password" replace /> : <LoginPage />} />
-      </Routes>
+      </SentryRoutes>
     )
   }
   if (preparingApi || (session && profile && config.pw !== VIA_PROXY)) return <PreparingLoader />
@@ -268,7 +271,7 @@ function AppShell() {
         {/* extra bottom padding on mobile so content isn't hidden behind bottom nav */}
         <main className="flex-1 overflow-y-auto px-4 py-4 md:px-6 md:py-6 pb-24 md:pb-6">
           <Suspense fallback={<PageLoader />}>
-            <Routes>
+            <SentryRoutes>
               <Route path="/" element={<Dashboard darkMode={darkMode} onToggleDarkMode={() => setDarkMode((value) => !value)} />} />
               <Route path="/anmalningar" element={<RecentBookings />} />
               <Route path="/kunder" element={<Customers />} />
@@ -282,7 +285,7 @@ function AppShell() {
               <Route path="/notiser" element={<Notifications />} />
               <Route path="/forestallningar" element={<Forestallningar />} />
               <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
+            </SentryRoutes>
           </Suspense>
         </main>
       </div>
